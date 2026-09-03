@@ -1,13 +1,37 @@
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
-export function BrandMark({ compact = false, inverse = false, className }: { compact?: boolean; inverse?: boolean; className?: string }) {
+export function BrandMark({
+  compact = false,
+  inverse = false,
+  className,
+}: {
+  compact?: boolean;
+  inverse?: boolean;
+  className?: string;
+}) {
   return (
-    <div className={cn('flex items-center gap-3', inverse && 'text-white', className)} aria-label="Safawala CRM">
-      <span aria-hidden="true" className="block size-10 shrink-0 overflow-hidden">
-        <Image src={inverse ? '/safawala-crown-light.png' : '/safawala-crown-dark.png'} alt="" width={120} height={40} className="h-10 w-auto max-w-none object-contain object-left" />
-      </span>
-      {!compact && <span className="text-[15px] font-semibold tracking-[-0.02em]">SAFAWALA CRM</span>}
+    <div className={cn('flex items-center', className)}>
+      <span className="sr-only">Safawala.com by Ronak</span>
+      <span
+        aria-hidden="true"
+        style={{
+          WebkitMaskImage: "url('/safawala-wordmark-transparent.png')",
+          maskImage: "url('/safawala-wordmark-transparent.png')",
+          WebkitMaskPosition: 'left center',
+          maskPosition: 'left center',
+          WebkitMaskRepeat: 'no-repeat',
+          maskRepeat: 'no-repeat',
+          WebkitMaskSize: 'contain',
+          maskSize: 'contain',
+        }}
+        className={cn(
+          'block aspect-[2037/535] w-full',
+          compact ? 'max-w-36' : 'max-w-[210px]',
+          inverse
+            ? 'bg-[linear-gradient(90deg,#fff8ed_0%,#dfbc77_100%)]'
+            : 'bg-[linear-gradient(90deg,#9a6728_0%,#70481c_35%,#332c24_100%)]',
+        )}
+      />
     </div>
   );
 }

@@ -34,34 +34,34 @@
   --radius-md: 6px;
   --radius-lg: 8px;
   --radius-xl: 12px;
-  --shadow-level-1: 0 1px 3px rgb(17 24 39 / 0.06), 0 1px 2px rgb(17 24 39 / 0.04);
-  --shadow-level-2: 0 4px 12px rgb(17 24 39 / 0.08);
-  --shadow-level-3: 0 16px 40px rgb(17 24 39 / 0.1);
+  --shadow-level-1: 0 1px 2px rgb(55 43 29 / 0.05), 0 3px 8px rgb(55 43 29 / 0.035);
+  --shadow-level-2: 0 10px 28px rgb(55 43 29 / 0.09);
+  --shadow-level-3: 0 22px 54px rgb(55 43 29 / 0.13);
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #111827;
+  --background: #f7f4ef;
+  --foreground: #26231f;
   --card: #ffffff;
-  --card-foreground: #111827;
+  --card-foreground: #26231f;
   --popover: #ffffff;
-  --popover-foreground: #111827;
-  --primary: #111827;
+  --popover-foreground: #26231f;
+  --primary: #9a6728;
   --primary-foreground: #ffffff;
-  --secondary: #687280;
+  --secondary: #6d6257;
   --secondary-foreground: #ffffff;
-  --muted: #f3f4f6;
-  --muted-foreground: #687280;
-  --accent: #f3f4f6;
-  --accent-foreground: #111827;
-  --destructive: #ef4444;
-  --border: #e5e7eb;
-  --input: #e5e7eb;
-  --ring: #111827;
-  --success: #16a34a;
-  --warning: #f59e08;
-  --info: #3b82f6;
-  --surface: #f3f4f6;
+  --muted: #f1ede7;
+  --muted-foreground: #70675e;
+  --accent: #f3e9d9;
+  --accent-foreground: #6e471f;
+  --destructive: #c63d32;
+  --border: #e3ddd4;
+  --input: #ded6cc;
+  --ring: #b17a37;
+  --success: #2f7d5c;
+  --warning: #b66a1d;
+  --info: #7a5c3e;
+  --surface: #f7f4ef;
   --radius: 8px;
 }
 
@@ -70,5 +70,19 @@
   html { @apply font-sans; }
   body { @apply bg-background text-foreground; min-width: 320px; font-family: 'Inter Variable', Inter, Arial, Helvetica, sans-serif; }
   button, a, input { -webkit-tap-highlight-color: transparent; }
-  ::selection { background: #e5e7eb; }
+  ::selection { background: #eadcc6; }
+}
+
+@media print {
+  aside, header, .print\:hidden { display: none !important; }
+  .lg\:pl-64 { padding-left: 0 !important; }
+  main { padding: 0 !important; }
+  body, main { background: #fff !important; }
+  #customer-ledger-print { max-width: none !important; padding: 0 !important; }
+  #customer-ledger-print .ledger-print-heading,
+  #customer-ledger-print [data-slot='card'] { box-shadow: none !important; break-inside: avoid; }
+  #customer-ledger-print .ledger-controls { display: none !important; }
+  #customer-ledger-print .ledger-table { min-width: 100% !important; font-size: 8px !important; }
+  #customer-ledger-print .ledger-table thead { display: table-header-group; }
+  #customer-ledger-print .ledger-table tr { break-inside: avoid; }
 }

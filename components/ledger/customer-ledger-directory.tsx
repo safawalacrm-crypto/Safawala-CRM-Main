@@ -1,0 +1,294 @@
+'use client';
+
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
+import {
+  ArrowRight,
+  IndianRupee,
+  Landmark,
+  ReceiptText,
+  Search,
+  UsersRound,
+  WalletCards,
+} from 'lucide-react';
+import { DashboardHeader } from '@/components/layout/dashboard-header';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ListPagination } from '@/components/ui/list-pagination';
+import { money } from '@/lib/bookings';
+import type { LedgerBooking, LedgerCustomer } from '@/lib/ledger';
+import { ledgerTotals } from '@/lib/ledger';
+
+export function CustomerLedgerDirectory({
+  customers,
+  bookings,
+  loadError,
+}: {
+  customers: LedgerCustomer[];
+  bookings: LedgerBooking[];
+  loadError: string;
+}) {
+  const [search, setSearch] = useState('');
+  const [type, setType] = useState<'all' | 'sale' | 'rental'>('all');
+  const [balance, setBalance] = useState<'all' | 'due' | 'settled'>('all');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  const bookingsByCustomer = useMemo(() => {
+    const grouped = new Map<number, LedgerBooking[]>();
+    for (const booking of bookings) {
+      if (type !== 'all' && booking.booking_type !== type) continue;
+      const existing = grouped.get(booking.customer_id);
+      if (existing) existing.push(booking);
+      else grouped.set(booking.customer_id, [booking]);
+    }
+    return grouped;
+  }, [bookings, type]);
+
+  const rows = useMemo(() => {
+    const normalized = search.trim().toLowerCase();
+    return customers
+      .map((customer) => {
+        const customerBookings = bookingsByCustomer.get(customer.id) ?? [];
+        const totals = ledgerTotals(customerBookings);
+        const searchable = [
+          customer.name,
+          customer.phone,
+          customer.email,
+          ...customerBookings.flatMap((booking) => [
+            booking.booking_number,
+            booking.event_name,
+            ...booking.booking_payments.map(
+              (payment) => payment.reference_number ?? '',
+            ),
+          ]),
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return { customer, bookings: customerBookings, totals, searchable };
+      })
+      .filter(
+        (row) =>
+          row.bookings.length > 0 &&
+          (!normalized || row.searchable.includes(normalized)) &&
+          (balance === 'all' ||
+            (balance === 'due'
+              ? row.totals.outstanding > 0
+              : row.totals.outstanding <= 0)),
+      )
+      .sort((a, b) => b.totals.outstanding - a.totals.outstanding);
+  }, [balance, bookingsByCustomer, customers, search]);
+
+  const allTotals = useMemo(
+    () =>
+      ledgerTotals(
+        bookings.filter(
+          (booking) => type === 'all' || booking.booking_type === type,
+        ),
+      ),
+    [bookings, type],
+  );
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const pagedRows = rows.slice(
+    (safePage - 1) * pageSize,
+    safePage * pageSize,
+  );
+  const resetPage = () => setPage(1);
+
+  return (
+    <div className="mx-auto max-w-[1440px] space-y-6">
+      <DashboardHeader
+        title="Customer Ledger"
+        subtitle="Customer-wise billing, receipts and outstanding balances"
+      />
+
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric
+          icon={<IndianRupee />}
+          label="Total billing"
+          value={money(allTotals.totalBilling)}
+          note={`${allTotals.totalBills} active bills`}
+        />
+        <Metric
+          icon={<ReceiptText />}
+          label="Total received"
+          value={money(allTotals.totalPaid)}
+          note="Across all payment entries"
+          tone="success"
+        />
+        <Metric
+          icon={<WalletCards />}
+          label="Outstanding"
+          value={money(allTotals.outstanding)}
+          note="Pending collection"
+          tone="warning"
+        />
+        <Metric
+          icon={<UsersRound />}
+          label="Ledger customers"
+          value={String(rows.length)}
+          note="Customers with bills"
+        />
+      </section>
+
+      {loadError ? (
+        <Alert variant="destructive">
+          <AlertTitle>Customer ledger could not be loaded</AlertTitle>
+          <AlertDescription>{loadError}</AlertDescription>
+        </Alert>
+      ) : null}
+
+      <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1 ring-0">
+        <CardHeader className="border-b bg-[#fcfaf7] px-5 py-4">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+              <CardTitle>Customer accounts</CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Open a customer to view the complete chronological statement.
+              </p>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-[minmax(240px,1fr)_140px_150px]">
+              <label className="relative">
+                <span className="sr-only">Search customer ledger</span>
+                <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                <input
+                  value={search}
+                  onChange={(event) => {
+                    setSearch(event.target.value);
+                    resetPage();
+                  }}
+                  placeholder="Customer, bill or reference…"
+                  className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </label>
+              <select
+                value={type}
+                onChange={(event) => {
+                  setType(event.target.value as typeof type);
+                  resetPage();
+                }}
+                aria-label="Booking type"
+                className="h-10 rounded-lg border bg-white px-3 text-sm outline-none focus:border-ring"
+              >
+                <option value="all">All types</option>
+                <option value="sale">Sales</option>
+                <option value="rental">Rentals</option>
+              </select>
+              <select
+                value={balance}
+                onChange={(event) => {
+                  setBalance(event.target.value as typeof balance);
+                  resetPage();
+                }}
+                aria-label="Balance status"
+                className="h-10 rounded-lg border bg-white px-3 text-sm outline-none focus:border-ring"
+              >
+                <option value="all">All balances</option>
+                <option value="due">Outstanding</option>
+                <option value="settled">Settled</option>
+              </select>
+            </div>
+          </div>
+        </CardHeader>
+        <ListPagination
+          total={rows.length}
+          page={safePage}
+          pageSize={pageSize}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            resetPage();
+          }}
+          itemLabel="customers"
+        />
+        <CardContent className="p-0">
+          {pagedRows.length ? (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] text-left text-sm">
+                <thead className="border-b bg-[#f7f4ef] text-xs text-muted-foreground">
+                  <tr>
+                    <th className="px-5 py-3 font-medium">Customer</th>
+                    <th className="px-5 py-3 text-right font-medium">Bills</th>
+                    <th className="px-5 py-3 text-right font-medium">Total billing</th>
+                    <th className="px-5 py-3 text-right font-medium">Received</th>
+                    <th className="px-5 py-3 text-right font-medium">Outstanding</th>
+                    <th className="px-5 py-3 text-right font-medium">Statement</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pagedRows.map(({ customer, totals }) => (
+                    <tr key={customer.id} className="border-b last:border-0 hover:bg-[#fcfaf7]">
+                      <td className="px-5 py-4">
+                        <Link href={`/ledger/${customer.id}`} className="font-semibold text-primary hover:underline">
+                          {customer.name}
+                        </Link>
+                        <p className="mt-1 text-xs text-muted-foreground">{customer.phone}</p>
+                      </td>
+                      <td className="px-5 py-4 text-right font-medium">{totals.totalBills}</td>
+                      <td className="px-5 py-4 text-right font-semibold">{money(totals.totalBilling)}</td>
+                      <td className="px-5 py-4 text-right font-semibold text-emerald-700">{money(totals.totalPaid)}</td>
+                      <td className={`px-5 py-4 text-right font-semibold ${totals.outstanding > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>
+                        {money(totals.outstanding)}
+                      </td>
+                      <td className="px-5 py-4 text-right">
+                        <Button variant="ghost" size="sm" render={<Link href={`/ledger/${customer.id}`} />}>
+                          View ledger <ArrowRight />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="grid min-h-72 place-items-center p-8 text-center">
+              <div>
+                <span className="mx-auto grid size-12 place-items-center rounded-full bg-accent text-primary">
+                  <Landmark />
+                </span>
+                <h3 className="mt-4 font-semibold">No customer accounts found</h3>
+                <p className="mt-1 text-sm text-muted-foreground">Adjust the search or ledger filters.</p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+function Metric({
+  icon,
+  label,
+  value,
+  note,
+  tone = 'default',
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  note: string;
+  tone?: 'default' | 'success' | 'warning';
+}) {
+  const iconTone =
+    tone === 'success'
+      ? 'bg-emerald-50 text-emerald-700 ring-emerald-200'
+      : tone === 'warning'
+        ? 'bg-amber-50 text-amber-700 ring-amber-200'
+        : 'bg-accent text-primary ring-[#e4d2b6]';
+  return (
+    <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
+      <CardContent className="flex items-center justify-between gap-3 p-5">
+        <div className="min-w-0">
+          <p className="truncate text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{label}</p>
+          <p className="mt-1 truncate text-xl font-semibold tracking-[-0.03em]">{value}</p>
+          <p className="mt-1 truncate text-xs text-muted-foreground">{note}</p>
+        </div>
+        <span className={`grid size-10 shrink-0 place-items-center rounded-xl ring-1 [&_svg]:size-4 ${iconTone}`}>{icon}</span>
+      </CardContent>
+    </Card>
+  );
+}

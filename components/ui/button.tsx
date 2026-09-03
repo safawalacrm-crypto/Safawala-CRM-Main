@@ -46,11 +46,13 @@ function Button({
   size = 'default',
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const usesNativeButton = props.nativeButton ?? !props.render;
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
+      nativeButton={usesNativeButton}
     />
   );
 }
