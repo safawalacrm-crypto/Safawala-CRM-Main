@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type SyntheticEvent } from 'react';
+import { useMemo, useRef, useState, type SyntheticEvent } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -12,6 +12,7 @@ import {
   Check,
   ChevronRight,
   FileText,
+  MapPin,
   Package,
   Plus,
   Printer,
@@ -82,7 +83,9 @@ export function BookingForm({
   staff: Staff[];
 }) {
   const router = useRouter();
+  const formRef = useRef<HTMLFormElement>(null);
   const [type, setType] = useState<'sale' | 'rental' | null>(null);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [customerList, setCustomerList] = useState(customers);
   const [customerSearch, setCustomerSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -95,6 +98,11 @@ export function BookingForm({
   const [taxEnabled, setTaxEnabled] = useState(false);
   const [paid, setPaid] = useState(0);
   const [modificationsRequired, setModificationsRequired] = useState(false);
+  const [eventType, setEventType] = useState('Wedding');
+  const [eventFor, setEventFor] = useState('Groom Only');
+  const [eventDate, setEventDate] = useState('');
+  const [eventTime, setEventTime] = useState('');
+  const [venue, setVenue] = useState('');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{
     title: string;
@@ -171,6 +179,53 @@ export function BookingForm({
     );
   }
 
+  function showStep(nextStep: 1 | 2 | 3) {
+    setMessage(null);
+    setStep(nextStep);
+    requestAnimationFrame(() =>
+      document
+        .getElementById('booking-workflow')
+        ?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+    );
+  }
+
+  function continueFromCustomer() {
+    if (!selectedCustomer) {
+      setMessage({
+        title: 'Select a customer',
+        text: 'Choose an existing customer or create a new one before continuing.',
+      });
+      return;
+    }
+    if (!eventType || !eventFor || !eventDate || !venue.trim()) {
+      setMessage({
+        title: 'Complete the event details',
+        text: 'Event type, booking for, event date and venue are required.',
+      });
+      return;
+    }
+    showStep(2);
+  }
+
+  function continueFromProducts() {
+    if (
+      items.length === 0 ||
+      items.some(
+        (item) => item.item_name.trim().length < 2 || item.quantity < 1,
+      )
+    ) {
+      setMessage({
+        title: 'Add order items',
+        text: 'Select at least one product, package or custom product.',
+      });
+      return;
+    }
+    const form = formRef.current ? new FormData(formRef.current) : null;
+    const time = form?.get('event_time');
+    setEventTime(typeof time === 'string' ? time : '');
+    showStep(3);
+  }
+
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
     setMessage(null);
@@ -225,10 +280,10 @@ export function BookingForm({
       booking_type: type,
       customer_id: selectedCustomer?.id ?? null,
       customer: null,
-      event_name: form.get('event_name'),
-      event_date: form.get('event_date'),
+      event_name: `${eventType} - ${eventFor}`,
+      event_date: eventDate,
       event_time: form.get('event_time'),
-      event_location: form.get('event_location'),
+      event_location: venue,
       pickup_date: type === 'rental' ? form.get('pickup_date') : null,
       due_date: type === 'rental' ? form.get('due_date') : null,
       assigned_staff_id: form.get('assigned_staff_id'),
@@ -295,7 +350,7 @@ export function BookingForm({
           }}
         />
       )}
-      <form onSubmit={submit} className="space-y-5">
+      <form ref={formRef} onSubmit={submit} className="space-y-5">
         <DashboardHeader
           title={`New ${isSale ? 'Sale' : 'Rental'} Booking`}
           subtitle="Complete the details below to create a live booking"
@@ -310,43 +365,19 @@ export function BookingForm({
                 <ArrowLeft />
                 <span className="hidden xl:inline">All bookings</span>
               </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => window.print()}
-              >
-                <Printer />
-                <span className="hidden xl:inline">Print</span>
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                name="intent"
-                value="quote"
-                variant="outline"
-                disabled={busy}
-              >
-                <FileText />
-                <span className="hidden lg:inline">Save as quote</span>
-              </Button>
-              <Button
-                type="submit"
-                size="sm"
-                name="intent"
-                value="order"
-                disabled={busy}
-              >
-                <Check />
-                <span className="hidden lg:inline">
-                  {busy ? 'Saving…' : 'Create order'}
-                </span>
-              </Button>
+              <Badge variant="outline" className="h-9 bg-white px-3">
+                {isSale ? 'Sale booking' : 'Rental booking'}
+              </Badge>
             </>
           }
         />
 
-        <section className="overflow-hidden rounded-2xl border border-[#d9c29e] bg-white shadow-level-2">
+        <BookingSteps current={step} />
+
+        <section
+          id="booking-workflow"
+          className="scroll-mt-20 overflow-hidden rounded-2xl border border-[#d9c29e] bg-white shadow-level-2"
+        >
           <div className="grid gap-5 bg-[linear-gradient(115deg,#2f2a23_0%,#5d482c_62%,#9a6728_100%)] px-5 py-5 text-white sm:grid-cols-[1fr_auto] sm:items-end lg:px-7">
             <div>
               <p className="text-2xl font-semibold tracking-[-0.04em]">
@@ -368,587 +399,821 @@ export function BookingForm({
             </div>
           </div>
 
-          <div className="space-y-5 bg-[#fbfaf8] p-4 lg:p-6">
-            <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
-              <Card className="gap-0 border-border py-0 shadow-none ring-0">
-                <CardHeader className="gap-3 border-b bg-[#fcfaf7] px-4 py-4">
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-primary ring-1 ring-[#e4d2b6]">
-                      <UserRound className="size-4" />
-                    </span>
-                    <div className="min-w-0">
-                      <CardTitle className="text-sm font-semibold">
-                        Customer
-                      </CardTitle>
-                      <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                        Choose from your customer directory
-                      </p>
+          <div className="bg-[#fbfaf8] p-4 lg:p-6">
+            <div hidden={step !== 1} className="space-y-5">
+              <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
+                <Card className="gap-0 border-border py-0 shadow-none ring-0">
+                  <CardHeader className="gap-3 border-b bg-[#fcfaf7] px-4 py-4">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-primary ring-1 ring-[#e4d2b6]">
+                        <UserRound className="size-4" />
+                      </span>
+                      <div className="min-w-0">
+                        <CardTitle className="text-sm font-semibold">
+                          Customer
+                        </CardTitle>
+                        <p className="mt-0.5 truncate text-[11px] text-muted-foreground">
+                          Choose from your customer directory
+                        </p>
+                      </div>
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-1 w-full bg-white"
+                      onClick={() => setCustomerModalOpen(true)}
+                    >
+                      <Plus />
+                      New customer
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <label className="relative block">
+                      <span className="sr-only">Search customers</span>
+                      <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                      <input
+                        value={customerSearch}
+                        onChange={(e) => setCustomerSearch(e.target.value)}
+                        placeholder="Search name, phone or email…"
+                        className={`${inputClass} pl-9`}
+                      />
+                    </label>
+                    <div className="mt-3 space-y-2">
+                      {visibleCustomers.length ? (
+                        visibleCustomers.map((customer) => (
+                          <button
+                            key={customer.id}
+                            type="button"
+                            aria-label={`Select customer ${customer.name}, ${customer.phone}`}
+                            onClick={() => setSelectedCustomer(customer)}
+                            className={`w-full rounded-xl border p-3 text-left transition ${selectedCustomer?.id === customer.id ? 'border-primary bg-accent shadow-sm' : 'border-border bg-white hover:border-primary/40 hover:bg-[#fcfaf7]'}`}
+                          >
+                            <span className="flex items-start justify-between gap-3">
+                              <span className="min-w-0">
+                                <span className="block truncate text-sm font-semibold">
+                                  {customer.name}
+                                </span>
+                                <span className="mt-1 block text-xs text-muted-foreground">
+                                  {customer.phone}
+                                  {customer.email ? ` · ${customer.email}` : ''}
+                                </span>
+                                {customer.address && (
+                                  <span className="mt-1 block truncate text-[11px] text-muted-foreground/80">
+                                    {customer.address}
+                                  </span>
+                                )}
+                              </span>
+                              <span
+                                className={`mt-1 grid size-5 shrink-0 place-items-center rounded-full border ${selectedCustomer?.id === customer.id ? 'border-primary bg-primary text-white' : 'border-border text-transparent'}`}
+                              >
+                                <Check className="size-3" />
+                              </span>
+                            </span>
+                          </button>
+                        ))
+                      ) : (
+                        <div className="rounded-xl border border-dashed py-7 text-center">
+                          <p className="text-sm font-medium">
+                            No customer found
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Try another search or add a new customer.
+                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="mt-3"
+                            onClick={() => setCustomerModalOpen(true)}
+                          >
+                            <Plus />
+                            Add customer
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
+                      <span>
+                        Showing {visibleCustomers.length} of{' '}
+                        {matchingCustomers.length}
+                      </span>
+                      {matchingCustomers.length > 5 && (
+                        <span>Refine your search to find others</span>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="gap-0 border-border py-0 shadow-none ring-0">
+                  <CardHeader className="border-b px-4 py-4">
+                    <div className="flex items-center gap-2">
+                      <span className="grid size-8 place-items-center rounded-lg bg-accent text-primary">
+                        <CalendarDays className="size-4" />
+                      </span>
+                      <CardTitle className="text-sm font-semibold">
+                        Event details
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 p-4 md:grid-cols-4">
+                    <label className="block text-sm">
+                      <span className="mb-1.5 block text-muted-foreground">
+                        Event type
+                      </span>
+                      <select
+                        name="event_type"
+                        value={eventType}
+                        onChange={(event) => setEventType(event.target.value)}
+                        className={inputClass}
+                        required
+                      >
+                        <option>Wedding</option>
+                        <option>Engagement</option>
+                        <option>Reception</option>
+                        <option>Other</option>
+                      </select>
+                    </label>
+                    <label className="block text-sm">
+                      <span className="mb-1.5 block text-muted-foreground">
+                        For
+                      </span>
+                      <select
+                        name="event_for"
+                        value={eventFor}
+                        onChange={(event) => setEventFor(event.target.value)}
+                        className={inputClass}
+                        required
+                      >
+                        <option>Groom Only</option>
+                        <option>Bride Only</option>
+                        <option>Bride &amp; Groom</option>
+                        <option>Family / Group</option>
+                      </select>
+                    </label>
+                    <label className="block text-sm">
+                      <span className="mb-1.5 block text-muted-foreground">
+                        Event date <span className="text-red-600">*</span>
+                      </span>
+                      <input
+                        name="event_date"
+                        type="date"
+                        value={eventDate}
+                        onChange={(event) => setEventDate(event.target.value)}
+                        className={inputClass}
+                        required
+                      />
+                    </label>
+                    <TimeField label="Event time" name="event_time" />
+                    <label className="block text-sm md:col-span-4">
+                      <span className="mb-1.5 flex items-center gap-1.5 text-muted-foreground">
+                        <MapPin className="size-3.5 text-primary" />
+                        Venue <span className="text-red-600">*</span>
+                      </span>
+                      <input
+                        name="event_location"
+                        value={venue}
+                        onChange={(event) => setVenue(event.target.value)}
+                        placeholder="Enter complete venue name and address…"
+                        className={inputClass}
+                        required
+                      />
+                    </label>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <div className="flex justify-end border-t pt-5">
+                <Button type="button" onClick={continueFromCustomer}>
+                  Continue to products
+                  <ChevronRight />
+                </Button>
+              </div>
+            </div>
+
+            <div hidden={step !== 2} className="space-y-5">
+              <Card className="gap-0 border-border py-0 shadow-none ring-0">
+                <CardHeader className="flex-row items-center justify-between border-b px-4 py-4">
+                  <div className="flex items-center gap-2">
+                    <Box className="size-4" />
+                    <CardTitle className="text-sm font-semibold">
+                      Select products
+                    </CardTitle>
+                    <Badge variant="outline">{products.length} products</Badge>
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="mt-1 w-full bg-white"
-                    onClick={() => setCustomerModalOpen(true)}
+                    onClick={() =>
+                      setItems((current) => [
+                        ...current,
+                        {
+                          key: uid(),
+                          item_name: '',
+                          quantity: 1,
+                          unit_price: 0,
+                          security_deposit: 0,
+                        },
+                      ])
+                    }
                   >
                     <Plus />
-                    New customer
+                    Quick custom product
                   </Button>
                 </CardHeader>
-                <CardContent className="p-4">
-                  <label className="relative block">
-                    <span className="sr-only">Search customers</span>
+                <CardContent className="space-y-4 p-4">
+                  <div className="relative">
                     <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
                     <input
-                      value={customerSearch}
-                      onChange={(e) => setCustomerSearch(e.target.value)}
-                      placeholder="Search name, phone or email…"
-                      className={`${inputClass} pl-9`}
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      placeholder="Search product, 11-digit barcode or SKU…"
+                      inputMode="search"
+                      className={`${inputClass} pl-9 pr-12`}
                     />
-                  </label>
-                  <div className="mt-3 space-y-2">
-                    {visibleCustomers.length ? (
-                      visibleCustomers.map((customer) => (
+                    <button
+                      type="button"
+                      aria-label="Focus barcode search"
+                      onClick={() => setProductSearch('')}
+                      className="absolute right-2 top-1.5 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                    >
+                      <Camera className="size-4" />
+                    </button>
+                  </div>
+                  {visibleProducts.length ? (
+                    <div className="grid max-h-[330px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-4">
+                      {visibleProducts.map((product) => (
                         <button
-                          key={customer.id}
+                          key={product.id}
                           type="button"
-                          aria-label={`Select customer ${customer.name}, ${customer.phone}`}
-                          onClick={() => setSelectedCustomer(customer)}
-                          className={`w-full rounded-xl border p-3 text-left transition ${selectedCustomer?.id === customer.id ? 'border-primary bg-accent shadow-sm' : 'border-border bg-white hover:border-primary/40 hover:bg-[#fcfaf7]'}`}
+                          onClick={() => addProduct(product)}
+                          className="group rounded-xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
                         >
-                          <span className="flex items-start justify-between gap-3">
-                            <span className="min-w-0">
-                              <span className="block truncate text-sm font-semibold">
-                                {customer.name}
-                              </span>
-                              <span className="mt-1 block text-xs text-muted-foreground">
-                                {customer.phone}
-                                {customer.email ? ` · ${customer.email}` : ''}
-                              </span>
-                              {customer.address && (
-                                <span className="mt-1 block truncate text-[11px] text-muted-foreground/80">
-                                  {customer.address}
-                                </span>
+                          <span className="grid h-24 overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
+                            {product.image_urls?.[0] ? (
+                              <Image
+                                src={product.image_urls[0]}
+                                alt=""
+                                width={320}
+                                height={160}
+                                unoptimized
+                                className="h-full w-full object-cover transition group-hover:scale-105"
+                              />
+                            ) : (
+                              <Package className="m-auto size-8 transition group-hover:scale-110" />
+                            )}
+                          </span>
+                          <span className="mt-3 block truncate text-sm font-semibold">
+                            {product.name}
+                          </span>
+                          <span className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                            <span className="truncate font-mono">
+                              {product.barcode ||
+                                product.sku ||
+                                `${product.stock_quantity} in stock`}
+                            </span>
+                            <strong className="shrink-0 text-foreground">
+                              {money(
+                                isSale
+                                  ? product.sale_price
+                                  : product.rental_price,
                               )}
-                            </span>
-                            <span
-                              className={`mt-1 grid size-5 shrink-0 place-items-center rounded-full border ${selectedCustomer?.id === customer.id ? 'border-primary bg-primary text-white' : 'border-border text-transparent'}`}
-                            >
-                              <Check className="size-3" />
-                            </span>
+                            </strong>
                           </span>
                         </button>
-                      ))
-                    ) : (
-                      <div className="rounded-xl border border-dashed py-7 text-center">
-                        <p className="text-sm font-medium">No customer found</p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          Try another search or add a new customer.
-                        </p>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="mt-3"
-                          onClick={() => setCustomerModalOpen(true)}
-                        >
-                          <Plus />
-                          Add customer
-                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <EmptyCatalog />
+                  )}
+                  {packages.length > 0 && (
+                    <div>
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Packages
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        {packages.map((pack) => (
+                          <Button
+                            key={pack.id}
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => addPackage(pack)}
+                          >
+                            <Plus />
+                            {pack.name} ·{' '}
+                            {money(
+                              isSale ? pack.sale_price : pack.rental_price,
+                            )}
+                          </Button>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                  <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
-                    <span>
-                      Showing {visibleCustomers.length} of{' '}
-                      {matchingCustomers.length}
-                    </span>
-                    {matchingCustomers.length > 5 && (
-                      <span>Refine your search to find others</span>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
               <Card className="gap-0 border-border py-0 shadow-none ring-0">
-                <CardHeader className="border-b px-4 py-4">
-                  <div className="flex items-center gap-2">
-                    <span className="grid size-8 place-items-center rounded-lg bg-accent text-primary">
-                      <CalendarDays className="size-4" />
-                    </span>
-                    <CardTitle className="text-sm font-semibold">
-                      {isSale ? 'Direct sale details' : 'Rental details'}
-                    </CardTitle>
-                  </div>
-                </CardHeader>
-                <CardContent className="grid gap-4 p-4 sm:grid-cols-2">
-                  <Field
-                    label="Occasion / order title"
-                    name="event_name"
-                    defaultValue={isSale ? 'Direct Sale' : 'Wedding Rental'}
-                    required
-                  />
-                  <Field
-                    label={isSale ? 'Delivery date' : 'Event date'}
-                    name="event_date"
-                    type="date"
-                    required
-                  />
-                  <TimeField label="Delivery time" name="event_time" />
-                  <Field label="Delivery location" name="event_location" />
-                  {!isSale && (
-                    <>
-                      <Field
-                        label="Pickup date"
-                        name="pickup_date"
-                        type="date"
-                        required
-                      />
-                      <Field
-                        label="Return due date"
-                        name="due_date"
-                        type="date"
-                        required
-                      />
-                    </>
-                  )}
-                  {isSale ? (
-                    <div className="border-t pt-4 sm:col-span-2">
-                      <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
-                        <input
-                          type="checkbox"
-                          checked={modificationsRequired}
-                          onChange={(event) =>
-                            setModificationsRequired(event.target.checked)
-                          }
-                          className="size-4 accent-[#9a6728]"
-                        />
-                        <Wrench className="size-4 text-primary" />
-                        Modifications required
-                      </label>
-                      {modificationsRequired ? (
-                        <div className="mt-4 rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] p-4">
-                          <label className="block text-sm">
-                            <span className="mb-1.5 block font-medium">
-                              Modification details{' '}
-                              <span className="text-red-600">*</span>
-                            </span>
-                            <textarea
-                              name="modification_details"
-                              required
-                              rows={3}
-                              placeholder="Describe the colour change, size adjustment, embroidery or other work required…"
-                              className="w-full rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
-                            />
-                          </label>
-                          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                            <Field
-                              label="Modification date"
-                              name="modification_date"
-                              type="date"
-                              required
-                            />
-                            <TimeField
-                              label="Modification time"
-                              name="modification_time"
-                              required
-                            />
-                          </div>
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card className="gap-0 border-border py-0 shadow-none ring-0">
-              <CardHeader className="flex-row items-center justify-between border-b px-4 py-4">
-                <div className="flex items-center gap-2">
-                  <Box className="size-4" />
-                  <CardTitle className="text-sm font-semibold">
-                    Select products
-                  </CardTitle>
-                  <Badge variant="outline">{products.length} products</Badge>
-                </div>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setItems((current) => [
-                      ...current,
-                      {
-                        key: uid(),
-                        item_name: '',
-                        quantity: 1,
-                        unit_price: 0,
-                        security_deposit: 0,
-                      },
-                    ])
-                  }
-                >
-                  <Plus />
-                  Quick custom product
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-4 p-4">
-                <div className="relative">
-                  <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                  <input
-                    value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
-                    placeholder="Search product, 11-digit barcode or SKU…"
-                    inputMode="search"
-                    className={`${inputClass} pl-9 pr-12`}
-                  />
-                  <button
-                    type="button"
-                    aria-label="Focus barcode search"
-                    onClick={() => setProductSearch('')}
-                    className="absolute right-2 top-1.5 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
-                  >
-                    <Camera className="size-4" />
-                  </button>
-                </div>
-                {visibleProducts.length ? (
-                  <div className="grid max-h-[330px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-4">
-                    {visibleProducts.map((product) => (
-                      <button
-                        key={product.id}
-                        type="button"
-                        onClick={() => addProduct(product)}
-                        className="group rounded-xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
-                      >
-                        <span className="grid h-24 overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
-                          {product.image_urls?.[0] ? (
-                            <Image
-                              src={product.image_urls[0]}
-                              alt=""
-                              width={320}
-                              height={160}
-                              unoptimized
-                              className="h-full w-full object-cover transition group-hover:scale-105"
-                            />
-                          ) : (
-                            <Package className="m-auto size-8 transition group-hover:scale-110" />
+                <CardContent className="p-0">
+                  <div className="overflow-x-auto">
+                    <table className="w-full min-w-[760px] text-sm">
+                      <thead className="border-b bg-[#f5f2ed] text-left text-xs text-muted-foreground">
+                        <tr>
+                          <th className="px-4 py-3 font-medium">Item</th>
+                          <th className="px-4 py-3 font-medium">Qty</th>
+                          <th className="px-4 py-3 font-medium">Rate</th>
+                          {!isSale && (
+                            <th className="px-4 py-3 font-medium">Deposit</th>
                           )}
-                        </span>
-                        <span className="mt-3 block truncate text-sm font-semibold">
-                          {product.name}
-                        </span>
-                        <span className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                          <span className="truncate font-mono">
-                            {product.barcode ||
-                              product.sku ||
-                              `${product.stock_quantity} in stock`}
-                          </span>
-                          <strong className="shrink-0 text-foreground">
-                            {money(
-                              isSale
-                                ? product.sale_price
-                                : product.rental_price,
-                            )}
-                          </strong>
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                ) : (
-                  <EmptyCatalog />
-                )}
-                {packages.length > 0 && (
-                  <div>
-                    <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      Packages
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {packages.map((pack) => (
-                        <Button
-                          key={pack.id}
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => addPackage(pack)}
-                        >
-                          <Plus />
-                          {pack.name} ·{' '}
-                          {money(isSale ? pack.sale_price : pack.rental_price)}
-                        </Button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            <Card className="gap-0 border-border py-0 shadow-none ring-0">
-              <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[760px] text-sm">
-                    <thead className="border-b bg-[#f5f2ed] text-left text-xs text-muted-foreground">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Item</th>
-                        <th className="px-4 py-3 font-medium">Qty</th>
-                        <th className="px-4 py-3 font-medium">Rate</th>
-                        {!isSale && (
-                          <th className="px-4 py-3 font-medium">Deposit</th>
-                        )}
-                        <th className="px-4 py-3 text-right font-medium">
-                          Total
-                        </th>
-                        <th className="w-12">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {items.length ? (
-                        items.map((item) => (
-                          <tr key={item.key} className="border-b last:border-0">
-                            <td className="px-4 py-3">
-                              <input
-                                value={item.item_name}
-                                onChange={(e) =>
-                                  updateItem(item.key, {
-                                    item_name: e.target.value,
-                                    product_id: undefined,
-                                    package_id: undefined,
-                                  })
-                                }
-                                aria-label="Item name"
-                                className={inputClass}
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="number"
-                                min="1"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  updateItem(item.key, {
-                                    quantity: Number(e.target.value),
-                                  })
-                                }
-                                aria-label="Quantity"
-                                className={`${inputClass} w-20`}
-                              />
-                            </td>
-                            <td className="px-4 py-3">
-                              <input
-                                type="number"
-                                min="0"
-                                step="1"
-                                value={item.unit_price}
-                                onChange={(e) =>
-                                  updateItem(item.key, {
-                                    unit_price: Number(e.target.value),
-                                  })
-                                }
-                                aria-label="Rate"
-                                className={`${inputClass} w-28`}
-                              />
-                            </td>
-                            {!isSale && (
+                          <th className="px-4 py-3 text-right font-medium">
+                            Total
+                          </th>
+                          <th className="w-12">
+                            <span className="sr-only">Actions</span>
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {items.length ? (
+                          items.map((item) => (
+                            <tr
+                              key={item.key}
+                              className="border-b last:border-0"
+                            >
+                              <td className="px-4 py-3">
+                                <input
+                                  value={item.item_name}
+                                  onChange={(e) =>
+                                    updateItem(item.key, {
+                                      item_name: e.target.value,
+                                      product_id: undefined,
+                                      package_id: undefined,
+                                    })
+                                  }
+                                  aria-label="Item name"
+                                  className={inputClass}
+                                />
+                              </td>
+                              <td className="px-4 py-3">
+                                <input
+                                  type="number"
+                                  min="1"
+                                  value={item.quantity}
+                                  onChange={(e) =>
+                                    updateItem(item.key, {
+                                      quantity: Number(e.target.value),
+                                    })
+                                  }
+                                  aria-label="Quantity"
+                                  className={`${inputClass} w-20`}
+                                />
+                              </td>
                               <td className="px-4 py-3">
                                 <input
                                   type="number"
                                   min="0"
                                   step="1"
-                                  value={item.security_deposit}
+                                  value={item.unit_price}
                                   onChange={(e) =>
                                     updateItem(item.key, {
-                                      security_deposit: Number(e.target.value),
+                                      unit_price: Number(e.target.value),
                                     })
                                   }
-                                  aria-label="Security deposit"
+                                  aria-label="Rate"
                                   className={`${inputClass} w-28`}
                                 />
                               </td>
-                            )}
-                            <td className="px-4 py-3 text-right font-semibold">
-                              {money(item.quantity * item.unit_price)}
-                            </td>
-                            <td className="px-2">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() =>
-                                  setItems((current) =>
-                                    current.filter(
-                                      (row) => row.key !== item.key,
-                                    ),
-                                  )
-                                }
-                                aria-label={`Remove ${item.item_name || 'item'}`}
-                              >
-                                <Trash2 />
-                              </Button>
+                              {!isSale && (
+                                <td className="px-4 py-3">
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    value={item.security_deposit}
+                                    onChange={(e) =>
+                                      updateItem(item.key, {
+                                        security_deposit: Number(
+                                          e.target.value,
+                                        ),
+                                      })
+                                    }
+                                    aria-label="Security deposit"
+                                    className={`${inputClass} w-28`}
+                                  />
+                                </td>
+                              )}
+                              <td className="px-4 py-3 text-right font-semibold">
+                                {money(item.quantity * item.unit_price)}
+                              </td>
+                              <td className="px-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() =>
+                                    setItems((current) =>
+                                      current.filter(
+                                        (row) => row.key !== item.key,
+                                      ),
+                                    )
+                                  }
+                                  aria-label={`Remove ${item.item_name || 'item'}`}
+                                >
+                                  <Trash2 />
+                                </Button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td
+                              colSpan={isSale ? 5 : 6}
+                              className="px-4 py-9 text-center"
+                            >
+                              <Box className="mx-auto size-5 text-muted-foreground/50" />
+                              <p className="mt-2 text-sm text-muted-foreground">
+                                No items added yet
+                              </p>
+                              <p className="mt-1 text-xs text-muted-foreground">
+                                Choose products above or add a custom product.
+                              </p>
                             </td>
                           </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td
-                            colSpan={isSale ? 5 : 6}
-                            className="px-4 py-9 text-center"
-                          >
-                            <Box className="mx-auto size-5 text-muted-foreground/50" />
-                            <p className="mt-2 text-sm text-muted-foreground">
-                              No items added yet
-                            </p>
-                            <p className="mt-1 text-xs text-muted-foreground">
-                              Choose products above or add a custom product.
-                            </p>
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </CardContent>
-            </Card>
-
-            <label className="block text-sm">
-              <span className="mb-1.5 block font-medium">Notes</span>
-              <textarea
-                name="notes"
-                rows={4}
-                placeholder="Any additional notes…"
-                className="w-full rounded-lg border border-input bg-white p-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-              />
-            </label>
-
-            <div className="grid gap-5 lg:grid-cols-2">
-              <Card className="gap-0 border-border py-0 shadow-none ring-0">
-                <CardHeader className="border-b px-4 py-4">
-                  <CardTitle className="text-sm font-semibold">
-                    Payment method & discounts
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3 p-4">
-                  <label className="block text-sm">
-                    <span className="mb-1.5 block text-muted-foreground">
-                      Payment method
-                    </span>
-                    <select name="payment_method" className={inputClass}>
-                      <option value="cash">Cash / offline payment</option>
-                      <option value="upi">UPI</option>
-                      <option value="card">Card</option>
-                      <option value="bank_transfer">Bank transfer</option>
-                      <option value="other">Other</option>
-                    </select>
-                  </label>
-                  <NumberField
-                    label="Discount amount"
-                    value={discount}
-                    onChange={setDiscount}
-                  />
-                  <NumberField
-                    label="Amount paid"
-                    value={paid}
-                    onChange={setPaid}
-                  />
-                  <label className="block text-sm">
-                    <span className="mb-1.5 block text-muted-foreground">
-                      Sales staff
-                    </span>
-                    <select name="assigned_staff_id" className={inputClass}>
-                      <option value="">Unassigned</option>
-                      {staff.map((member) => (
-                        <option key={member.id} value={member.id}>
-                          {member.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="flex items-center gap-2 border-t pt-3 text-sm text-muted-foreground">
-                    <input
-                      type="checkbox"
-                      checked={taxEnabled}
-                      onChange={(e) => setTaxEnabled(e.target.checked)}
-                      className="size-4 accent-[#9a6728]"
-                    />
-                    Apply GST (5%)
-                  </label>
-                </CardContent>
-              </Card>
-              <Card className="gap-0 border-[#dfc9a6] py-0 shadow-none ring-0">
-                <CardHeader className="border-b bg-[#fcfaf7] px-4 py-4">
-                  <CardTitle className="text-sm font-semibold">
-                    Summary
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 p-4">
-                  <Amount label="Subtotal" value={subtotal} />
-                  <Amount label="Discount" value={-discount} />
-                  {taxEnabled && <Amount label="GST (5%)" value={tax} />}
-                  {!isSale && (
-                    <Amount label="Security deposit" value={deposit} />
-                  )}
-                  <div className="border-t pt-4">
-                    <Amount label="Total amount" value={total} strong />
+                        )}
+                      </tbody>
+                    </table>
                   </div>
-                  <Amount label="Amount paid" value={paid} tone="success" />
-                  <Amount
-                    label="Balance due"
-                    value={Math.max(total - paid, 0)}
-                    tone="danger"
-                  />
                 </CardContent>
               </Card>
+
+              <div className="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => showStep(1)}
+                >
+                  <ArrowLeft />
+                  Back to customer details
+                </Button>
+                <Button type="button" onClick={continueFromProducts}>
+                  Review booking
+                  <ChevronRight />
+                </Button>
+              </div>
             </div>
 
-            <Terms />
+            <div hidden={step !== 3} className="space-y-5">
+              <Card className="gap-0 border-[#dfc9a6] py-0 shadow-none ring-0">
+                <CardHeader className="border-b bg-[#fcfaf7] px-4 py-4">
+                  <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                    <Check className="size-4 text-primary" />
+                    Review booking
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
+                  <ReviewDetail
+                    label="Customer"
+                    value={selectedCustomer?.name || 'Not selected'}
+                  />
+                  <ReviewDetail
+                    label="Phone"
+                    value={selectedCustomer?.phone || '—'}
+                  />
+                  <ReviewDetail
+                    label="Event"
+                    value={`${eventType} · ${eventFor}`}
+                  />
+                  <ReviewDetail
+                    label="Event date & time"
+                    value={`${formatReviewDate(eventDate)}${eventTime ? ` · ${formatReviewTime(eventTime)}` : ''}`}
+                  />
+                  <div className="sm:col-span-2 lg:col-span-4">
+                    <ReviewDetail label="Venue" value={venue || 'Not added'} />
+                  </div>
+                  <ReviewDetail
+                    label="Selected items"
+                    value={`${items.reduce((sum, item) => sum + item.quantity, 0)} item${items.reduce((sum, item) => sum + item.quantity, 0) === 1 ? '' : 's'}`}
+                  />
+                  <ReviewDetail
+                    label="Booking type"
+                    value={isSale ? 'Sale' : 'Rental'}
+                  />
+                  <ReviewDetail label="Subtotal" value={money(subtotal)} />
+                  <ReviewDetail label="Current total" value={money(total)} />
+                </CardContent>
+              </Card>
+
+              {!isSale && (
+                <Card className="gap-0 border-border py-0 shadow-none ring-0">
+                  <CardHeader className="border-b px-4 py-4">
+                    <CardTitle className="text-sm font-semibold">
+                      Rental schedule
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="grid gap-4 p-4 sm:grid-cols-2">
+                    <Field
+                      label="Pickup date"
+                      name="pickup_date"
+                      type="date"
+                      required
+                    />
+                    <Field
+                      label="Return due date"
+                      name="due_date"
+                      type="date"
+                      required
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {isSale && (
+                <Card className="gap-0 border-border py-0 shadow-none ring-0">
+                  <CardContent className="p-4">
+                    <label className="flex cursor-pointer items-center gap-2 text-sm font-medium">
+                      <input
+                        type="checkbox"
+                        checked={modificationsRequired}
+                        onChange={(event) =>
+                          setModificationsRequired(event.target.checked)
+                        }
+                        className="size-4 accent-[#9a6728]"
+                      />
+                      <Wrench className="size-4 text-primary" />
+                      Modifications required
+                    </label>
+                    {modificationsRequired && (
+                      <div className="mt-4 rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] p-4">
+                        <label className="block text-sm">
+                          <span className="mb-1.5 block font-medium">
+                            Modification details{' '}
+                            <span className="text-red-600">*</span>
+                          </span>
+                          <textarea
+                            name="modification_details"
+                            required
+                            rows={3}
+                            placeholder="Describe the colour change, size adjustment, embroidery or other work required…"
+                            className="w-full rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                          />
+                        </label>
+                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                          <Field
+                            label="Modification date"
+                            name="modification_date"
+                            type="date"
+                            required
+                          />
+                          <TimeField
+                            label="Modification time"
+                            name="modification_time"
+                            required
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              <label className="block text-sm">
+                <span className="mb-1.5 block font-medium">Notes</span>
+                <textarea
+                  name="notes"
+                  rows={4}
+                  placeholder="Any additional notes…"
+                  className="w-full rounded-lg border border-input bg-white p-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+              </label>
+
+              <div className="grid gap-5 lg:grid-cols-2">
+                <Card className="gap-0 border-border py-0 shadow-none ring-0">
+                  <CardHeader className="border-b px-4 py-4">
+                    <CardTitle className="text-sm font-semibold">
+                      Payment method & discounts
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 p-4">
+                    <label className="block text-sm">
+                      <span className="mb-1.5 block text-muted-foreground">
+                        Payment method
+                      </span>
+                      <select name="payment_method" className={inputClass}>
+                        <option value="cash">Cash / offline payment</option>
+                        <option value="upi">UPI</option>
+                        <option value="card">Card</option>
+                        <option value="bank_transfer">Bank transfer</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </label>
+                    <NumberField
+                      label="Discount amount"
+                      value={discount}
+                      onChange={setDiscount}
+                    />
+                    <NumberField
+                      label="Amount paid"
+                      value={paid}
+                      onChange={setPaid}
+                    />
+                    <label className="block text-sm">
+                      <span className="mb-1.5 block text-muted-foreground">
+                        Sales staff
+                      </span>
+                      <select name="assigned_staff_id" className={inputClass}>
+                        <option value="">Unassigned</option>
+                        {staff.map((member) => (
+                          <option key={member.id} value={member.id}>
+                            {member.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex items-center gap-2 border-t pt-3 text-sm text-muted-foreground">
+                      <input
+                        type="checkbox"
+                        checked={taxEnabled}
+                        onChange={(e) => setTaxEnabled(e.target.checked)}
+                        className="size-4 accent-[#9a6728]"
+                      />
+                      Apply GST (5%)
+                    </label>
+                  </CardContent>
+                </Card>
+                <Card className="gap-0 border-[#dfc9a6] py-0 shadow-none ring-0">
+                  <CardHeader className="border-b bg-[#fcfaf7] px-4 py-4">
+                    <CardTitle className="text-sm font-semibold">
+                      Summary
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4 p-4">
+                    <Amount label="Subtotal" value={subtotal} />
+                    <Amount label="Discount" value={-discount} />
+                    {taxEnabled && <Amount label="GST (5%)" value={tax} />}
+                    {!isSale && (
+                      <Amount label="Security deposit" value={deposit} />
+                    )}
+                    <div className="border-t pt-4">
+                      <Amount label="Total amount" value={total} strong />
+                    </div>
+                    <Amount label="Amount paid" value={paid} tone="success" />
+                    <Amount
+                      label="Balance due"
+                      value={Math.max(total - paid, 0)}
+                      tone="danger"
+                    />
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Terms />
+              <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => showStep(2)}
+                >
+                  <ArrowLeft />
+                  Back to products
+                </Button>
+                <div className="flex flex-col gap-3 sm:items-end">
+                  <p className="text-sm text-muted-foreground">
+                    Total:{' '}
+                    <strong className="ml-1 text-base text-foreground">
+                      {money(total)}
+                    </strong>
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.print()}
+                    >
+                      <Printer />
+                      Print
+                    </Button>
+                    <Button
+                      type="submit"
+                      name="intent"
+                      value="quote"
+                      variant="outline"
+                      disabled={busy}
+                    >
+                      <FileText />
+                      Save as quote
+                    </Button>
+                    <Button
+                      type="submit"
+                      name="intent"
+                      value="order"
+                      disabled={busy}
+                    >
+                      <Check />
+                      {busy ? 'Creating…' : 'Complete order'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             {message && (
-              <Alert variant="destructive">
+              <Alert variant="destructive" className="mt-5">
                 <AlertTitle>{message.title}</AlertTitle>
                 <AlertDescription>{message.text}</AlertDescription>
               </Alert>
             )}
-            <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                Total:{' '}
-                <strong className="ml-1 text-base text-foreground">
-                  {money(total)}
-                </strong>
-              </p>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => window.print()}
-                >
-                  <Printer />
-                  Print
-                </Button>
-                <Button
-                  type="submit"
-                  name="intent"
-                  value="quote"
-                  variant="outline"
-                  disabled={busy}
-                >
-                  <FileText />
-                  Save as quote
-                </Button>
-                <Button
-                  type="submit"
-                  name="intent"
-                  value="order"
-                  disabled={busy}
-                >
-                  <Check />
-                  Create order
-                </Button>
-              </div>
-            </div>
           </div>
         </section>
       </form>
     </div>
   );
+}
+
+function BookingSteps({ current }: { current: 1 | 2 | 3 }) {
+  const steps = [
+    {
+      number: 1,
+      label: 'Customer details',
+      icon: <UserRound className="size-4" />,
+    },
+    {
+      number: 2,
+      label: 'Product selection',
+      icon: <ShoppingBag className="size-4" />,
+    },
+    {
+      number: 3,
+      label: 'Review & complete',
+      icon: <Check className="size-4" />,
+    },
+  ] as const;
+
+  return (
+    <nav
+      aria-label="Booking progress"
+      className="rounded-xl border bg-white px-3 py-3 shadow-level-1 sm:px-5"
+    >
+      <ol className="grid grid-cols-3 gap-2">
+        {steps.map((item, index) => {
+          const complete = item.number < current;
+          const active = item.number === current;
+          return (
+            <li
+              key={item.number}
+              className="relative flex min-w-0 items-center gap-2 sm:gap-3"
+            >
+              <span
+                className={`grid size-8 shrink-0 place-items-center rounded-full border text-xs font-semibold transition sm:size-9 ${complete || active ? 'border-primary bg-primary text-white' : 'border-border bg-[#f7f4ef] text-muted-foreground'}`}
+              >
+                {complete ? <Check className="size-4" /> : item.icon}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  Step {item.number}
+                </span>
+                <span
+                  aria-current={active ? 'step' : undefined}
+                  className={`mt-0.5 block truncate text-xs font-semibold sm:text-sm ${active ? 'text-primary' : 'text-foreground'}`}
+                >
+                  {item.label}
+                </span>
+              </span>
+              {index < steps.length - 1 && (
+                <span
+                  className={`absolute left-[calc(100%-2px)] top-1/2 hidden h-px w-2 -translate-y-1/2 sm:block ${complete ? 'bg-primary' : 'bg-border'}`}
+                />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </nav>
+  );
+}
+
+function ReviewDetail({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border bg-white px-3 py-2.5">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </p>
+      <p className="mt-1 text-sm font-medium text-foreground">{value}</p>
+    </div>
+  );
+}
+
+function formatReviewDate(value: string) {
+  if (!value) return 'Date not selected';
+  const [year, month, day] = value.split('-');
+  return `${day}/${month}/${year}`;
+}
+
+function formatReviewTime(value: string) {
+  const [hourText, minute = '00'] = value.split(':');
+  const hour = Number(hourText);
+  if (!Number.isFinite(hour)) return value;
+  const period = hour >= 12 ? 'PM' : 'AM';
+  return `${String(hour % 12 || 12).padStart(2, '0')}:${minute} ${period}`;
 }
 
 function TypeChooser({
