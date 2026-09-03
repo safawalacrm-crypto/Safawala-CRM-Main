@@ -10,6 +10,7 @@ import {
   CalendarDays,
   Camera,
   Check,
+  ChevronDown,
   ChevronRight,
   FileText,
   MapPin,
@@ -1480,16 +1481,16 @@ export function TimeField({
         name={name}
         value={hour ? `${hour24}:${minute}` : ''}
       />
-      <div className="grid grid-cols-[1fr_1fr_88px] gap-2">
-        <label>
+      <div className="flex h-10 w-full items-center overflow-hidden rounded-lg border border-input bg-white text-sm tabular-nums transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">
+        <label className="relative min-w-0 flex-1">
           <span className="sr-only">{label} hour</span>
           <select
             value={hour}
             onChange={(event) => setHour(event.target.value)}
             required={required}
-            className={inputClass}
+            className="h-9 w-full appearance-none bg-transparent py-0 pl-2 pr-5 text-center font-medium outline-none"
           >
-            <option value="">Hour</option>
+            <option value="">HH</option>
             {Array.from({ length: 12 }, (_, index) =>
               String(index + 1).padStart(2, '0'),
             ).map((value) => (
@@ -1498,14 +1499,21 @@ export function TimeField({
               </option>
             ))}
           </select>
+          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
         </label>
-        <label>
+        <span
+          aria-hidden="true"
+          className="pb-0.5 font-semibold text-muted-foreground"
+        >
+          :
+        </span>
+        <label className="relative min-w-0 flex-1">
           <span className="sr-only">{label} minutes</span>
           <select
             value={minute}
             onChange={(event) => setMinute(event.target.value)}
             disabled={!hour}
-            className={inputClass}
+            className="h-9 w-full appearance-none bg-transparent py-0 pl-2 pr-5 text-center font-medium outline-none disabled:opacity-60"
           >
             {Array.from({ length: 12 }, (_, index) =>
               String(index * 5).padStart(2, '0'),
@@ -1515,18 +1523,20 @@ export function TimeField({
               </option>
             ))}
           </select>
+          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
         </label>
-        <label>
+        <label className="relative h-full w-[68px] shrink-0 border-l border-input">
           <span className="sr-only">{label} AM or PM</span>
           <select
             value={period}
             onChange={(event) => setPeriod(event.target.value)}
             disabled={!hour}
-            className={`${inputClass} font-semibold text-primary`}
+            className="h-full w-full appearance-none bg-[#fcfaf7] py-0 pl-2.5 pr-5 font-semibold text-primary outline-none disabled:opacity-60"
           >
             <option value="AM">AM</option>
             <option value="PM">PM</option>
           </select>
+          <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 size-3 -translate-y-1/2 text-primary/70" />
         </label>
       </div>
     </fieldset>
