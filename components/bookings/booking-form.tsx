@@ -516,7 +516,7 @@ export function BookingForm({
                       </CardTitle>
                     </div>
                   </CardHeader>
-                  <CardContent className="grid gap-4 p-4 md:grid-cols-4">
+                  <CardContent className="grid gap-x-4 gap-y-5 p-4 sm:grid-cols-2">
                     <label className="block text-sm">
                       <span className="mb-1.5 block text-muted-foreground">
                         Event type
@@ -565,7 +565,7 @@ export function BookingForm({
                       />
                     </label>
                     <TimeField label="Event time" name="event_time" />
-                    <label className="block text-sm md:col-span-4">
+                    <label className="block pt-1 text-sm sm:col-span-2">
                       <span className="mb-1.5 flex items-center gap-1.5 text-muted-foreground">
                         <MapPin className="size-3.5 text-primary" />
                         Venue <span className="text-red-600">*</span>
