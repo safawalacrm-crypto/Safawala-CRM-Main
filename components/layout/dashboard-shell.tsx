@@ -27,6 +27,7 @@ import {
   LogOut,
   Menu,
   Plus,
+  Settings,
   UsersRound,
   Wrench,
 } from 'lucide-react';
@@ -45,6 +46,7 @@ function SidebarNavigation() {
     { href: '/customers', label: 'Customers', icon: ContactRound },
     { href: '/ledger', label: 'Customer ledger', icon: Landmark },
     { href: '/staff', label: 'Staff', icon: UsersRound },
+    { href: '/settings', label: 'Settings', icon: Settings },
   ];
   return (
     <nav aria-label="Primary navigation" className="mt-8 space-y-1">
