@@ -59,6 +59,20 @@ export function displayDocumentNumber(value: string) {
   return `${match[1]}${String(sequence).padStart(4, '0')}`;
 }
 
+export function displayQuoteNumber(
+  value: string,
+  bookingType: BookingType,
+  sequenceOverride?: number,
+) {
+  const normalized = displayDocumentNumber(value);
+  const match = normalized.match(/^SW-Q-(?:[SR]-)?(\d{4})-(\d+)$/);
+  if (!match) return normalized;
+  const sequence = sequenceOverride ?? Number(match[2]);
+  if (!Number.isSafeInteger(sequence)) return normalized;
+  const quoteType = bookingType === 'rental' ? 'R' : 'S';
+  return `SW-Q-${quoteType}-${match[1]}-${String(sequence).padStart(4, '0')}`;
+}
+
 export const friendlyDate = (value: string | null | undefined) => {
   if (!value) return 'Not added';
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);

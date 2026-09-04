@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import type { LedgerCustomer, LedgerTransaction } from '@/lib/ledger';
 import { paymentMethodLabel } from '@/lib/ledger';
 
-const dark: [number, number, number] = [0, 0, 0];
-const muted: [number, number, number] = [24, 24, 24];
-const border: [number, number, number] = [125, 125, 125];
+const dark: [number, number, number] = [38, 35, 31];
+const brand: [number, number, number] = [110, 71, 31];
+const muted: [number, number, number] = [74, 66, 58];
+const border: [number, number, number] = [132, 122, 112];
 const inr = (value: number | null) =>
   value === null
     ? '-'
@@ -142,14 +143,14 @@ export function LedgerPdfButton({
       };
 
       const tableHeader = () => {
-        doc.setFillColor(245, 245, 245);
+        doc.setFillColor(247, 244, 239);
         doc.setDrawColor(...border);
         doc.rect(left, y, right - left, 8, 'F');
         doc.setLineWidth(0.25);
         columns.forEach((column) => doc.rect(column.x, y, column.w, 8, 'S'));
         doc.setFont('courier', 'bold');
         doc.setFontSize(7.4);
-        doc.setTextColor(...dark);
+        doc.setTextColor(...brand);
         columns.forEach((column) =>
           doc.text(
             column.label,
@@ -170,11 +171,11 @@ export function LedgerPdfButton({
           doc.addImage(logo.dataUrl, 'PNG', left + 2, 10.5, logoHeight * logo.ratio, logoHeight);
         }
         doc.setFont('courier', 'bold');
-        doc.setTextColor(...dark);
+        doc.setTextColor(...brand);
         doc.setFontSize(14);
         doc.text('CUSTOMER LEDGER', right - 2, 16.5, { align: 'right' });
         doc.setFontSize(7.5);
-        doc.setFont('courier', 'normal');
+        doc.setFont('courier', 'bold');
         doc.setTextColor(...muted);
         doc.text('Premium Wedding Accessories', left + 2, 29.5);
         doc.text(period, right - 2, 22.5, { align: 'right' });
@@ -184,7 +185,7 @@ export function LedgerPdfButton({
         doc.setTextColor(...dark);
         doc.setFont('courier', 'bold');
         doc.text(customer.name, left + 2, y);
-        doc.setFont('courier', 'normal');
+        doc.setFont('courier', 'bold');
         doc.setTextColor(...muted);
         doc.text(`Customer ID: ${customer.id}   Mobile: ${customer.phone}`, left + 2, y + 5);
         doc.text(customer.email || 'Email not available', left + 2, y + 10);
@@ -197,12 +198,12 @@ export function LedgerPdfButton({
         ] as const;
         summary.forEach(([label, value], index) => {
           const x = summaryX + index * 39;
-          doc.setFont('courier', 'normal');
-          doc.setTextColor(...muted);
+          doc.setFont('courier', 'bold');
+          doc.setTextColor(...brand);
           doc.setFontSize(7);
           doc.text(label.toUpperCase(), x, y);
           doc.setFont('courier', 'bold');
-          doc.setTextColor(...dark);
+          doc.setTextColor(...brand);
           doc.setFontSize(9.5);
           doc.text(label === 'Total Bills' ? String(value) : inr(Number(value)), x, y + 6);
         });
@@ -217,9 +218,9 @@ export function LedgerPdfButton({
           y = 11;
           doc.setFont('courier', 'bold');
           doc.setFontSize(8.5);
-          doc.setTextColor(...dark);
+          doc.setTextColor(...brand);
           doc.text(`CUSTOMER LEDGER - ${customer.name}`, left, y);
-          doc.setFont('courier', 'normal');
+          doc.setFont('courier', 'bold');
           doc.setFontSize(7.5);
           doc.setTextColor(...muted);
           doc.text(period, right, y, { align: 'right' });
@@ -234,12 +235,12 @@ export function LedgerPdfButton({
           transaction.transactionType === 'bill' ? 'Bill' : 'Payment',
           inr(transaction.billAmount),
           inr(transaction.paymentAmount),
-          paymentMethodLabel(transaction.paymentMethod),
+          transaction.paymentMethod ? paymentMethodLabel(transaction.paymentMethod) : '-',
           transaction.referenceNumber || '-',
           inr(transaction.balance),
           transaction.status === 'completed' ? 'Paid' : 'Due',
         ];
-        doc.setFont('courier', 'normal');
+        doc.setFont('courier', 'bold');
         doc.setFontSize(7.2);
         doc.setTextColor(...dark);
         columns.forEach((column, index) => {

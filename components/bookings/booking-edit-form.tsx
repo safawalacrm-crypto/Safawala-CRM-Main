@@ -19,7 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { money, statusLabel } from '@/lib/bookings';
+import { displayQuoteNumber, money, statusLabel } from '@/lib/bookings';
 import { createClient } from '@/lib/supabase/client';
 
 type BookingItem = {
@@ -104,6 +104,9 @@ export function BookingEditForm({
   const editableItems = booking.paid_amount === 0;
   const isQuote = booking.is_quote && booking.status === 'draft';
   const backHref = isQuote ? '/quotes' : `/bookings/${booking.id}`;
+  const documentNumber = booking.is_quote
+    ? displayQuoteNumber(booking.booking_number, booking.booking_type)
+    : booking.booking_number;
 
   const [items, setItems] = useState<Item[]>(() =>
     booking.booking_items.map((row) => ({
@@ -255,7 +258,7 @@ export function BookingEditForm({
       }
     }
     router.push(
-      isQuote ? `/quotes?updated=${booking.booking_number}` : `/bookings/${booking.id}`,
+      isQuote ? `/quotes?updated=${documentNumber}` : `/bookings/${booking.id}`,
     );
     router.refresh();
   }
@@ -263,7 +266,7 @@ export function BookingEditForm({
   return (
     <div className="mx-auto max-w-[1160px] space-y-6">
       <DashboardHeader
-        title={`Edit ${booking.booking_number}`}
+        title={`Edit ${documentNumber}`}
         subtitle="Update customer, delivery and operational booking details"
         actions={
           <Button variant="outline" render={<Link href={backHref} />}>

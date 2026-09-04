@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect } from 'react';
 import { ShoppingBag, Truck } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
@@ -49,6 +50,14 @@ export function BookingsListToolbar({
     router.push(`${pathname}?${params.toString()}`);
   }
 
+  const saleHref = hrefForMode('sale');
+  const rentalHref = hrefForMode('rental');
+
+  useEffect(() => {
+    router.prefetch(saleHref);
+    router.prefetch(rentalHref);
+  }, [rentalHref, router, saleHref]);
+
   return (
     <div className="flex flex-col gap-3 border-b bg-white px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
       <div
@@ -57,10 +66,12 @@ export function BookingsListToolbar({
       >
         {modes.map(({ value, label, icon: Icon }) => {
           const active = mode === value;
+          const href = value === 'rental' ? rentalHref : saleHref;
           return (
             <Link
               key={label}
-              href={hrefForMode(value)}
+              href={href}
+              prefetch
               aria-current={active ? 'page' : undefined}
               className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors ${
                 active

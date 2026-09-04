@@ -30,7 +30,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   BookingRow,
-  displayDocumentNumber,
+  displayQuoteNumber,
   friendlyDate,
   money,
   quoteState,
@@ -61,10 +61,7 @@ export default async function QuotesPage({ searchParams }: Props) {
   const type = params.type === 'rental' ? 'rental' : 'sale';
   const state = typeof params.state === 'string' ? params.state : '';
   const time = typeof params.time === 'string' ? params.time : '';
-  const created =
-    typeof params.created === 'string'
-      ? displayDocumentNumber(params.created)
-      : '';
+  const createdRaw = typeof params.created === 'string' ? params.created : '';
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
@@ -119,32 +116,56 @@ export default async function QuotesPage({ searchParams }: Props) {
   if (timeFrom) query = query.gte('created_at', timeFrom.toISOString());
 
   const from = (page - 1) * pageSize;
-  const quoteCountQuery = () =>
+  const [{ data, count, error }, summaryResult] = await Promise.all([
+    query.order('created_at', { ascending: false }).range(from, from + pageSize - 1),
     supabase
       .from('bookings')
-      .select('*', { count: 'exact', head: true })
+      .select('id,status,created_at,booking_number', { count: 'exact' })
       .eq('is_quote', true)
-      .eq('booking_type', type);
-  const [
-    { data, count, error },
-    { count: totalCount },
-    { count: generatedCount },
-    { count: convertedCount },
-    { count: rejectedCount },
-  ] = await Promise.all([
-    query.order('created_at', { ascending: false }).range(from, from + pageSize - 1),
-    quoteCountQuery(),
-    quoteCountQuery().eq('status', 'draft'),
-    quoteCountQuery().not('status', 'in', '(draft,cancelled)'),
-    quoteCountQuery().eq('status', 'cancelled'),
+      .eq('booking_type', type)
+      .order('created_at', { ascending: true })
+      .limit(10000),
   ]);
 
-  const quotes = (
-    (data ?? []) as unknown as (BookingRow & PdfBooking)[]
-  ).map((quote) => ({
+  const quoteSummary = summaryResult.data ?? [];
+  const sequenceById = new Map<number, number>();
+  const yearlyCounts = new Map<string, number>();
+  quoteSummary.forEach((quote) => {
+    const year = quote.created_at.slice(0, 4);
+    const next = (yearlyCounts.get(year) ?? 0) + 1;
+    yearlyCounts.set(year, next);
+    sequenceById.set(quote.id, next);
+  });
+  const totalCount = summaryResult.count ?? quoteSummary.length;
+  const generatedCount = quoteSummary.filter(
+    (quote) => quote.status === 'draft',
+  ).length;
+  const rejectedCount = quoteSummary.filter(
+    (quote) => quote.status === 'cancelled',
+  ).length;
+  const convertedCount = quoteSummary.filter(
+    (quote) => !['draft', 'cancelled'].includes(quote.status),
+  ).length;
+  const rawQuotes = (data ?? []) as unknown as (BookingRow & PdfBooking)[];
+  const quotes = rawQuotes.map((quote) => ({
     ...quote,
-    booking_number: displayDocumentNumber(quote.booking_number),
+    booking_number: displayQuoteNumber(
+      quote.booking_number,
+      quote.booking_type,
+      sequenceById.get(quote.id),
+    ),
   }));
+  const createdQuote = quoteSummary.find(
+    (quote) => quote.booking_number === createdRaw,
+  );
+  const created = createdRaw
+    ? displayQuoteNumber(
+        createdRaw,
+        type,
+        createdQuote ? sequenceById.get(createdQuote.id) : undefined,
+      )
+    : '';
+  const loadError = error ?? summaryResult.error;
   const pageCount = Math.max(1, Math.ceil((count ?? 0) / pageSize));
   const queryString = (nextPage: number) => {
     const copy = new URLSearchParams();
@@ -316,10 +337,10 @@ export default async function QuotesPage({ searchParams }: Props) {
             </Button>
           </form>
           <CardContent className="p-0">
-            {error ? (
+            {loadError ? (
               <State
                 title="Quotes could not be loaded"
-                description={error.message}
+                description={loadError.message}
               />
             ) : quotes.length === 0 ? (
               <State
