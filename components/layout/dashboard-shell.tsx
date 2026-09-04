@@ -162,12 +162,12 @@ export function DashboardShell({
       </aside>
 
       <div className="lg:pl-64">
-        <header className="sticky top-0 z-20 flex h-16 items-center justify-between border-b bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+        <header className="pointer-events-none sticky top-0 z-40 flex h-16 items-center justify-between border-b border-transparent bg-transparent px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <Sheet>
               <SheetTrigger
                 aria-label="Open navigation"
-                className="fixed left-4 top-4 z-40 inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+                className="pointer-events-auto fixed left-4 top-4 z-40 inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
               >
                 <Menu aria-hidden="true" className="size-5" />
               </SheetTrigger>

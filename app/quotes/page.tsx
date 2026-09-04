@@ -11,7 +11,6 @@ import {
   FileText,
   Pencil,
   Plus,
-  Search,
   XCircle,
 } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
@@ -24,6 +23,7 @@ import { QuoteActions } from '@/components/bookings/quote-actions';
 import { ExportQuotesButton } from '@/components/bookings/quote-export-button';
 import { RefreshQuotesButton } from '@/components/bookings/refresh-quotes-button';
 import { BookingsListToolbar } from '@/components/bookings/bookings-list-toolbar';
+import { ListFilterForm } from '@/components/bookings/list-filter-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -299,43 +299,32 @@ export default async function QuotesPage({ searchParams }: Props) {
             pageSize={pageSize}
             itemLabel="quotes"
           />
-          <form className="grid gap-3 border-b bg-[#fcfaf7] p-4 md:grid-cols-[minmax(220px,1fr)_repeat(2,170px)_auto]">
-            <input type="hidden" name="type" value={type} />
-            <input type="hidden" name="perPage" value={pageSize} />
-            <label className="relative">
-              <span className="sr-only">Search quotes</span>
-              <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-              <input
-                name="q"
-                defaultValue={search}
-                placeholder="Search quote, customer or event"
-                className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-              />
-            </label>
-            <Filter
-              name="state"
-              label="All statuses"
-              value={state}
-              options={[
-                ['generated', 'Generated'],
-                ['converted', 'Converted'],
-                ['rejected', 'Rejected'],
-              ]}
-            />
-            <Filter
-              name="time"
-              label="All time"
-              value={time}
-              options={[
-                ['today', 'Today'],
-                ['week', 'This week'],
-                ['month', 'This month'],
-              ]}
-            />
-            <Button variant="outline" className="h-10 bg-white">
-              Apply
-            </Button>
-          </form>
+          <ListFilterForm
+            search={search}
+            searchPlaceholder="Search quote, customer or event"
+            filters={[
+              {
+                name: 'state',
+                label: 'All statuses',
+                value: state,
+                options: [
+                  ['generated', 'Generated'],
+                  ['converted', 'Converted'],
+                  ['rejected', 'Rejected'],
+                ],
+              },
+              {
+                name: 'time',
+                label: 'All time',
+                value: time,
+                options: [
+                  ['today', 'Today'],
+                  ['week', 'This week'],
+                  ['month', 'This month'],
+                ],
+              },
+            ]}
+          />
           <CardContent className="p-0">
             {loadError ? (
               <State
@@ -498,34 +487,6 @@ export default async function QuotesPage({ searchParams }: Props) {
         </Card>
       </div>
     </DashboardShell>
-  );
-}
-
-function Filter({
-  name,
-  label,
-  value,
-  options,
-}: {
-  name: string;
-  label: string;
-  value: string;
-  options: string[][];
-}) {
-  return (
-    <select
-      name={name}
-      defaultValue={value}
-      aria-label={label}
-      className="h-10 rounded-lg border bg-white px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-    >
-      <option value="">{label}</option>
-      {options.map(([key, text]) => (
-        <option key={key} value={key}>
-          {text}
-        </option>
-      ))}
-    </select>
   );
 }
 

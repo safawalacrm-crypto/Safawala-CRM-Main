@@ -8,7 +8,6 @@ import {
   Eye,
   Pencil,
   Plus,
-  Search,
 } from 'lucide-react';
 import { DashboardShell } from '@/components/layout/dashboard-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
@@ -17,6 +16,7 @@ import {
   type PdfBooking,
 } from '@/components/bookings/booking-pdf-button';
 import { BookingsListToolbar } from '@/components/bookings/bookings-list-toolbar';
+import { ListFilterForm } from '@/components/bookings/list-filter-form';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -134,47 +134,36 @@ export default async function BookingsPage({ searchParams }: Props) {
             to={Math.min(from + bookings.length, count ?? 0)}
             pageSize={pageSize}
           />
-          <form className="grid gap-3 border-b bg-[#fcfaf7] p-4 md:grid-cols-[minmax(220px,1fr)_repeat(2,170px)_auto]">
-            <input type="hidden" name="type" value={type} />
-            <input type="hidden" name="perPage" value={pageSize} />
-            <label className="relative">
-              <span className="sr-only">Search bookings</span>
-              <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-              <input
-                name="q"
-                defaultValue={search}
-                placeholder="Search ID, customer, event or location"
-                className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-              />
-            </label>
-            <Filter
-              name="status"
-              label="All statuses"
-              value={status}
-              options={[
-                ['confirmed', 'Confirmed'],
-                ['ready', 'Ready'],
-                ['out_for_delivery', 'Out for delivery'],
-                ['active', 'Active'],
-                ['completed', 'Completed'],
-                ['cancelled', 'Cancelled'],
-              ]}
-            />
-            <Filter
-              name="payment"
-              label="All payments"
-              value={payment}
-              options={[
-                ['unpaid', 'Unpaid'],
-                ['partial', 'Partial'],
-                ['paid', 'Paid'],
-                ['refunded', 'Refunded'],
-              ]}
-            />
-            <Button variant="outline" className="h-10 bg-white">
-              Apply
-            </Button>
-          </form>
+          <ListFilterForm
+            search={search}
+            searchPlaceholder="Search ID, customer, event or location"
+            filters={[
+              {
+                name: 'status',
+                label: 'All statuses',
+                value: status,
+                options: [
+                  ['confirmed', 'Confirmed'],
+                  ['ready', 'Ready'],
+                  ['out_for_delivery', 'Out for delivery'],
+                  ['active', 'Active'],
+                  ['completed', 'Completed'],
+                  ['cancelled', 'Cancelled'],
+                ],
+              },
+              {
+                name: 'payment',
+                label: 'All payments',
+                value: payment,
+                options: [
+                  ['unpaid', 'Unpaid'],
+                  ['partial', 'Partial'],
+                  ['paid', 'Paid'],
+                  ['refunded', 'Refunded'],
+                ],
+              },
+            ]}
+          />
           <CardContent className="p-0">
             {error ? (
               <State
@@ -344,34 +333,6 @@ export default async function BookingsPage({ searchParams }: Props) {
         </Card>
       </div>
     </DashboardShell>
-  );
-}
-
-function Filter({
-  name,
-  label,
-  value,
-  options,
-}: {
-  name: string;
-  label: string;
-  value: string;
-  options: string[][];
-}) {
-  return (
-    <select
-      name={name}
-      defaultValue={value}
-      aria-label={label}
-      className="h-10 rounded-lg border bg-white px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-    >
-      <option value="">{label}</option>
-      {options.map(([key, text]) => (
-        <option key={key} value={key}>
-          {text}
-        </option>
-      ))}
-    </select>
   );
 }
 
