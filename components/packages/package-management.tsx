@@ -302,7 +302,7 @@ export function PackageManagement({
   return (
     <div className="mx-auto max-w-[1500px] space-y-5">
       <DashboardHeader
-        title="Package Management"
+        title="Package Manager"
         subtitle="Category-based package system"
       />
 
@@ -313,7 +313,7 @@ export function PackageManagement({
               PACKAGES
             </p>
             <h2 className="mt-2 text-xl font-semibold tracking-[-0.03em] sm:text-2xl">
-              Safawala Package Management
+              Safawala Package Manager
             </h2>
             <p className="mt-1.5 text-sm text-muted-foreground">
               Category-based package system

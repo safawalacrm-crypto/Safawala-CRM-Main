@@ -30,7 +30,7 @@ export type PdfBooking = {
     unit_price: number;
     line_total: number;
     product_id?: number | null;
-    products?: { image_urls: string[] | null } | null;
+    products?: { image_urls: string[] | null; barcode: string | null } | null;
   }[];
 };
 
@@ -76,6 +76,19 @@ function sectionBox(
   doc.setLineWidth(0.4);
   doc.setFillColor(255, 255, 255);
   doc.roundedRect(x, y, w, h, 2.5, 2.5, 'FD');
+}
+
+function fitText(
+  doc: import('jspdf').jsPDF,
+  value: string,
+  maxWidth: number,
+) {
+  if (doc.getTextWidth(value) <= maxWidth) return value;
+  let fitted = value;
+  while (fitted.length > 1 && doc.getTextWidth(`${fitted}...`) > maxWidth) {
+    fitted = fitted.slice(0, -1);
+  }
+  return `${fitted.trimEnd()}...`;
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -216,17 +229,21 @@ export function BookingPdfButton({ booking }: { booking: PdfBooking }) {
       const width = doc.internal.pageSize.getWidth();
       const left = 16;
       const right = width - 16;
+      const itemCount = booking.booking_items.length;
+      const useItemColumns = itemCount > 5;
+      const denseLayout = itemCount > 10;
+      const headerHeight = denseLayout ? 30 : 34;
       let y = 18;
       // The invoice is intentionally composed as a single A4 page. Sections
       // below use compact, content-aware spacing instead of page breaks.
       const ensureSpace = (_height: number) => undefined;
 
       // ---- Header banner ----
-      drawBrandBanner(doc, 10, 10, width - 20, 34);
+      drawBrandBanner(doc, 10, 10, width - 20, headerHeight);
       if (logo) {
-        const logoH = 13;
+        const logoH = denseLayout ? 11 : 13;
         const logoW = logoH * logo.ratio;
-        doc.addImage(logo.dataUrl, 'PNG', left, 15, logoW, logoH);
+        doc.addImage(logo.dataUrl, 'PNG', left, denseLayout ? 14 : 15, logoW, logoH);
       } else {
         doc.setTextColor(...BRAND_DARK);
         doc.setFont('helvetica', 'bold');
@@ -236,26 +253,26 @@ export function BookingPdfButton({ booking }: { booking: PdfBooking }) {
       doc.setTextColor(...MUTED);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8);
-      doc.text('Premium Wedding Accessories', left, 40);
+      doc.text('Premium Wedding Accessories', left, 10 + headerHeight - 4);
 
       doc.setTextColor(...BRAND_DARK);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      doc.text(booking.booking_number, right, 21, { align: 'right' });
+      doc.text(booking.booking_number, right, denseLayout ? 19 : 21, { align: 'right' });
       doc.setFontSize(8.5);
       doc.setFont('helvetica', 'normal');
-      doc.text(docLabel, right, 28, { align: 'right' });
+      doc.text(docLabel, right, denseLayout ? 25 : 28, { align: 'right' });
       doc.setFontSize(7.5);
       doc.setTextColor(...MUTED);
       doc.text(
         `Date: ${friendlyDate(new Date().toISOString().slice(0, 10))}`,
         right,
-        34,
+        denseLayout ? 31 : 34,
         { align: 'right' },
       );
 
       // ---- Customer / event (boxed, aligned to the same margins) ----
-      y = 49;
+      y = 10 + headerHeight + 5;
       const addressLines = doc.splitTextToSize(
         booking.customers?.address || 'Address not added',
         74,
@@ -320,59 +337,154 @@ export function BookingPdfButton({ booking }: { booking: PdfBooking }) {
       }
       y += boxH + 6;
 
-      // ---- Items table (with rounded product thumbnails) ----
-      const nameX = left + 16;
-      doc.setFillColor(245, 245, 245);
-      doc.rect(left, y, right - left, 7, 'F');
-      doc.setDrawColor(...BORDER_SOFT);
-      doc.setLineWidth(0.3);
-      doc.rect(left, y, right - left, 7, 'S');
-      doc.setTextColor(...BRAND_DARK);
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(9);
-      doc.text('Item', nameX, y + 4.8);
-      doc.text('Qty', 132, y + 4.8, { align: 'right' });
-      doc.text('Rate', 160, y + 4.8, { align: 'right' });
-      doc.text('Amount', right - 3, y + 4.8, { align: 'right' });
-      y += 7;
-      doc.setFont('helvetica', 'normal');
-      for (const item of booking.booking_items) {
-        const thumbUrl = item.products?.image_urls?.[0];
-        const thumb = thumbUrl ? imageByUrl.get(thumbUrl) : null;
-        const itemName = doc.splitTextToSize(item.item_name, 62);
-        const textHeight = itemName.length * 3.9;
-        const rowHeight = Math.max(thumb ? 14 : 8.5, textHeight + 5);
-        ensureSpace(rowHeight + 2);
-        const rowTop = y;
-        const textBaseline = rowTop + rowHeight / 2 + 1.2;
-        if (thumb) {
-          try {
-            const thumbSize = 10.5;
-            doc.addImage(
-              thumb,
-              'PNG',
-              left + 2,
-              rowTop + (rowHeight - thumbSize) / 2,
-              thumbSize,
-              thumbSize,
-              undefined,
-              'FAST',
+      // ---- Items (inventory barcode included) ----
+      if (useItemColumns) {
+        const gridGap = 5;
+        const gridWidth = (right - left - gridGap) / 2;
+        const rowsPerColumn = Math.ceil(itemCount / 2);
+        const rowHeight = Math.max(7.2, Math.min(11.2, 56 / rowsPerColumn));
+        const gridHeaderHeight = denseLayout ? 6 : 7;
+        const columns = [
+          booking.booking_items.slice(0, rowsPerColumn),
+          booking.booking_items.slice(rowsPerColumn),
+        ];
+
+        columns.forEach((items, columnIndex) => {
+          const columnX = left + columnIndex * (gridWidth + gridGap);
+          doc.setFillColor(245, 245, 245);
+          doc.setDrawColor(...BORDER_SOFT);
+          doc.setLineWidth(0.3);
+          doc.rect(columnX, y, gridWidth, gridHeaderHeight, 'FD');
+          doc.setTextColor(...BRAND_DARK);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(denseLayout ? 7.2 : 8);
+          doc.text(
+            `PRODUCTS ${columnIndex * rowsPerColumn + 1}-${columnIndex * rowsPerColumn + items.length}`,
+            columnX + 2.5,
+            y + gridHeaderHeight - 2.1,
+          );
+          doc.text('AMOUNT', columnX + gridWidth - 2.5, y + gridHeaderHeight - 2.1, {
+            align: 'right',
+          });
+
+          items.forEach((item, rowIndex) => {
+            const rowTop = y + gridHeaderHeight + rowIndex * rowHeight;
+            const thumbUrl = item.products?.image_urls?.[0];
+            const thumb = thumbUrl ? imageByUrl.get(thumbUrl) : null;
+            const showThumb = Boolean(thumb && rowHeight >= 9);
+            const thumbSize = Math.min(8, rowHeight - 1.6);
+            const textX = columnX + (showThumb ? thumbSize + 3.5 : 2.5);
+            const totalText = amount(item.line_total);
+            const totalWidth = doc.getTextWidth(totalText) + 3;
+
+            if (showThumb && thumb) {
+              try {
+                doc.addImage(
+                  thumb,
+                  'PNG',
+                  columnX + 1.5,
+                  rowTop + (rowHeight - thumbSize) / 2,
+                  thumbSize,
+                  thumbSize,
+                  undefined,
+                  'FAST',
+                );
+              } catch {
+                // Skip a thumbnail that fails to decode rather than break the PDF.
+              }
+            }
+
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(rowHeight < 8 ? 6.3 : 7.3);
+            doc.setTextColor(...BRAND_DARK);
+            doc.text(
+              fitText(doc, item.item_name, gridWidth - (textX - columnX) - totalWidth - 2),
+              textX,
+              rowTop + rowHeight * 0.42,
             );
-          } catch {
-            // Skip a thumbnail that fails to decode rather than break the PDF.
-          }
-        }
-        doc.setTextColor(...BRAND_DARK);
-        doc.text(itemName, nameX, textBaseline);
-        doc.text(String(item.quantity), 132, textBaseline, { align: 'right' });
-        doc.text(amount(item.unit_price), 160, textBaseline, { align: 'right' });
-        doc.text(amount(item.line_total), right - 3, textBaseline, {
-          align: 'right',
+            doc.text(totalText, columnX + gridWidth - 2.5, rowTop + rowHeight * 0.42, {
+              align: 'right',
+            });
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(rowHeight < 8 ? 5.8 : 6.5);
+            doc.setTextColor(...MUTED);
+            doc.text(
+              `Barcode: ${item.products?.barcode || '-'}`,
+              textX,
+              rowTop + rowHeight * 0.78,
+            );
+            doc.text(
+              `${item.quantity} x ${amount(item.unit_price)}`,
+              columnX + gridWidth - 2.5,
+              rowTop + rowHeight * 0.78,
+              { align: 'right' },
+            );
+            doc.setDrawColor(205, 205, 205);
+            doc.setLineWidth(0.18);
+            doc.line(columnX, rowTop + rowHeight, columnX + gridWidth, rowTop + rowHeight);
+          });
         });
-        y = rowTop + rowHeight;
+        y += gridHeaderHeight + rowsPerColumn * rowHeight;
+      } else {
+        const nameX = left + 16;
+        doc.setFillColor(245, 245, 245);
+        doc.rect(left, y, right - left, 7, 'F');
         doc.setDrawColor(...BORDER_SOFT);
-        doc.setLineWidth(0.2);
-        doc.line(left, y, right, y);
+        doc.setLineWidth(0.3);
+        doc.rect(left, y, right - left, 7, 'S');
+        doc.setTextColor(...BRAND_DARK);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(8.5);
+        doc.text('Item', nameX, y + 4.8);
+        doc.text('Barcode', 112, y + 4.8, { align: 'right' });
+        doc.text('Qty', 132, y + 4.8, { align: 'right' });
+        doc.text('Rate', 160, y + 4.8, { align: 'right' });
+        doc.text('Amount', right - 3, y + 4.8, { align: 'right' });
+        y += 7;
+        doc.setFont('helvetica', 'normal');
+        for (const item of booking.booking_items) {
+          const thumbUrl = item.products?.image_urls?.[0];
+          const thumb = thumbUrl ? imageByUrl.get(thumbUrl) : null;
+          const itemName = doc.splitTextToSize(item.item_name, 48);
+          const textHeight = itemName.length * 3.9;
+          const rowHeight = Math.max(thumb ? 14 : 8.5, textHeight + 5);
+          ensureSpace(rowHeight + 2);
+          const rowTop = y;
+          const textBaseline = rowTop + rowHeight / 2 + 1.2;
+          if (thumb) {
+            try {
+              const thumbSize = 10.5;
+              doc.addImage(
+                thumb,
+                'PNG',
+                left + 2,
+                rowTop + (rowHeight - thumbSize) / 2,
+                thumbSize,
+                thumbSize,
+                undefined,
+                'FAST',
+              );
+            } catch {
+              // Skip a thumbnail that fails to decode rather than break the PDF.
+            }
+          }
+          doc.setTextColor(...BRAND_DARK);
+          doc.setFontSize(8.5);
+          doc.text(itemName, nameX, textBaseline);
+          doc.setFontSize(7.4);
+          doc.text(item.products?.barcode || '-', 112, textBaseline, { align: 'right' });
+          doc.setFontSize(8.5);
+          doc.text(String(item.quantity), 132, textBaseline, { align: 'right' });
+          doc.text(amount(item.unit_price), 160, textBaseline, { align: 'right' });
+          doc.text(amount(item.line_total), right - 3, textBaseline, {
+            align: 'right',
+          });
+          y = rowTop + rowHeight;
+          doc.setDrawColor(...BORDER_SOFT);
+          doc.setLineWidth(0.2);
+          doc.line(left, y, right, y);
+        }
       }
 
       ensureSpace(38);
@@ -479,43 +591,74 @@ export function BookingPdfButton({ booking }: { booking: PdfBooking }) {
       doc.line(left, y, right, y);
       y += 4.5;
       const termIndent = 6.5;
-      const availableTermsHeight = Math.max(34, 280 - y);
-      let termFontSize = 7.2;
-      let termLineHeight = 3.35;
+      const termColumnGap = 7;
+      const termColumnCount = useItemColumns ? 2 : 1;
+      const termsPerColumn = Math.ceil(BOOKING_TERMS.length / termColumnCount);
+      const termColumnWidth =
+        (right - left - termColumnGap * (termColumnCount - 1)) / termColumnCount;
+      const availableTermsHeight = Math.max(1, 280 - y);
+      let termFontSize = useItemColumns ? 6.7 : 7.2;
+      let termLineHeight = useItemColumns ? 3.05 : 3.35;
       const measuredTerms = () =>
         BOOKING_TERMS.map((term) =>
           doc.splitTextToSize(
             term.replaceAll('₹', 'Rs.'),
-            right - left - termIndent,
+            termColumnWidth - termIndent,
           ),
         );
+      const tallestTermColumn = (lines: string[][]) => {
+        let tallest = 0;
+        for (let column = 0; column < termColumnCount; column += 1) {
+          const columnLines = lines.slice(
+            column * termsPerColumn,
+            (column + 1) * termsPerColumn,
+          );
+          tallest = Math.max(
+            tallest,
+            columnLines.reduce(
+              (sum, itemLines) => sum + itemLines.length * termLineHeight + 0.6,
+              0,
+            ),
+          );
+        }
+        return tallest;
+      };
       doc.setFontSize(termFontSize);
       let termLines = measuredTerms();
       while (
-        termLines.reduce(
-          (sum, lines) => sum + lines.length * termLineHeight + 0.7,
-          0,
-        ) > availableTermsHeight &&
-        termFontSize > 6.1
+        tallestTermColumn(termLines) > availableTermsHeight &&
+        termFontSize > 5.8
       ) {
         termFontSize -= 0.2;
         termLineHeight -= 0.08;
         doc.setFontSize(termFontSize);
         termLines = measuredTerms();
       }
-      BOOKING_TERMS.forEach((term, index) => {
-        const safeTerm = term.replaceAll('₹', 'Rs.');
-        const lines = termLines[index] ?? doc.splitTextToSize(safeTerm, right - left - termIndent);
-        const blockHeight = lines.length * termLineHeight + 0.7;
-        ensureSpace(blockHeight);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...BRAND_GOLD);
-        doc.text(`${index + 1}.`, left, y);
-        doc.setFont('helvetica', 'normal');
-        doc.setTextColor(...BRAND_DARK);
-        doc.text(lines, left + termIndent, y);
-        y += blockHeight;
-      });
+      const termStartY = y;
+      let termEndY = termStartY;
+      for (let column = 0; column < termColumnCount; column += 1) {
+        const termX = left + column * (termColumnWidth + termColumnGap);
+        let termY = termStartY;
+        const start = column * termsPerColumn;
+        const end = Math.min(start + termsPerColumn, BOOKING_TERMS.length);
+        for (let index = start; index < end; index += 1) {
+          const safeTerm = BOOKING_TERMS[index].replaceAll('₹', 'Rs.');
+          const lines =
+            termLines[index] ??
+            doc.splitTextToSize(safeTerm, termColumnWidth - termIndent);
+          const blockHeight = lines.length * termLineHeight + 0.6;
+          ensureSpace(blockHeight);
+          doc.setFont('helvetica', 'bold');
+          doc.setTextColor(...BRAND_GOLD);
+          doc.text(`${index + 1}.`, termX, termY);
+          doc.setFont('helvetica', 'normal');
+          doc.setTextColor(...BRAND_DARK);
+          doc.text(lines, termX + termIndent, termY);
+          termY += blockHeight;
+        }
+        termEndY = Math.max(termEndY, termY);
+      }
+      y = termEndY;
 
       doc.setDrawColor(...BORDER_SOFT);
       doc.setLineWidth(0.3);

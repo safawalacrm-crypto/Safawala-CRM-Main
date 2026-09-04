@@ -33,7 +33,7 @@ export default async function BookingDetailsPage({
   const { data: booking, error } = await supabase
     .from('bookings')
     .select(
-      '*,customers(*),staff_members(name),booking_items(*),booking_payments(*),booking_activity(*)',
+      '*,customers(*),staff_members(name),booking_items(*,products(image_urls,barcode)),booking_payments(*),booking_activity(*)',
     )
     .eq('id', id)
     .single();

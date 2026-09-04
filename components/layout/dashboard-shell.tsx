@@ -42,7 +42,7 @@ function SidebarNavigation() {
     { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
     { href: '/modifications', label: 'Modifications', icon: Wrench },
     { href: '/inventory', label: 'Inventory', icon: Boxes },
-    { href: '/packages', label: 'Package Management', icon: Layers3 },
+    { href: '/packages', label: 'Package Manager', icon: Layers3 },
     { href: '/customers', label: 'Customers', icon: ContactRound },
     { href: '/ledger', label: 'Customer ledger', icon: Landmark },
     { href: '/staff', label: 'Staff', icon: UsersRound },

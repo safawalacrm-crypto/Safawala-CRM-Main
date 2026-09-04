@@ -92,7 +92,7 @@ export default async function QuotesPage({ searchParams }: Props) {
   }
 
   const baseFields =
-    'id,booking_number,booking_type,status,payment_status,is_quote,event_name,event_date,event_time,event_location,pickup_date,due_date,subtotal,discount,tax,total,paid_amount,balance_amount,security_deposit,created_at,customers(name,phone,address),staff_members(name),booking_items(item_name,quantity,unit_price,line_total,product_id,products(image_urls))';
+    'id,booking_number,booking_type,status,payment_status,is_quote,event_name,event_date,event_time,event_location,pickup_date,due_date,subtotal,discount,tax,total,paid_amount,balance_amount,security_deposit,created_at,customers(name,phone,address),staff_members(name),booking_items(item_name,quantity,unit_price,line_total,product_id,products(image_urls,barcode))';
 
   let query = supabase
     .from('bookings')
