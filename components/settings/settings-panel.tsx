@@ -64,7 +64,11 @@ const seriesConfig: Array<{
 ];
 
 function normalizedPrefix(value: string) {
-  const compact = value.trim().toUpperCase().replace(/\s+/g, '-');
+  const compact = value
+    .trim()
+    .toUpperCase()
+    .replace(/\s+/g, '-')
+    .replace(/-\d{4}-?$/, '');
   return compact.endsWith('-') ? compact : `${compact}-`;
 }
 
@@ -168,7 +172,7 @@ export function SettingsPanel({
       prefix: normalizedPrefix(setting.prefix),
       next_number: Number(setting.next_number),
       number_padding: Number(setting.number_padding),
-      sequence_year: currentYear,
+      sequence_year: Number(setting.sequence_year),
     }));
     if (
       normalized.some(
@@ -179,7 +183,10 @@ export function SettingsPanel({
           setting.next_number > 99999999 ||
           !Number.isInteger(setting.number_padding) ||
           setting.number_padding < 2 ||
-          setting.number_padding > 8,
+          setting.number_padding > 8 ||
+          !Number.isInteger(setting.sequence_year) ||
+          setting.sequence_year < 2000 ||
+          setting.sequence_year > 9999,
       )
     ) {
       setError('Use letters, numbers and hyphens for prefixes. Number range must be valid.');
@@ -216,7 +223,7 @@ export function SettingsPanel({
 
   function updateSetting(
     series: DocumentSeries,
-    field: 'prefix' | 'next_number' | 'number_padding',
+    field: 'prefix' | 'next_number' | 'number_padding' | 'sequence_year',
     value: string,
   ) {
     setSettings((current) =>
@@ -341,7 +348,7 @@ export function SettingsPanel({
             <div>
               <CardTitle>Document numbering</CardTitle>
               <CardDescription>
-                Configure the prefix and next number for each independent series
+                Configure the prefix, year and next number for each independent series
               </CardDescription>
             </div>
           </div>
@@ -351,14 +358,14 @@ export function SettingsPanel({
             {seriesConfig.map((config) => {
               const setting = settings.find((row) => row.series === config.series)!;
               const prefix = normalizedPrefix(setting.prefix || config.prefix);
-              const preview = `${prefix}${currentYear}-${String(setting.next_number || 1).padStart(setting.number_padding || 4, '0')}`;
+              const preview = `${prefix}${setting.sequence_year || currentYear}-${String(setting.next_number || 1).padStart(setting.number_padding || 4, '0')}`;
               return (
                 <div key={config.series} className="rounded-xl border bg-white p-4">
                   <div className="mb-4">
                     <h3 className="font-semibold">{config.title}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{config.description}</p>
                   </div>
-                  <div className="grid gap-3 sm:grid-cols-[1.25fr_.8fr_.7fr]">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[1.2fr_.75fr_.75fr_.6fr]">
                     <label
                       className="space-y-1.5 text-sm font-medium"
                       htmlFor={`${config.series}-prefix`}
@@ -370,6 +377,22 @@ export function SettingsPanel({
                         onChange={(event) => updateSetting(config.series, 'prefix', event.target.value)}
                         aria-label={`${config.title} prefix`}
                         className="h-10 uppercase"
+                      />
+                    </label>
+                    <label
+                      className="space-y-1.5 text-sm font-medium"
+                      htmlFor={`${config.series}-year`}
+                    >
+                      <span>Year</span>
+                      <Input
+                        id={`${config.series}-year`}
+                        type="number"
+                        min={2000}
+                        max={9999}
+                        value={setting.sequence_year}
+                        onChange={(event) => updateSetting(config.series, 'sequence_year', event.target.value)}
+                        aria-label={`${config.title} year`}
+                        className="h-10"
                       />
                     </label>
                     <label
