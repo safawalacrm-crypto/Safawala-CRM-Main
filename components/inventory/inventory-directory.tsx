@@ -30,6 +30,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { ListPagination } from '@/components/ui/list-pagination';
 import { money } from '@/lib/bookings';
+import {
+  BARATI_SAFA_SUBCATEGORIES,
+  INVENTORY_CATEGORIES,
+  sameInventoryValue,
+} from '@/lib/inventory-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 
@@ -103,15 +108,6 @@ const productFields =
   'id,sku,barcode,name,description,category,subcategory,size,color,material,cost_price,regular_price,sale_price,rental_price,security_deposit,stock_quantity,reorder_level,image_urls,is_active,created_at,updated_at,product_variants(id,name,size,color,material,stock_quantity,barcode)';
 const fieldClass =
   'mt-1.5 h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
-const categories = [
-  'Safa / Turban',
-  'Brooch',
-  'Kalgi',
-  'Mala',
-  'Dupatta / Stole',
-  'Wedding Accessory',
-  'Other',
-];
 const steps: { id: Step; label: string; icon: React.ReactNode }[] = [
   { id: 'details', label: 'Product info', icon: <Boxes /> },
   { id: 'photos', label: 'Photos', icon: <ImageIcon /> },
@@ -169,6 +165,7 @@ export function InventoryDirectory({
   const [products, setProducts] = useState(initialProducts);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
+  const [subcategory, setSubcategory] = useState('all');
   const [filter, setFilter] = useState<ProductFilter>('all');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -197,21 +194,32 @@ export function InventoryDirectory({
       total + Number(product.sale_price) * product.stock_quantity,
     0,
   );
-  const categoryOptions = [
-    ...new Set(
-      activeProducts
-        .map((product) => product.category)
-        .filter(Boolean) as string[],
-    ),
-  ].sort();
+  const subcategoryOptions = [
+    ...new Set([
+      ...(sameInventoryValue(category, 'BARATI SAFA')
+        ? BARATI_SAFA_SUBCATEGORIES
+        : []),
+      ...(activeProducts
+        .filter(
+          (product) =>
+            category === 'all' ||
+            sameInventoryValue(product.category, category),
+        )
+        .map((product) => product.subcategory)
+        .filter(Boolean) as string[]),
+    ]),
+  ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   const visibleProducts = (() => {
     const query = search.trim().toLowerCase();
     return activeProducts.filter((product) => {
       const searchable =
-        `${product.name} ${product.barcode ?? ''} ${product.sku ?? ''} ${product.category ?? ''}`.toLowerCase();
+        `${product.name} ${product.barcode ?? ''} ${product.sku ?? ''} ${product.category ?? ''} ${product.subcategory ?? ''}`.toLowerCase();
       const matchesSearch = !query || searchable.includes(query);
       const matchesCategory =
-        category === 'all' || product.category === category;
+        category === 'all' || sameInventoryValue(product.category, category);
+      const matchesSubcategory =
+        subcategory === 'all' ||
+        sameInventoryValue(product.subcategory, subcategory);
       const matchesStock =
         filter === 'all' ||
         (filter === 'in_stock' &&
@@ -220,7 +228,9 @@ export function InventoryDirectory({
           product.stock_quantity > 0 &&
           product.stock_quantity <= product.reorder_level) ||
         (filter === 'out_of_stock' && product.stock_quantity === 0);
-      return matchesSearch && matchesCategory && matchesStock;
+      return (
+        matchesSearch && matchesCategory && matchesSubcategory && matchesStock
+      );
     });
   })();
   const inventoryPageCount = Math.max(
@@ -417,7 +427,7 @@ export function InventoryDirectory({
 
       <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
         <CardContent className="p-4">
-          <div className="grid gap-3 lg:grid-cols-[minmax(260px,1fr)_210px_190px]">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(280px,1fr)_210px_210px_190px]">
             <label className="relative block">
               <span className="sr-only">Search inventory</span>
               <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
@@ -437,12 +447,29 @@ export function InventoryDirectory({
                 value={category}
                 onChange={(event) => {
                   setCategory(event.target.value);
+                  setSubcategory('all');
                   setPage(1);
                 }}
                 className={`${fieldClass} mt-0`}
               >
                 <option value="all">All categories</option>
-                {categoryOptions.map((item) => (
+                {INVENTORY_CATEGORIES.map((item) => (
+                  <option key={item}>{item}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span className="sr-only">Filter subcategory</span>
+              <select
+                value={subcategory}
+                onChange={(event) => {
+                  setSubcategory(event.target.value);
+                  setPage(1);
+                }}
+                className={`${fieldClass} mt-0`}
+              >
+                <option value="all">All subcategories</option>
+                {subcategoryOptions.map((item) => (
                   <option key={item}>{item}</option>
                 ))}
               </select>
@@ -480,10 +507,10 @@ export function InventoryDirectory({
           itemLabel="products"
         />
         <div className="flex items-center justify-end px-5 py-2.5">
-        <Badge variant="outline" className="bg-white">
-          <Barcode />
-          11-digit barcode ready
-        </Badge>
+          <Badge variant="outline" className="bg-white">
+            <Barcode />
+            11-digit barcode ready
+          </Badge>
         </div>
       </div>
 
@@ -593,14 +620,14 @@ function ProductCard({
         : 'border-emerald-200 bg-emerald-50 text-emerald-700';
   return (
     <Card className="group gap-0 border-border py-0 shadow-level-1 ring-0 transition hover:-translate-y-0.5 hover:shadow-level-2">
-      <div className="relative h-52 overflow-hidden bg-[radial-gradient(circle_at_top,#f4eadb,#e8dfd2)]">
+      <div className="relative aspect-square overflow-hidden bg-[radial-gradient(circle_at_top,#f4eadb,#e8dfd2)]">
         {product.image_urls?.[0] ? (
           <Image
             src={product.image_urls[0]}
             alt={product.name}
             fill
             unoptimized
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
+            className="h-full w-full object-contain p-1 transition duration-300 group-hover:scale-[1.02]"
           />
         ) : (
           <div className="grid h-full place-items-center">
@@ -755,6 +782,14 @@ function ProductDialog({
       setError('Select a product category.');
       return;
     }
+    if (
+      draft.category.trim().toLowerCase() === 'barati safa' &&
+      !BARATI_SAFA_SUBCATEGORIES.includes(draft.subcategory)
+    ) {
+      setStep('details');
+      setError('Select a package from Package 1 to Package 9.');
+      return;
+    }
     if (!barcodeValid) {
       setStep('barcode');
       setError('The main barcode must contain exactly 11 digits.');
@@ -899,10 +934,13 @@ function ProductDialog({
         .from('product_variants')
         .delete()
         .eq('product_id', data.id);
-      if (keptIds.length) deleteQuery = deleteQuery.not('id', 'in', `(${keptIds.join(',')})`);
+      if (keptIds.length)
+        deleteQuery = deleteQuery.not('id', 'in', `(${keptIds.join(',')})`);
       const { error: deleteError } = await deleteQuery;
       if (deleteError) {
-        setError(`Product saved, but removed variants need attention: ${deleteError.message}`);
+        setError(
+          `Product saved, but removed variants need attention: ${deleteError.message}`,
+        );
         setBusy(false);
         return;
       }
@@ -914,7 +952,9 @@ function ProductDialog({
       .eq('id', data.id)
       .single();
     if (refreshError) {
-      setError(`Product saved, but could not be refreshed: ${refreshError.message}`);
+      setError(
+        `Product saved, but could not be refreshed: ${refreshError.message}`,
+      );
       setBusy(false);
       return;
     }
@@ -1077,6 +1117,20 @@ function DetailsStep({
   draft: Draft;
   set: (field: keyof Draft, value: string) => void;
 }) {
+  const isBaratiSafa = draft.category.trim().toLowerCase() === 'barati safa';
+
+  function changeCategory(value: string) {
+    const nextIsBaratiSafa = value.trim().toLowerCase() === 'barati safa';
+    const currentIsBaratiPackage = BARATI_SAFA_SUBCATEGORIES.includes(
+      draft.subcategory,
+    );
+
+    set('category', value);
+    if (nextIsBaratiSafa || currentIsBaratiPackage) {
+      set('subcategory', '');
+    }
+  }
+
   return (
     <section>
       <StepHeading
@@ -1097,15 +1151,26 @@ function DetailsStep({
           label="Category"
           required
           value={draft.category}
-          onChange={(value) => set('category', value)}
-          options={categories}
+          onChange={changeCategory}
+          options={[...INVENTORY_CATEGORIES]}
         />
-        <Field
-          label="Subcategory"
-          value={draft.subcategory}
-          onChange={(value) => set('subcategory', value)}
-          placeholder="e.g. Bridal collection"
-        />
+        {isBaratiSafa ? (
+          <SelectField
+            label="Subcategory"
+            required
+            value={draft.subcategory}
+            onChange={(value) => set('subcategory', value)}
+            options={BARATI_SAFA_SUBCATEGORIES}
+            placeholder="Select package"
+          />
+        ) : (
+          <Field
+            label="Subcategory"
+            value={draft.subcategory}
+            onChange={(value) => set('subcategory', value)}
+            placeholder="e.g. Bridal collection"
+          />
+        )}
         <label className="block text-sm sm:col-span-2">
           <span className="font-medium">Description</span>
           <textarea
@@ -1575,12 +1640,14 @@ function SelectField({
   onChange,
   options,
   required,
+  placeholder = 'Select category',
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   options: string[];
   required?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className="block text-sm">
@@ -1594,7 +1661,7 @@ function SelectField({
         onChange={(event) => onChange(event.target.value)}
         className={fieldClass}
       >
-        <option value="">Select category</option>
+        <option value="">{placeholder}</option>
         {options.map((option) => (
           <option key={option}>{option}</option>
         ))}

@@ -23,7 +23,7 @@ export default async function NewBookingPage() {
     supabase
       .from('products')
       .select(
-        'id,sku,barcode,name,sale_price,rental_price,security_deposit,stock_quantity,image_urls',
+        'id,sku,barcode,name,category,subcategory,sale_price,rental_price,security_deposit,stock_quantity,image_urls',
       )
       .eq('is_active', true)
       .order('name'),
@@ -35,7 +35,7 @@ export default async function NewBookingPage() {
     supabase
       .from('package_categories')
       .select(
-        'id,name,package_variants(id,name,base_price,inclusions,security_deposit)',
+        'id,name,package_variants(id,name,base_price,inclusions,extra_safa_price,security_deposit,image_url)',
       )
       .eq('is_active', true)
       .order('name'),
@@ -57,7 +57,9 @@ export default async function NewBookingPage() {
             name: variant.name,
             category_name: category.name,
             rental_price: Number(variant.base_price),
+            extra_safa_price: Number(variant.extra_safa_price),
             security_deposit: Number(variant.security_deposit),
+            image_url: variant.image_url,
             inclusions: variant.inclusions ?? [],
           })),
         )}

@@ -1,16 +1,19 @@
 'use client';
 
+import Image from 'next/image';
 import { useMemo, useState, type SyntheticEvent } from 'react';
 import {
   Check,
   ChevronRight,
   FolderPlus,
+  ImageIcon,
   Layers3,
   PackageOpen,
   Pencil,
   Plus,
   Sparkles,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -29,6 +32,7 @@ export type PackageVariant = {
   extra_safa_price: number;
   missing_safa_penalty: number;
   security_deposit: number;
+  image_url: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -44,7 +48,7 @@ export type PackageCategory = {
 
 const categoryFields = 'id,name,is_active,created_at,updated_at';
 const variantFields =
-  'id,category_id,name,base_price,inclusions,extra_safa_price,missing_safa_penalty,security_deposit,created_at,updated_at';
+  'id,category_id,name,base_price,inclusions,extra_safa_price,missing_safa_penalty,security_deposit,image_url,created_at,updated_at';
 const fieldClass =
   'mt-1.5 h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
@@ -206,6 +210,40 @@ export function PackageManagement({
     setBusy(true);
     setError('');
     const supabase = createClient();
+    const { data: auth, error: authError } = await supabase.auth.getUser();
+    if (authError || !auth.user) {
+      setError('Your session has expired. Please sign in again.');
+      setBusy(false);
+      return;
+    }
+
+    let imageUrl = editingVariant?.image_url ?? null;
+    const image = form.get('image');
+    if (image instanceof File && image.size > 0) {
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(image.type)) {
+        setError('Package image must be a JPG, PNG or WebP file.');
+        setBusy(false);
+        return;
+      }
+      if (image.size > 10 * 1024 * 1024) {
+        setError('Package image must be 10 MB or smaller.');
+        setBusy(false);
+        return;
+      }
+      const extension = image.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const path = `${auth.user.id}/packages/${crypto.randomUUID()}.${extension}`;
+      const upload = await supabase.storage
+        .from('product-images')
+        .upload(path, image, { contentType: image.type, upsert: false });
+      if (upload.error) {
+        setError(`Package image upload failed: ${upload.error.message}`);
+        setBusy(false);
+        return;
+      }
+      imageUrl = supabase.storage.from('product-images').getPublicUrl(path).data
+        .publicUrl;
+    }
+
     const payload = {
       category_id: selectedCategory.id,
       name,
@@ -214,6 +252,7 @@ export function PackageManagement({
       extra_safa_price: extraSafaPrice,
       missing_safa_penalty: missingSafaPenalty,
       security_deposit: securityDeposit,
+      image_url: imageUrl,
     };
     let result;
     if (editingVariant) {
@@ -225,12 +264,6 @@ export function PackageManagement({
         .select(variantFields)
         .single();
     } else {
-      const { data: auth, error: authError } = await supabase.auth.getUser();
-      if (authError || !auth.user) {
-        setError('Your session has expired. Please sign in again.');
-        setBusy(false);
-        return;
-      }
       result = await supabase
         .from('package_variants')
         .insert({ ...payload, owner_id: auth.user.id })
@@ -575,6 +608,21 @@ function VariantCard({
 }) {
   return (
     <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
+      <div className="relative aspect-[4/3] overflow-hidden border-b bg-[radial-gradient(circle_at_top,#f4eadb,#e8dfd2)]">
+        {variant.image_url ? (
+          <Image
+            src={variant.image_url}
+            alt={variant.name}
+            fill
+            unoptimized
+            className="object-contain p-2"
+          />
+        ) : (
+          <div className="grid h-full place-items-center text-primary/30">
+            <ImageIcon className="size-10" />
+          </div>
+        )}
+      </div>
       <CardContent className="p-5">
         <div className="flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -781,6 +829,32 @@ function VariantDialog({
             placeholder="E.g. Premium Collection"
             className={fieldClass}
           />
+        </label>
+        <label className="block rounded-xl border border-dashed border-[#d9c29e] bg-[#fcfaf7] p-4 text-sm">
+          <span className="flex items-center gap-2 font-medium">
+            <Upload className="size-4 text-primary" />
+            Package image
+          </span>
+          {variant?.image_url ? (
+            <span className="relative mt-3 block aspect-[4/3] max-w-48 overflow-hidden rounded-lg border bg-white">
+              <Image
+                src={variant.image_url}
+                alt={variant.name}
+                fill
+                unoptimized
+                className="object-contain p-1"
+              />
+            </span>
+          ) : null}
+          <input
+            name="image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="mt-3 block w-full text-xs text-muted-foreground file:mr-3 file:rounded-lg file:border-0 file:bg-accent file:px-3 file:py-2 file:font-medium file:text-primary"
+          />
+          <span className="mt-2 block text-xs text-muted-foreground">
+            JPG, PNG or WebP up to 10 MB. The complete image will be shown.
+          </span>
         </label>
         <label className="block text-sm">
           <span className="font-medium">Base Price (₹)</span>

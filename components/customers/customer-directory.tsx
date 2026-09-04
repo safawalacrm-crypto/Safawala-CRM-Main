@@ -475,7 +475,7 @@ function CustomerDialog({
       <dialog
         open
         aria-labelledby="customer-dialog-title"
-        className="relative m-0 w-full max-w-lg overflow-hidden rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
+        className="relative m-0 max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
       >
         <div className="flex items-start justify-between border-b bg-[#fcfaf7] px-5 py-5 sm:px-6">
           <div className="flex gap-3">

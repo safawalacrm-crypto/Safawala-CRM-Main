@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import '@fontsource-variable/inter';
 import './globals.css';
 
@@ -22,6 +22,12 @@ export const metadata: Metadata = {
       ? [new URL('/og.png', process.env.NEXT_PUBLIC_SITE_URL).toString()]
       : undefined,
   },
+};
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 };
 
 export default function RootLayout({

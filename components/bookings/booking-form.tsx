@@ -30,6 +30,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BOOKING_TERMS, money } from '@/lib/bookings';
+import {
+  BARATI_SAFA_SUBCATEGORIES,
+  INVENTORY_CATEGORIES,
+  sameInventoryValue,
+} from '@/lib/inventory-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 
@@ -45,6 +50,8 @@ type Product = {
   sku: string | null;
   barcode: string | null;
   name: string;
+  category: string | null;
+  subcategory: string | null;
   sale_price: number;
   rental_price: number;
   security_deposit: number;
@@ -63,7 +70,9 @@ type RentalPackage = {
   name: string;
   category_name: string;
   rental_price: number;
+  extra_safa_price: number;
   security_deposit: number;
+  image_url: string | null;
   inclusions: string[];
 };
 type Staff = { id: number; name: string };
@@ -76,6 +85,7 @@ type Item = {
   product_id?: number;
   package_id?: number;
   package_variant_id?: number;
+  additional_safa?: boolean;
 };
 
 const inputClass =
@@ -102,6 +112,15 @@ export function BookingForm({
   const [customerList, setCustomerList] = useState(customers);
   const [customerSearch, setCustomerSearch] = useState('');
   const [productSearch, setProductSearch] = useState('');
+  const [productCategory, setProductCategory] = useState('all');
+  const [productSubcategory, setProductSubcategory] = useState('all');
+  const [packageSearch, setPackageSearch] = useState('');
+  const [additionalSafaPackage, setAdditionalSafaPackage] = useState('all');
+  const [additionalSafaSearch, setAdditionalSafaSearch] = useState('');
+  const [additionalSafaProductId, setAdditionalSafaProductId] = useState('');
+  const [additionalSafaQuantity, setAdditionalSafaQuantity] = useState(1);
+  const [bypassSafaLimit, setBypassSafaLimit] = useState(false);
+  const [rentalNotes, setRentalNotes] = useState('');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null,
   );
@@ -121,6 +140,12 @@ export function BookingForm({
   const [rentalSelectionMode, setRentalSelectionMode] = useState<
     'individual' | 'packages'
   >('individual');
+  const [selectedRentalCategory, setSelectedRentalCategory] = useState(
+    rentalPackages[0]?.category_name ?? '',
+  );
+  const [selectedRentalPackageId, setSelectedRentalPackageId] = useState<
+    number | null
+  >(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{
     title: string;
@@ -146,11 +171,75 @@ export function BookingForm({
       .includes(customerSearch.toLowerCase()),
   );
   const visibleCustomers = matchingCustomers.slice(0, 5);
-  const visibleProducts = products.filter((product) =>
-    `${product.name} ${product.barcode ?? ''} ${product.sku ?? ''}`
-      .toLowerCase()
-      .includes(productSearch.toLowerCase()),
+  const productSubcategoryOptions = [
+    ...new Set([
+      ...(sameInventoryValue(productCategory, 'BARATI SAFA')
+        ? BARATI_SAFA_SUBCATEGORIES
+        : []),
+      ...(products
+        .filter(
+          (product) =>
+            productCategory === 'all' ||
+            sameInventoryValue(product.category, productCategory),
+        )
+        .map((product) => product.subcategory)
+        .filter(Boolean) as string[]),
+    ]),
+  ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const visibleProducts = products.filter((product) => {
+    const matchesSearch =
+      `${product.name} ${product.barcode ?? ''} ${product.sku ?? ''} ${product.category ?? ''} ${product.subcategory ?? ''}`
+        .toLowerCase()
+        .includes(productSearch.toLowerCase());
+    const matchesCategory =
+      productCategory === 'all' ||
+      sameInventoryValue(product.category, productCategory);
+    const matchesSubcategory =
+      productSubcategory === 'all' ||
+      sameInventoryValue(product.subcategory, productSubcategory);
+    return matchesSearch && matchesCategory && matchesSubcategory;
+  });
+  const rentalPackageCategories = [
+    ...new Set(rentalPackages.map((pack) => pack.category_name)),
+  ];
+  const visibleRentalPackages = rentalPackages.filter(
+    (pack) =>
+      pack.category_name === selectedRentalCategory &&
+      `${pack.name} ${pack.category_name} ${pack.inclusions.join(' ')}`
+        .toLowerCase()
+        .includes(packageSearch.trim().toLowerCase()),
   );
+  const selectedRentalPackage =
+    rentalPackages.find((pack) => pack.id === selectedRentalPackageId) ?? null;
+  const packageSafaLimit = Number(
+    selectedRentalPackage?.category_name.match(/\d+/)?.[0] ?? 0,
+  );
+  const additionalSafaCount = items
+    .filter((item) => item.additional_safa)
+    .reduce((total, item) => total + item.quantity, 0);
+  const additionalSafaPackages = [
+    ...new Set([
+      ...BARATI_SAFA_SUBCATEGORIES,
+      products
+        .filter((product) => sameInventoryValue(product.category, 'BARATI SAFA'))
+        .map((product) => product.subcategory)
+        .filter(Boolean) as string[],
+    ].flat()),
+  ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  const additionalSafaProducts = products.filter((product) => {
+    const inBaratiSafa = sameInventoryValue(product.category, 'BARATI SAFA');
+    const matchesPackage =
+      additionalSafaPackage === 'all' ||
+      sameInventoryValue(product.subcategory, additionalSafaPackage);
+    const matchesSearch = `${product.name} ${product.barcode ?? ''} ${product.sku ?? ''}`
+      .toLowerCase()
+      .includes(additionalSafaSearch.trim().toLowerCase());
+    return inBaratiSafa && matchesPackage && matchesSearch;
+  });
+  const selectedAdditionalSafaProduct =
+    additionalSafaProducts.find(
+      (product) => product.id === Number(additionalSafaProductId),
+    ) ?? null;
 
   function addProduct(product: Product) {
     setItems((current) => {
@@ -192,8 +281,15 @@ export function BookingForm({
   }
 
   function addRentalPackage(pack: RentalPackage) {
+    setSelectedRentalPackageId(pack.id);
     setItems((current) => [
-      ...current,
+      ...current
+        .filter((item) => !item.package_variant_id)
+        .map((item) =>
+          item.additional_safa
+            ? { ...item, unit_price: Number(pack.extra_safa_price) }
+            : item,
+        ),
       {
         key: uid(),
         package_variant_id: pack.id,
@@ -203,6 +299,57 @@ export function BookingForm({
         security_deposit: Number(pack.security_deposit),
       },
     ]);
+  }
+
+  function addAdditionalSafa() {
+    const product = products.find(
+      (item) => item.id === Number(additionalSafaProductId),
+    );
+    if (!selectedRentalPackage || !product) {
+      setMessage({
+        title: 'Select the package and Safa',
+        text: 'Choose a package variant and a Barati Safa product first.',
+      });
+      return;
+    }
+    const quantity = Math.max(1, Math.floor(additionalSafaQuantity || 1));
+    if (
+      !bypassSafaLimit &&
+      packageSafaLimit > 0 &&
+      additionalSafaCount + quantity > packageSafaLimit
+    ) {
+      setMessage({
+        title: 'Package Safa limit reached',
+        text: `This package allows ${packageSafaLimit} Safas. Enable Bypass limit only when an exception is approved.`,
+      });
+      return;
+    }
+    setMessage(null);
+    setItems((current) => {
+      const existing = current.find(
+        (item) => item.additional_safa && item.product_id === product.id,
+      );
+      if (existing) {
+        return current.map((item) =>
+          item.key === existing.key
+            ? { ...item, quantity: item.quantity + quantity }
+            : item,
+        );
+      }
+      return [
+        ...current,
+        {
+          key: uid(),
+          product_id: product.id,
+          additional_safa: true,
+          item_name: `Additional Safa · ${product.name}`,
+          quantity,
+          unit_price: Number(selectedRentalPackage.extra_safa_price),
+          security_deposit: 0,
+        },
+      ];
+    });
+    setAdditionalSafaQuantity(1);
   }
 
   function updateItem(key: string, patch: Partial<Item>) {
@@ -333,7 +480,9 @@ export function BookingForm({
       assigned_staff_id: form.get('assigned_staff_id'),
       notes:
         [plainNotes, modificationNotes].filter(Boolean).join('\n\n') || null,
-      items: items.map(({ key: _key, ...item }) => item),
+      items: items.map(
+        ({ key: _key, additional_safa: _additionalSafa, ...item }) => item,
+      ),
       discount,
       tax,
       paid_amount: quote ? 0 : paid,
@@ -656,7 +805,9 @@ export function BookingForm({
                             value={alternateMobile}
                             onChange={(event) =>
                               setAlternateMobile(
-                                event.target.value.replace(/\D/g, '').slice(0, 10),
+                                event.target.value
+                                  .replace(/\D/g, '')
+                                  .slice(0, 10),
                               )
                             }
                             placeholder="Enter 10-digit alternate number"
@@ -680,8 +831,8 @@ export function BookingForm({
 
             <div hidden={step !== 2} className="space-y-5">
               <Card className="gap-0 border-border py-0 shadow-none ring-0">
-                <CardHeader className="flex-row items-center justify-between border-b px-4 py-4">
-                  <div className="flex items-center gap-2">
+                <CardHeader className="flex flex-col items-start gap-3 border-b px-4 py-4">
+                  <div className="flex w-full min-w-0 items-center gap-2">
                     <Box className="size-4" />
                     <CardTitle className="text-sm font-semibold">
                       {isSale
@@ -692,8 +843,8 @@ export function BookingForm({
                     </CardTitle>
                     <Badge variant="outline">
                       {isSale || rentalSelectionMode === 'individual'
-                        ? `${products.length} products`
-                        : `${rentalPackages.length} packages`}
+                        ? `${visibleProducts.length} products`
+                        : `${visibleRentalPackages.length} packages`}
                     </Badge>
                   </div>
                   {(isSale || rentalSelectionMode === 'individual') && (
@@ -701,6 +852,7 @@ export function BookingForm({
                       type="button"
                       variant="outline"
                       size="sm"
+                      className="w-full justify-center sm:w-72"
                       onClick={() =>
                         setItems((current) => [
                           ...current,
@@ -749,132 +901,434 @@ export function BookingForm({
                   ) : null}
                   {isSale || rentalSelectionMode === 'individual' ? (
                     <>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
-                    <input
-                      value={productSearch}
-                      onChange={(e) => setProductSearch(e.target.value)}
-                      placeholder="Search product, 11-digit barcode or SKU…"
-                      inputMode="search"
-                      className={`${inputClass} pl-9 pr-12`}
-                    />
-                    <button
-                      type="button"
-                      aria-label="Focus barcode search"
-                      onClick={() => setProductSearch('')}
-                      className="absolute right-2 top-1.5 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
-                    >
-                      <Camera className="size-4" />
-                    </button>
-                  </div>
-                  {visibleProducts.length ? (
-                    <div className="grid max-h-[330px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-4">
-                      {visibleProducts.map((product) => (
-                        <button
-                          key={product.id}
-                          type="button"
-                          onClick={() => addProduct(product)}
-                          className="group rounded-xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
-                        >
-                          <span className="grid h-24 overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
-                            {product.image_urls?.[0] ? (
-                              <Image
-                                src={product.image_urls[0]}
-                                alt=""
-                                width={320}
-                                height={160}
-                                unoptimized
-                                className="h-full w-full object-cover transition group-hover:scale-105"
-                              />
-                            ) : (
-                              <Package className="m-auto size-8 transition group-hover:scale-110" />
-                            )}
-                          </span>
-                          <span className="mt-3 block truncate text-sm font-semibold">
-                            {product.name}
-                          </span>
-                          <span className="mt-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                            <span className="truncate font-mono">
-                              {product.barcode ||
-                                product.sku ||
-                                `${product.stock_quantity} in stock`}
-                            </span>
-                            <strong className="shrink-0 text-foreground">
-                              {money(
-                                isSale
-                                  ? product.sale_price
-                                  : product.rental_price,
-                              )}
-                            </strong>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyCatalog />
-                  )}
-                  {isSale && packages.length > 0 && (
-                    <div>
-                      <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        Packages
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {packages.map((pack) => (
-                          <Button
-                            key={pack.id}
+                      <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(260px,1fr)_210px_210px]">
+                        <div className="relative md:col-span-2 xl:col-span-1">
+                          <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                          <input
+                            value={productSearch}
+                            onChange={(e) => setProductSearch(e.target.value)}
+                            placeholder="Search products or barcode…"
+                            inputMode="search"
+                            className={`${inputClass} pl-9 pr-12`}
+                          />
+                          <button
                             type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => addPackage(pack)}
+                            aria-label="Clear product search"
+                            onClick={() => setProductSearch('')}
+                            className="absolute right-2 top-1.5 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
                           >
-                            <Plus />
-                            {pack.name} ·{' '}
-                            {money(
-                              isSale ? pack.sale_price : pack.rental_price,
-                            )}
-                          </Button>
-                        ))}
+                            <Camera className="size-4" />
+                          </button>
+                        </div>
+                        <label>
+                          <span className="sr-only">
+                            Filter product category
+                          </span>
+                          <select
+                            value={productCategory}
+                            onChange={(event) => {
+                              setProductCategory(event.target.value);
+                              setProductSubcategory('all');
+                            }}
+                            className={inputClass}
+                          >
+                            <option value="all">All categories</option>
+                            {INVENTORY_CATEGORIES.map((category) => (
+                              <option key={category}>{category}</option>
+                            ))}
+                          </select>
+                        </label>
+                        <label>
+                          <span className="sr-only">
+                            Filter product subcategory
+                          </span>
+                          <select
+                            value={productSubcategory}
+                            onChange={(event) =>
+                              setProductSubcategory(event.target.value)
+                            }
+                            className={inputClass}
+                          >
+                            <option value="all">All subcategories</option>
+                            {productSubcategoryOptions.map((subcategory) => (
+                              <option key={subcategory}>{subcategory}</option>
+                            ))}
+                          </select>
+                        </label>
                       </div>
-                    </div>
-                  )}
+                      {visibleProducts.length ? (
+                        <div className="grid max-h-[640px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-4">
+                          {visibleProducts.map((product) => (
+                            <button
+                              key={product.id}
+                              type="button"
+                              onClick={() => addProduct(product)}
+                              className="group overflow-hidden rounded-xl border bg-white p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
+                            >
+                              <span className="relative grid aspect-square overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
+                                {product.image_urls?.[0] ? (
+                                  <Image
+                                    src={product.image_urls[0]}
+                                    alt={product.name}
+                                    fill
+                                    unoptimized
+                                    className="h-full w-full object-contain p-1 transition group-hover:scale-[1.02]"
+                                  />
+                                ) : (
+                                  <Package className="m-auto size-8 transition group-hover:scale-110" />
+                                )}
+                                {product.category ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate bg-white/95 text-[10px] shadow-sm"
+                                  >
+                                    {product.category}
+                                  </Badge>
+                                ) : null}
+                              </span>
+                              <span className="mt-3 block truncate px-1 text-sm font-semibold">
+                                {product.name}
+                              </span>
+                              <span className="mt-1 flex items-center justify-between gap-2 px-1 pb-1 text-xs text-muted-foreground">
+                                <span className="truncate font-mono">
+                                  {product.barcode ||
+                                    product.sku ||
+                                    `${product.stock_quantity} in stock`}
+                                </span>
+                                <strong className="shrink-0 text-foreground">
+                                  {money(
+                                    isSale
+                                      ? product.sale_price
+                                      : product.rental_price,
+                                  )}
+                                </strong>
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <EmptyCatalog />
+                      )}
+                      {isSale && packages.length > 0 && (
+                        <div>
+                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            Packages
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {packages.map((pack) => (
+                              <Button
+                                key={pack.id}
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => addPackage(pack)}
+                              >
+                                <Plus />
+                                {pack.name} ·{' '}
+                                {money(
+                                  isSale ? pack.sale_price : pack.rental_price,
+                                )}
+                              </Button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </>
                   ) : rentalPackages.length ? (
-                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                      {rentalPackages.map((pack) => (
-                        <button
-                          key={pack.id}
-                          type="button"
-                          onClick={() => addRentalPackage(pack)}
-                          className="group rounded-xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
-                        >
-                          <span className="flex items-start justify-between gap-3">
-                            <span className="min-w-0">
-                              <span className="block text-xs font-semibold uppercase tracking-wide text-primary">
-                                {pack.category_name}
-                              </span>
-                              <span className="mt-1 block truncate text-sm font-semibold">
-                                {pack.name}
-                              </span>
-                            </span>
-                            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent text-primary">
-                              <Package className="size-4" />
-                            </span>
+                    <div className="space-y-6">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                        <input
+                          value={packageSearch}
+                          onChange={(event) => setPackageSearch(event.target.value)}
+                          placeholder="Search packages or inclusions…"
+                          inputMode="search"
+                          className={`${inputClass} pl-9`}
+                        />
+                      </div>
+                      <section>
+                        <div className="mb-3 flex items-center gap-2">
+                          <span className="grid size-7 place-items-center rounded-lg bg-accent text-xs font-semibold text-primary">
+                            1
                           </span>
-                          {pack.inclusions.length ? (
-                            <span className="mt-3 block line-clamp-2 text-xs leading-5 text-muted-foreground">
-                              {pack.inclusions.join(' · ')}
+                          <h3 className="text-sm font-semibold">
+                            Select package category
+                          </h3>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {rentalPackageCategories.map((category) => {
+                            const selected = category === selectedRentalCategory;
+                            return (
+                              <button
+                                key={category}
+                                type="button"
+                                aria-pressed={selected}
+                                onClick={() => setSelectedRentalCategory(category)}
+                                className={`h-10 rounded-xl border px-4 text-left text-sm font-medium transition ${selected ? 'border-primary bg-primary text-white shadow-sm' : 'border-border bg-white text-foreground hover:border-primary/40 hover:bg-[#fcfaf7]'}`}
+                              >
+                                {category}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </section>
+
+                      <section className="border-t pt-5">
+                        <div className="mb-3 flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="grid size-7 place-items-center rounded-lg bg-accent text-xs font-semibold text-primary">
+                              2
+                            </span>
+                            <h3 className="text-sm font-semibold">
+                              Select package variant
+                            </h3>
+                          </div>
+                          <span className="text-xs text-muted-foreground">
+                            {selectedRentalCategory}
+                          </span>
+                        </div>
+                        {visibleRentalPackages.length ? (
+                          <div className="grid max-h-[640px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-4">
+                            {visibleRentalPackages.map((pack) => (
+                              <button
+                                key={pack.id}
+                                type="button"
+                                aria-pressed={pack.id === selectedRentalPackageId}
+                                onClick={() => addRentalPackage(pack)}
+                                className={`group overflow-hidden rounded-xl border bg-white p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 ${pack.id === selectedRentalPackageId ? 'border-primary ring-2 ring-primary/20' : ''}`}
+                              >
+                                <span className="relative grid aspect-square overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
+                                  {pack.image_url ? (
+                                    <Image
+                                      src={pack.image_url}
+                                      alt={pack.name}
+                                      fill
+                                      unoptimized
+                                      className="object-contain p-1 transition group-hover:scale-[1.02]"
+                                    />
+                                  ) : (
+                                    <Package className="m-auto size-10 text-primary/35" />
+                                  )}
+                                  <Badge
+                                    variant="outline"
+                                    className="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate bg-white/95 text-[10px] shadow-sm"
+                                  >
+                                    {pack.category_name}
+                                  </Badge>
+                                </span>
+                                <span className="mt-3 block truncate px-1 text-sm font-semibold">
+                                  {pack.name}
+                                </span>
+                                {pack.inclusions.length ? (
+                                  <span className="mt-1 block truncate px-1 text-xs text-muted-foreground">
+                                    {pack.inclusions.join(' · ')}
+                                  </span>
+                                ) : null}
+                                <span className="mt-2 flex items-end justify-between gap-2 border-t px-1 pb-1 pt-2">
+                                  <span className="text-[11px] text-muted-foreground">
+                                    Deposit {money(pack.security_deposit)}
+                                  </span>
+                                  <strong className="shrink-0 text-sm text-foreground">
+                                    {money(pack.rental_price)}
+                                  </strong>
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="rounded-xl border border-dashed px-4 py-7 text-center">
+                            <Package className="mx-auto size-6 text-muted-foreground/60" />
+                            <p className="mt-2 text-sm font-medium">
+                              No variants in this category
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              Add a variant in Package Manager to use it here.
+                            </p>
+                          </div>
+                        )}
+                      </section>
+
+                      <section className="rounded-2xl border border-[#d9c29e] bg-[#fcfaf7] p-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="grid size-8 place-items-center rounded-lg bg-accent text-primary">
+                                <Package className="size-4" />
+                              </span>
+                              <h3 className="text-sm font-semibold">
+                                Additional Safa
+                              </h3>
+                              <Badge variant="outline" className="bg-white">
+                                {additionalSafaProducts.length} options
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground sm:ml-10">
+                              Optional · Select only from Barati Safa inventory.
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-3 rounded-lg border bg-white px-3 py-2 text-xs">
+                            <span className="font-medium tabular-nums">
+                              {additionalSafaCount} / {packageSafaLimit || '—'} used
+                            </span>
+                            <span className="h-4 w-px bg-border" />
+                            <button
+                              type="button"
+                              aria-pressed={bypassSafaLimit}
+                              onClick={() =>
+                                setBypassSafaLimit((current) => !current)
+                              }
+                              className={`shrink-0 rounded-full px-2.5 py-1 font-medium transition ${bypassSafaLimit ? 'bg-[#9a6728] text-white' : 'bg-muted text-muted-foreground hover:bg-muted/70'}`}
+                            >
+                              Bypass limit
+                            </button>
+                          </div>
+                        </div>
+                        <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_180px]">
+                          <div className="relative">
+                            <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
+                            <input
+                              value={additionalSafaSearch}
+                              onChange={(event) =>
+                                setAdditionalSafaSearch(event.target.value)
+                              }
+                              placeholder="Search products or barcode…"
+                              inputMode="search"
+                              className={`${inputClass} pl-9 pr-12`}
+                            />
+                            <button
+                              type="button"
+                              aria-label="Clear additional Safa search"
+                              onClick={() => setAdditionalSafaSearch('')}
+                              className="absolute right-2 top-1.5 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                            >
+                              <Camera className="size-4" />
+                            </button>
+                          </div>
+                          <label>
+                            <span className="sr-only">Barati Safa package</span>
+                            <select
+                              value={additionalSafaPackage}
+                              onChange={(event) => {
+                                setAdditionalSafaPackage(event.target.value);
+                                setAdditionalSafaProductId('');
+                              }}
+                              className={inputClass}
+                            >
+                              <option value="all">All packages</option>
+                              {additionalSafaPackages.map((subcategory) => (
+                                <option key={subcategory}>{subcategory}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                        {additionalSafaProducts.length ? (
+                          <div className="mt-3 grid max-h-[420px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-4">
+                            {additionalSafaProducts.map((product) => {
+                              const selected = product.id === Number(additionalSafaProductId);
+                              return (
+                                <button
+                                  key={product.id}
+                                  type="button"
+                                  aria-pressed={selected}
+                                  onClick={() =>
+                                    setAdditionalSafaProductId(String(product.id))
+                                  }
+                                  className={`group overflow-hidden rounded-xl border bg-white p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 ${selected ? 'border-primary ring-2 ring-primary/20' : ''}`}
+                                >
+                                  <span className="relative grid aspect-square overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
+                                    {product.image_urls?.[0] ? (
+                                      <Image
+                                        src={product.image_urls[0]}
+                                        alt={product.name}
+                                        fill
+                                        unoptimized
+                                        className="h-full w-full object-contain p-1 transition group-hover:scale-[1.02]"
+                                      />
+                                    ) : (
+                                      <Package className="m-auto size-8 transition group-hover:scale-110" />
+                                    )}
+                                    {product.subcategory ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate bg-white/95 text-[10px] shadow-sm"
+                                      >
+                                        {product.subcategory}
+                                      </Badge>
+                                    ) : null}
+                                  </span>
+                                  <span className="mt-3 block truncate px-1 text-sm font-semibold">
+                                    {product.name}
+                                  </span>
+                                  <span className="mt-1 flex items-center justify-between gap-2 px-1 pb-1 text-xs text-muted-foreground">
+                                    <span className="truncate font-mono">
+                                      {product.barcode || product.sku || ''}
+                                    </span>
+                                    <strong className="shrink-0 text-foreground">
+                                      {money(product.rental_price)}
+                                    </strong>
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="mt-3 rounded-xl border border-dashed px-4 py-6 text-center">
+                            <Package className="mx-auto size-6 text-muted-foreground/60" />
+                            <p className="mt-2 text-sm font-medium">
+                              No Barati Safa products match
+                            </p>
+                          </div>
+                        )}
+                        <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                          {selectedAdditionalSafaProduct ? (
+                            <span className="truncate text-xs text-muted-foreground">
+                              Selected: {selectedAdditionalSafaProduct.name}
                             </span>
                           ) : null}
-                          <span className="mt-3 flex items-end justify-between gap-3 border-t pt-3">
-                            <span className="text-xs text-muted-foreground">
-                              Deposit {money(pack.security_deposit)}
-                            </span>
-                            <strong className="text-sm text-foreground">
-                              {money(pack.rental_price)}
-                            </strong>
+                          <div className="flex items-center gap-2 sm:ml-auto">
+                            <label>
+                              <span className="sr-only">Additional Safa quantity</span>
+                              <input
+                                type="number"
+                                min="1"
+                                value={additionalSafaQuantity}
+                                onChange={(event) =>
+                                  setAdditionalSafaQuantity(
+                                    Math.max(1, Number(event.target.value) || 1),
+                                  )
+                                }
+                                className={`${inputClass} w-24`}
+                                aria-label="Additional Safa quantity"
+                              />
+                            </label>
+                            <Button
+                              type="button"
+                              onClick={addAdditionalSafa}
+                              disabled={
+                                !selectedRentalPackage || !additionalSafaProductId
+                              }
+                            >
+                              <Plus /> Add Safa
+                            </Button>
+                          </div>
+                        </div>
+                      </section>
+
+                      <section className="rounded-2xl border bg-white p-4">
+                        <label className="block text-sm">
+                          <span className="mb-1.5 flex items-center gap-2 font-medium">
+                            <FileText className="size-4 text-primary" /> Notes
                           </span>
-                        </button>
-                      ))}
+                          <textarea
+                            name="notes"
+                            rows={4}
+                            value={rentalNotes}
+                            onChange={(event) => setRentalNotes(event.target.value)}
+                            placeholder="Any additional notes…"
+                            className="w-full resize-y rounded-xl border border-input bg-white p-3 text-sm leading-6 outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                          />
+                        </label>
+                      </section>
                     </div>
                   ) : (
                     <div className="rounded-xl border border-dashed px-4 py-8 text-center">
@@ -1166,15 +1620,47 @@ export function BookingForm({
                 </Card>
               )}
 
-              <label className="block text-sm">
-                <span className="mb-1.5 block font-medium">Notes</span>
-                <textarea
-                  name="notes"
-                  rows={4}
-                  placeholder="Any additional notes…"
-                  className="w-full rounded-lg border border-input bg-white p-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-                />
-              </label>
+              {!isSale && rentalSelectionMode === 'individual' ? (
+                <Card className="gap-0 border-border py-0 shadow-none ring-0">
+                  <CardHeader className="border-b bg-[#fcfaf7] px-4 py-4">
+                    <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+                      <span className="grid size-8 place-items-center rounded-lg bg-accent text-primary">
+                        <FileText className="size-4" />
+                      </span>
+                      Rental notes
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Add delivery, handling, fitting or return instructions for
+                      this rental.
+                    </p>
+                  </CardHeader>
+                  <CardContent className="p-4">
+                    <label className="block text-sm">
+                      <span className="mb-1.5 block font-medium">
+                        Notes for this rental
+                      </span>
+                      <textarea
+                        name="notes"
+                        rows={4}
+                        value={rentalNotes}
+                        onChange={(event) => setRentalNotes(event.target.value)}
+                        placeholder="Enter delivery instructions, product handling notes, fitting details or return information…"
+                        className="w-full resize-y rounded-lg border border-input bg-white p-3 text-sm leading-6 outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                      />
+                    </label>
+                  </CardContent>
+                </Card>
+              ) : isSale ? (
+                <label className="block text-sm">
+                  <span className="mb-1.5 block font-medium">Notes</span>
+                  <textarea
+                    name="notes"
+                    rows={4}
+                    placeholder="Any additional notes…"
+                    className="w-full rounded-lg border border-input bg-white p-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  />
+                </label>
+              ) : null}
 
               <div className="grid gap-5 lg:grid-cols-2">
                 <Card className="gap-0 border-border py-0 shadow-none ring-0">
@@ -1418,7 +1904,7 @@ function TypeChooser({
       <dialog
         open
         aria-labelledby="booking-type-title"
-        className="relative m-0 w-full max-w-xl rounded-[24px] border border-white/40 bg-[#fffdf9] p-6 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)] sm:p-8"
+        className="relative m-0 max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-[24px] border border-white/40 bg-[#fffdf9] p-6 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)] sm:p-8"
       >
         <button
           type="button"
@@ -1516,7 +2002,7 @@ function NewCustomerDialog({
       <dialog
         open
         aria-labelledby="new-customer-title"
-        className="relative m-0 w-full max-w-lg overflow-hidden rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
+        className="relative m-0 max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
       >
         <div className="flex items-start justify-between border-b bg-[#fcfaf7] px-5 py-5 sm:px-6">
           <div className="flex gap-3">
