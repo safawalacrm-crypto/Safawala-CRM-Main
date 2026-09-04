@@ -186,8 +186,9 @@ export function BookingPdfButton({ booking }: { booking: PdfBooking }) {
             .filter((url): url is string => Boolean(url)),
         ),
       );
-      const [logo, qrDataUrl, ...rawProductImages] = await Promise.all([
+      const [logo, signature, qrDataUrl, ...rawProductImages] = await Promise.all([
         recolorLogo('/safawala-crown-dark.png', BRAND_DARK),
+        recolorLogo('/ronak-dave-signature.png', BRAND_DARK),
         QRCode.toDataURL(
           `upi://pay?pa=${BANK_DETAILS.upi}&pn=${encodeURIComponent('Safawala')}&am=${Math.max(booking.balance_amount, 0).toFixed(2)}&cu=INR`,
           { margin: 0, scale: 6 },
@@ -438,6 +439,31 @@ export function BookingPdfButton({ booking }: { booking: PdfBooking }) {
         doc.text('Scan to Pay', qrX + qrSize / 2, qrY + qrSize + 3.6, {
           align: 'center',
         });
+      }
+      if (signature) {
+        const signatureW = 40;
+        const signatureH = signatureW / signature.ratio;
+        const signatureX = right - 74;
+        const signatureY = y + 5;
+        doc.addImage(
+          signature.dataUrl,
+          'PNG',
+          signatureX,
+          signatureY,
+          signatureW,
+          signatureH,
+          undefined,
+          'FAST',
+        );
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(...BRAND_MID);
+        doc.text(
+          'Authorized Signatory',
+          signatureX + signatureW / 2,
+          y + payBoxH - 4,
+          { align: 'center' },
+        );
       }
       y += payBoxH + 9;
 
