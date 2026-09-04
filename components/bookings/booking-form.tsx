@@ -15,6 +15,7 @@ import {
   FileText,
   MapPin,
   Package,
+  Phone,
   Plus,
   Printer,
   Search,
@@ -57,6 +58,14 @@ type PackageRow = {
   rental_price: number;
   security_deposit: number;
 };
+type RentalPackage = {
+  id: number;
+  name: string;
+  category_name: string;
+  rental_price: number;
+  security_deposit: number;
+  inclusions: string[];
+};
 type Staff = { id: number; name: string };
 type Item = {
   key: string;
@@ -66,6 +75,7 @@ type Item = {
   security_deposit: number;
   product_id?: number;
   package_id?: number;
+  package_variant_id?: number;
 };
 
 const inputClass =
@@ -76,11 +86,13 @@ export function BookingForm({
   customers,
   products,
   packages,
+  rentalPackages,
   staff,
 }: {
   customers: Customer[];
   products: Product[];
   packages: PackageRow[];
+  rentalPackages: RentalPackage[];
   staff: Staff[];
 }) {
   const router = useRouter();
@@ -104,6 +116,11 @@ export function BookingForm({
   const [eventDate, setEventDate] = useState('');
   const [eventTime, setEventTime] = useState('');
   const [venue, setVenue] = useState('');
+  const [contactName, setContactName] = useState('');
+  const [alternateMobile, setAlternateMobile] = useState('');
+  const [rentalSelectionMode, setRentalSelectionMode] = useState<
+    'individual' | 'packages'
+  >('individual');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{
     title: string;
@@ -174,6 +191,20 @@ export function BookingForm({
     ]);
   }
 
+  function addRentalPackage(pack: RentalPackage) {
+    setItems((current) => [
+      ...current,
+      {
+        key: uid(),
+        package_variant_id: pack.id,
+        item_name: `${pack.category_name} · ${pack.name}`,
+        quantity: 1,
+        unit_price: Number(pack.rental_price),
+        security_deposit: Number(pack.security_deposit),
+      },
+    ]);
+  }
+
   function updateItem(key: string, patch: Partial<Item>) {
     setItems((current) =>
       current.map((item) => (item.key === key ? { ...item, ...patch } : item)),
@@ -202,6 +233,16 @@ export function BookingForm({
       setMessage({
         title: 'Complete the event details',
         text: 'Event type, booking for, event date and venue are required.',
+      });
+      return;
+    }
+    if (
+      type === 'rental' &&
+      (!contactName.trim() || !/^\d{10}$/.test(alternateMobile))
+    ) {
+      setMessage({
+        title: 'Complete the rental contact details',
+        text: 'Contact name and a valid 10-digit alternate mobile number are required.',
       });
       return;
     }
@@ -285,6 +326,8 @@ export function BookingForm({
       event_date: eventDate,
       event_time: form.get('event_time'),
       event_location: venue,
+      contact_name: type === 'rental' ? contactName.trim() : null,
+      alternate_mobile: type === 'rental' ? alternateMobile : null,
       pickup_date: type === 'rental' ? form.get('pickup_date') : null,
       due_date: type === 'rental' ? form.get('due_date') : null,
       assigned_staff_id: form.get('assigned_staff_id'),
@@ -579,6 +622,50 @@ export function BookingForm({
                         required
                       />
                     </label>
+                    {!isSale ? (
+                      <>
+                        <label className="block text-sm">
+                          <span className="mb-1.5 block text-muted-foreground">
+                            Contact name <span className="text-red-600">*</span>
+                          </span>
+                          <input
+                            name="contact_name"
+                            value={contactName}
+                            onChange={(event) =>
+                              setContactName(event.target.value)
+                            }
+                            placeholder="Name of the event contact"
+                            autoComplete="off"
+                            className={inputClass}
+                            required
+                          />
+                        </label>
+                        <label className="block text-sm">
+                          <span className="mb-1.5 flex items-center gap-1.5 text-muted-foreground">
+                            <Phone className="size-3.5 text-primary" />
+                            Alternate mobile number{' '}
+                            <span className="text-red-600">*</span>
+                          </span>
+                          <input
+                            name="alternate_mobile"
+                            type="tel"
+                            inputMode="numeric"
+                            autoComplete="off"
+                            pattern="[0-9]{10}"
+                            maxLength={10}
+                            value={alternateMobile}
+                            onChange={(event) =>
+                              setAlternateMobile(
+                                event.target.value.replace(/\D/g, '').slice(0, 10),
+                              )
+                            }
+                            placeholder="Enter 10-digit alternate number"
+                            className={inputClass}
+                            required
+                          />
+                        </label>
+                      </>
+                    ) : null}
                   </CardContent>
                 </Card>
               </div>
@@ -597,32 +684,71 @@ export function BookingForm({
                   <div className="flex items-center gap-2">
                     <Box className="size-4" />
                     <CardTitle className="text-sm font-semibold">
-                      Select products
+                      {isSale
+                        ? 'Select products'
+                        : rentalSelectionMode === 'individual'
+                          ? 'Select individual products'
+                          : 'Select a package'}
                     </CardTitle>
-                    <Badge variant="outline">{products.length} products</Badge>
+                    <Badge variant="outline">
+                      {isSale || rentalSelectionMode === 'individual'
+                        ? `${products.length} products`
+                        : `${rentalPackages.length} packages`}
+                    </Badge>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() =>
-                      setItems((current) => [
-                        ...current,
-                        {
-                          key: uid(),
-                          item_name: '',
-                          quantity: 1,
-                          unit_price: 0,
-                          security_deposit: 0,
-                        },
-                      ])
-                    }
-                  >
-                    <Plus />
-                    Quick custom product
-                  </Button>
+                  {(isSale || rentalSelectionMode === 'individual') && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setItems((current) => [
+                          ...current,
+                          {
+                            key: uid(),
+                            item_name: '',
+                            quantity: 1,
+                            unit_price: 0,
+                            security_deposit: 0,
+                          },
+                        ])
+                      }
+                    >
+                      <Plus />
+                      Quick custom product
+                    </Button>
+                  )}
                 </CardHeader>
                 <CardContent className="space-y-4 p-4">
+                  {!isSale ? (
+                    <fieldset>
+                      <legend className="mb-2 text-sm font-medium text-muted-foreground">
+                        Selection mode
+                      </legend>
+                      <div className="grid grid-cols-2 gap-2 rounded-xl border bg-[#fcfaf7] p-1.5">
+                        <button
+                          type="button"
+                          aria-pressed={rentalSelectionMode === 'individual'}
+                          onClick={() => setRentalSelectionMode('individual')}
+                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${rentalSelectionMode === 'individual' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-white hover:text-foreground'}`}
+                        >
+                          <Box className="size-4" />
+                          Individual products
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={rentalSelectionMode === 'packages'}
+                          onClick={() => setRentalSelectionMode('packages')}
+                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${rentalSelectionMode === 'packages' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-white hover:text-foreground'}`}
+                        >
+                          <Package className="size-4" />
+                          Packages
+                        </button>
+                      </div>
+                    </fieldset>
+                  ) : null}
+                  {isSale || rentalSelectionMode === 'individual' ? (
+                    <>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
                     <input
@@ -687,7 +813,7 @@ export function BookingForm({
                   ) : (
                     <EmptyCatalog />
                   )}
-                  {packages.length > 0 && (
+                  {isSale && packages.length > 0 && (
                     <div>
                       <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Packages
@@ -709,6 +835,56 @@ export function BookingForm({
                           </Button>
                         ))}
                       </div>
+                    </div>
+                  )}
+                    </>
+                  ) : rentalPackages.length ? (
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                      {rentalPackages.map((pack) => (
+                        <button
+                          key={pack.id}
+                          type="button"
+                          onClick={() => addRentalPackage(pack)}
+                          className="group rounded-xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
+                        >
+                          <span className="flex items-start justify-between gap-3">
+                            <span className="min-w-0">
+                              <span className="block text-xs font-semibold uppercase tracking-wide text-primary">
+                                {pack.category_name}
+                              </span>
+                              <span className="mt-1 block truncate text-sm font-semibold">
+                                {pack.name}
+                              </span>
+                            </span>
+                            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-accent text-primary">
+                              <Package className="size-4" />
+                            </span>
+                          </span>
+                          {pack.inclusions.length ? (
+                            <span className="mt-3 block line-clamp-2 text-xs leading-5 text-muted-foreground">
+                              {pack.inclusions.join(' · ')}
+                            </span>
+                          ) : null}
+                          <span className="mt-3 flex items-end justify-between gap-3 border-t pt-3">
+                            <span className="text-xs text-muted-foreground">
+                              Deposit {money(pack.security_deposit)}
+                            </span>
+                            <strong className="text-sm text-foreground">
+                              {money(pack.rental_price)}
+                            </strong>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-xl border border-dashed px-4 py-8 text-center">
+                      <Package className="mx-auto size-7 text-muted-foreground/60" />
+                      <p className="mt-2 text-sm font-medium">
+                        No rental packages available
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        Create an active package in Package Manager first.
+                      </p>
                     </div>
                   )}
                 </CardContent>
@@ -749,6 +925,7 @@ export function BookingForm({
                                       item_name: e.target.value,
                                       product_id: undefined,
                                       package_id: undefined,
+                                      package_variant_id: undefined,
                                     })
                                   }
                                   aria-label="Item name"
@@ -891,6 +1068,18 @@ export function BookingForm({
                   <div className="sm:col-span-2 lg:col-span-4">
                     <ReviewDetail label="Venue" value={venue || 'Not added'} />
                   </div>
+                  {!isSale ? (
+                    <>
+                      <ReviewDetail
+                        label="Contact name"
+                        value={contactName || 'Not added'}
+                      />
+                      <ReviewDetail
+                        label="Alternate mobile"
+                        value={alternateMobile || 'Not added'}
+                      />
+                    </>
+                  ) : null}
                   <ReviewDetail
                     label="Selected items"
                     value={`${items.reduce((sum, item) => sum + item.quantity, 0)} item${items.reduce((sum, item) => sum + item.quantity, 0) === 1 ? '' : 's'}`}

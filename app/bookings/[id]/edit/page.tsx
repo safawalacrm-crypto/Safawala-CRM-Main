@@ -24,7 +24,7 @@ export default async function EditBookingPage({
     supabase
       .from('bookings')
       .select(
-        'id,booking_number,booking_type,status,is_quote,customer_id,assigned_staff_id,event_name,event_date,event_time,event_location,pickup_date,due_date,notes,discount,tax,paid_amount,booking_items(id,product_id,package_id,item_name,quantity,unit_price,security_deposit)',
+        'id,booking_number,booking_type,status,is_quote,customer_id,assigned_staff_id,event_name,event_date,event_time,event_location,contact_name,alternate_mobile,pickup_date,due_date,notes,discount,tax,paid_amount,booking_items(id,product_id,package_id,package_variant_id,item_name,quantity,unit_price,security_deposit)',
       )
       .eq('id', id)
       .single(),

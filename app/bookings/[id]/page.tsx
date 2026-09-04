@@ -133,6 +133,15 @@ export default async function BookingDetailsPage({
                 {booking.booking_type === 'rental' && (
                   <>
                     <Info
+                      label="Contact name"
+                      value={booking.contact_name || 'Not added'}
+                    />
+                    <Info
+                      label="Alternate mobile"
+                      value={booking.alternate_mobile || 'Not added'}
+                      icon={<Phone />}
+                    />
+                    <Info
                       label="Pickup date"
                       value={friendlyDate(booking.pickup_date)}
                     />

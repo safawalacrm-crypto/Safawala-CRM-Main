@@ -26,6 +26,7 @@ type BookingItem = {
   id?: number;
   product_id: number | null;
   package_id: number | null;
+  package_variant_id: number | null;
   item_name: string;
   quantity: number;
   unit_price: number;
@@ -43,6 +44,8 @@ type Booking = {
   event_date: string;
   event_time: string | null;
   event_location: string | null;
+  contact_name: string | null;
+  alternate_mobile: string | null;
   pickup_date: string | null;
   due_date: string | null;
   notes: string | null;
@@ -78,6 +81,7 @@ type Item = {
   security_deposit: number;
   product_id?: number;
   package_id?: number;
+  package_variant_id?: number;
 };
 
 const fieldClass =
@@ -117,6 +121,7 @@ export function BookingEditForm({
       security_deposit: Number(row.security_deposit),
       product_id: row.product_id ?? undefined,
       package_id: row.package_id ?? undefined,
+      package_variant_id: row.package_variant_id ?? undefined,
     })),
   );
   const [discount, setDiscount] = useState(Number(booking.discount) || 0);
@@ -212,6 +217,10 @@ export function BookingEditForm({
         event_date: text('event_date'),
         event_time: text('event_time'),
         event_location: text('event_location'),
+        contact_name:
+          booking.booking_type === 'rental' ? text('contact_name') : '',
+        alternate_mobile:
+          booking.booking_type === 'rental' ? text('alternate_mobile') : '',
         pickup_date: booking.booking_type === 'rental' ? text('pickup_date') : '',
         due_date: booking.booking_type === 'rental' ? text('due_date') : '',
         notes: text('notes'),
@@ -240,6 +249,14 @@ export function BookingEditForm({
           event_date: text('event_date'),
           event_time: text('event_time') || null,
           event_location: text('event_location') || null,
+          contact_name:
+            booking.booking_type === 'rental'
+              ? text('contact_name') || null
+              : null,
+          alternate_mobile:
+            booking.booking_type === 'rental'
+              ? text('alternate_mobile') || null
+              : null,
           pickup_date:
             booking.booking_type === 'rental'
               ? text('pickup_date') || null
@@ -351,6 +368,21 @@ export function BookingEditForm({
             />
             {booking.booking_type === 'rental' ? (
               <>
+                <Input
+                  label="Contact name"
+                  name="contact_name"
+                  defaultValue={booking.contact_name ?? ''}
+                  required
+                />
+                <Input
+                  label="Alternate mobile number"
+                  name="alternate_mobile"
+                  type="tel"
+                  defaultValue={booking.alternate_mobile ?? ''}
+                  required
+                  pattern="[0-9]{10}"
+                  maxLength={10}
+                />
                 <Input
                   label="Pickup date"
                   name="pickup_date"
@@ -505,6 +537,7 @@ export function BookingEditForm({
                                     item_name: e.target.value,
                                     product_id: undefined,
                                     package_id: undefined,
+                                    package_variant_id: undefined,
                                   })
                                 }
                                 aria-label="Item name"
@@ -704,12 +737,16 @@ function Input({
   type = 'text',
   defaultValue,
   required,
+  pattern,
+  maxLength,
 }: {
   label: string;
   name: string;
   type?: string;
   defaultValue: string;
   required?: boolean;
+  pattern?: string;
+  maxLength?: number;
 }) {
   return (
     <Field label={label} required={required}>
@@ -718,6 +755,8 @@ function Input({
         type={type}
         defaultValue={defaultValue}
         required={required}
+        pattern={pattern}
+        maxLength={maxLength}
         className={fieldClass}
       />
     </Field>

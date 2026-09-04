@@ -13,6 +13,7 @@ export default async function NewBookingPage() {
     { data: customers },
     { data: products },
     { data: packages },
+    { data: packageCategories },
     { data: staff },
   ] = await Promise.all([
     supabase
@@ -32,6 +33,13 @@ export default async function NewBookingPage() {
       .eq('is_active', true)
       .order('name'),
     supabase
+      .from('package_categories')
+      .select(
+        'id,name,package_variants(id,name,base_price,inclusions,security_deposit)',
+      )
+      .eq('is_active', true)
+      .order('name'),
+    supabase
       .from('staff_members')
       .select('id,name')
       .eq('is_active', true)
@@ -43,6 +51,16 @@ export default async function NewBookingPage() {
         customers={customers ?? []}
         products={products ?? []}
         packages={packages ?? []}
+        rentalPackages={(packageCategories ?? []).flatMap((category) =>
+          (category.package_variants ?? []).map((variant) => ({
+            id: variant.id,
+            name: variant.name,
+            category_name: category.name,
+            rental_price: Number(variant.base_price),
+            security_deposit: Number(variant.security_deposit),
+            inclusions: variant.inclusions ?? [],
+          })),
+        )}
         staff={staff ?? []}
       />
     </DashboardShell>
