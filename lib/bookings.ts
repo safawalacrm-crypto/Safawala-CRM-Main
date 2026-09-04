@@ -50,6 +50,15 @@ export const money = (value: number | string | null | undefined) =>
     currency: 'INR',
     maximumFractionDigits: 0,
   }).format(Number(value ?? 0));
+
+export function displayDocumentNumber(value: string) {
+  const match = value.match(/^(.*-)(\d+)$/);
+  if (!match) return value;
+  const sequence = Number(match[2]);
+  if (!Number.isSafeInteger(sequence)) return value;
+  return `${match[1]}${String(sequence).padStart(4, '0')}`;
+}
+
 export const friendlyDate = (value: string | null | undefined) => {
   if (!value) return 'Not added';
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);

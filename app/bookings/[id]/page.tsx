@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   BOOKING_TERMS,
+  displayDocumentNumber,
   friendlyDate,
   friendlyDateTime,
   friendlyTime,
@@ -44,7 +45,11 @@ export default async function BookingDetailsPage({
     <DashboardShell email={auth.user.email ?? 'Safawala user'}>
       <div className="mx-auto max-w-[1200px] space-y-6">
         <DashboardHeader
-          title={booking.booking_number}
+          title={
+            booking.is_quote
+              ? displayDocumentNumber(booking.booking_number)
+              : booking.booking_number
+          }
           subtitle={`${statusLabel(booking.booking_type)} booking · created ${friendlyDate(booking.created_at.slice(0, 10))}`}
           actions={
             <>

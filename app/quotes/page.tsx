@@ -30,6 +30,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   BookingRow,
+  displayDocumentNumber,
   friendlyDate,
   money,
   quoteState,
@@ -60,7 +61,10 @@ export default async function QuotesPage({ searchParams }: Props) {
   const type = params.type === 'rental' ? 'rental' : 'sale';
   const state = typeof params.state === 'string' ? params.state : '';
   const time = typeof params.time === 'string' ? params.time : '';
-  const created = typeof params.created === 'string' ? params.created : '';
+  const created =
+    typeof params.created === 'string'
+      ? displayDocumentNumber(params.created)
+      : '';
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
@@ -135,7 +139,12 @@ export default async function QuotesPage({ searchParams }: Props) {
     quoteCountQuery().eq('status', 'cancelled'),
   ]);
 
-  const quotes = (data ?? []) as unknown as (BookingRow & PdfBooking)[];
+  const quotes = (
+    (data ?? []) as unknown as (BookingRow & PdfBooking)[]
+  ).map((quote) => ({
+    ...quote,
+    booking_number: displayDocumentNumber(quote.booking_number),
+  }));
   const pageCount = Math.max(1, Math.ceil((count ?? 0) / pageSize));
   const queryString = (nextPage: number) => {
     const copy = new URLSearchParams();

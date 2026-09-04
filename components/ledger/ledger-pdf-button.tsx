@@ -129,7 +129,7 @@ export function LedgerPdfButton({
         doc.setDrawColor(...border);
         doc.setLineWidth(0.25);
         doc.line(left, height - 10, right, height - 10);
-        doc.setFont('helvetica', 'normal');
+        doc.setFont('courier', 'normal');
         doc.setFontSize(7);
         doc.setTextColor(...muted);
         const generated = new Intl.DateTimeFormat('en-IN', {
@@ -144,8 +144,10 @@ export function LedgerPdfButton({
       const tableHeader = () => {
         doc.setFillColor(245, 245, 245);
         doc.setDrawColor(...border);
-        doc.rect(left, y, right - left, 8, 'FD');
-        doc.setFont('helvetica', 'bold');
+        doc.rect(left, y, right - left, 8, 'F');
+        doc.setLineWidth(0.25);
+        columns.forEach((column) => doc.rect(column.x, y, column.w, 8, 'S'));
+        doc.setFont('courier', 'bold');
         doc.setFontSize(7.4);
         doc.setTextColor(...dark);
         columns.forEach((column) =>
@@ -162,27 +164,27 @@ export function LedgerPdfButton({
       const firstHeader = () => {
         doc.setDrawColor(...border);
         doc.setLineWidth(0.4);
-        doc.roundedRect(10, 8, width - 20, 29, 3, 3, 'S');
+        doc.roundedRect(10, 8, width - 20, 25, 3, 3, 'S');
         if (logo) {
-          const logoHeight = 14;
-          doc.addImage(logo.dataUrl, 'PNG', left + 2, 11.5, logoHeight * logo.ratio, logoHeight);
+          const logoHeight = 11;
+          doc.addImage(logo.dataUrl, 'PNG', left + 2, 10.5, logoHeight * logo.ratio, logoHeight);
         }
-        doc.setFont('helvetica', 'bold');
+        doc.setFont('courier', 'bold');
         doc.setTextColor(...dark);
-        doc.setFontSize(15);
-        doc.text('CUSTOMER LEDGER', right - 2, 17, { align: 'right' });
-        doc.setFontSize(8);
-        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(14);
+        doc.text('CUSTOMER LEDGER', right - 2, 16.5, { align: 'right' });
+        doc.setFontSize(7.5);
+        doc.setFont('courier', 'normal');
         doc.setTextColor(...muted);
-        doc.text('Premium Wedding Accessories', left + 2, 33);
-        doc.text(period, right - 2, 23, { align: 'right' });
+        doc.text('Premium Wedding Accessories', left + 2, 29.5);
+        doc.text(period, right - 2, 22.5, { align: 'right' });
 
-        y = 43;
+        y = 39;
         doc.setFontSize(8.5);
         doc.setTextColor(...dark);
-        doc.setFont('helvetica', 'bold');
+        doc.setFont('courier', 'bold');
         doc.text(customer.name, left + 2, y);
-        doc.setFont('helvetica', 'normal');
+        doc.setFont('courier', 'normal');
         doc.setTextColor(...muted);
         doc.text(`Customer ID: ${customer.id}   Mobile: ${customer.phone}`, left + 2, y + 5);
         doc.text(customer.email || 'Email not available', left + 2, y + 10);
@@ -195,11 +197,11 @@ export function LedgerPdfButton({
         ] as const;
         summary.forEach(([label, value], index) => {
           const x = summaryX + index * 39;
-          doc.setFont('helvetica', 'normal');
+          doc.setFont('courier', 'normal');
           doc.setTextColor(...muted);
           doc.setFontSize(7);
           doc.text(label.toUpperCase(), x, y);
-          doc.setFont('helvetica', 'bold');
+          doc.setFont('courier', 'bold');
           doc.setTextColor(...dark);
           doc.setFontSize(9.5);
           doc.text(label === 'Total Bills' ? String(value) : inr(Number(value)), x, y + 6);
@@ -213,11 +215,11 @@ export function LedgerPdfButton({
         if (y + 10 > height - 13) {
           doc.addPage('a4', 'landscape');
           y = 11;
-          doc.setFont('helvetica', 'bold');
+          doc.setFont('courier', 'bold');
           doc.setFontSize(8.5);
           doc.setTextColor(...dark);
           doc.text(`CUSTOMER LEDGER - ${customer.name}`, left, y);
-          doc.setFont('helvetica', 'normal');
+          doc.setFont('courier', 'normal');
           doc.setFontSize(7.5);
           doc.setTextColor(...muted);
           doc.text(period, right, y, { align: 'right' });
@@ -237,7 +239,7 @@ export function LedgerPdfButton({
           inr(transaction.balance),
           transaction.status === 'completed' ? 'Paid' : 'Due',
         ];
-        doc.setFont('helvetica', 'normal');
+        doc.setFont('courier', 'normal');
         doc.setFontSize(7.2);
         doc.setTextColor(...dark);
         columns.forEach((column, index) => {
@@ -248,14 +250,10 @@ export function LedgerPdfButton({
             y + 6,
             { align: column.align },
           );
-          if (index > 0) {
-            doc.setDrawColor(232, 232, 232);
-            doc.setLineWidth(0.15);
-            doc.line(column.x, y, column.x, y + 9);
-          }
+          doc.setDrawColor(205, 205, 205);
+          doc.setLineWidth(0.18);
+          doc.rect(column.x, y, column.w, 9, 'S');
         });
-        doc.setDrawColor(215, 215, 215);
-        doc.line(left, y + 9, right, y + 9);
         y += 9;
       }
       if (!transactions.length) {
