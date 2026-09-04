@@ -441,10 +441,10 @@ export function BookingPdfButton({ booking }: { booking: PdfBooking }) {
         });
       }
       if (signature) {
-        const signatureW = 40;
+        const signatureW = 32;
         const signatureH = signatureW / signature.ratio;
-        const signatureX = right - 74;
-        const signatureY = y + 5;
+        const signatureX = right - 70;
+        const signatureY = y + 7;
         doc.addImage(
           signature.dataUrl,
           'PNG',
