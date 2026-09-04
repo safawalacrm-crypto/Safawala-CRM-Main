@@ -678,7 +678,7 @@ function DialogFrame({
         open
         aria-modal="true"
         aria-labelledby="package-dialog-title"
-        className={`relative m-auto w-full ${maxWidth} rounded-[20px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]`}
+        className={`relative m-auto w-full ${maxWidth} overflow-hidden rounded-2xl border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]`}
       >
         <div className="flex items-center justify-between border-b bg-[#fcfaf7] px-5 py-4 sm:px-6">
           <div className="flex items-center gap-3">
