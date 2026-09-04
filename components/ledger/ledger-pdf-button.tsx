@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import type { LedgerCustomer, LedgerTransaction } from '@/lib/ledger';
 import { paymentMethodLabel } from '@/lib/ledger';
 
-const dark: [number, number, number] = [28, 28, 28];
-const muted: [number, number, number] = [82, 82, 82];
+const dark: [number, number, number] = [0, 0, 0];
+const muted: [number, number, number] = [24, 24, 24];
 const border: [number, number, number] = [125, 125, 125];
 const inr = (value: number | null) =>
   value === null
