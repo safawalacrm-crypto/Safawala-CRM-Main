@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient } from '@/lib/supabase/server';
 import type { StaffDepartment } from './constants';
 import type { StaffPortalAccount } from './types';
 import type { AccessModule } from './access-modules';
@@ -45,8 +46,10 @@ function toAccount(row: StaffRow): StaffPortalAccount {
 }
 
 export async function listAccounts(ownerId: string): Promise<StaffPortalAccount[]> {
-  const admin = createAdminClient();
-  const { data, error } = await admin
+  // Listing is an owner-scoped read and must not require the service-role secret.
+  // This keeps the page available in hosted environments while RLS enforces ownership.
+  const supabase = await createClient();
+  const { data, error } = await supabase
     .from('staff_members')
     .select('id,user_id,name,login_id,portal_active,access_type,created_at,updated_at,staff_departments(department),staff_access_modules(module,enabled)')
     .eq('owner_id', ownerId)
