@@ -7,7 +7,7 @@ import {
   ClipboardList,
   Plus,
 } from 'lucide-react';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -112,7 +112,7 @@ export default async function DashboardPage() {
     },
   ];
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <div className="mx-auto max-w-[1440px] space-y-6">
         <DashboardHeader
           title="Booking command center"
@@ -252,6 +252,6 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }

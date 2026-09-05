@@ -16,6 +16,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import {
   Boxes,
+  BriefcaseBusiness,
   CalendarDays,
   ChevronUp,
   ClipboardList,
@@ -24,10 +25,14 @@ import {
   Landmark,
   Layers3,
   LayoutDashboard,
+  KeyRound,
   LogOut,
   Menu,
+  PlaneTakeoff,
   Plus,
   Settings,
+  Trophy,
+  UserCheck,
   UsersRound,
   Wrench,
 } from 'lucide-react';
@@ -40,12 +45,17 @@ function SidebarNavigation() {
     { href: '/quotes', label: 'Quotes', icon: FileText },
     { href: '/bookings/new', label: 'Create booking', icon: Plus },
     { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
+    { href: '/event-jobs', label: 'Event Jobs', icon: BriefcaseBusiness },
+    { href: '/stylist-approvals', label: 'Stylist Approvals', icon: UserCheck },
+    { href: '/travel', label: 'Travel & Accommodation', icon: PlaneTakeoff },
+    { href: '/performance', label: 'Performance', icon: Trophy },
     { href: '/modifications', label: 'Modifications', icon: Wrench },
     { href: '/inventory', label: 'Inventory', icon: Boxes },
     { href: '/packages', label: 'Package Manager', icon: Layers3 },
     { href: '/customers', label: 'Customers', icon: ContactRound },
     { href: '/ledger', label: 'Customer ledger', icon: Landmark },
     { href: '/staff', label: 'Staff', icon: UsersRound },
+    { href: '/staff-access', label: 'Staff Access', icon: KeyRound },
     { href: '/settings', label: 'Settings', icon: Settings },
   ];
   return (

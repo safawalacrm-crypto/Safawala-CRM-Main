@@ -27,6 +27,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ListPagination } from '@/components/ui/list-pagination';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
+import {
+  modificationDetails,
+  type ModificationDetails,
+} from '@/lib/modifications';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 
@@ -56,11 +60,6 @@ export type ModificationBooking = {
   booking_activity: Activity[];
 };
 
-type ModificationDetails = {
-  instructions: string;
-  scheduledDate: string;
-  scheduledTime: string;
-};
 const fieldClass =
   'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 const actionNames = new Set([
@@ -86,18 +85,6 @@ function dayDifference(date: string, from = indiaDate()) {
   const start = new Date(`${from}T00:00:00+05:30`).getTime();
   const end = new Date(`${date}T00:00:00+05:30`).getTime();
   return Math.round((end - start) / 86_400_000);
-}
-
-function modificationDetails(notes: string | null): ModificationDetails {
-  const block = notes?.split('SALE MODIFICATION REQUIRED')[1] ?? '';
-  const instructions =
-    block.match(/Details:\s*([\s\S]*?)\nModification date:/)?.[1]?.trim() ||
-    'Modification instructions were not added.';
-  const scheduledDate =
-    block.match(/Modification date:\s*([^\n]+)/)?.[1]?.trim() || '';
-  const scheduledTime =
-    block.match(/Modification time:\s*([^\n]+)/)?.[1]?.trim() || '';
-  return { instructions, scheduledDate, scheduledTime };
 }
 
 function currentStatus(activities: Activity[]): ModificationStatus {

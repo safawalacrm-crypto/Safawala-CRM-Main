@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { CustomerLedgerDirectory } from '@/components/ledger/customer-ledger-directory';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import type { LedgerBooking, LedgerCustomer } from '@/lib/ledger';
 import { createClient } from '@/lib/supabase/server';
 
@@ -27,12 +27,12 @@ export default async function CustomerLedgerPage() {
   ]);
 
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <CustomerLedgerDirectory
         customers={(customerResult.data ?? []) as LedgerCustomer[]}
         bookings={(bookingResult.data ?? []) as unknown as LedgerBooking[]}
         loadError={customerResult.error?.message ?? bookingResult.error?.message ?? ''}
       />
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }

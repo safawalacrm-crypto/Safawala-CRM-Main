@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { BookingForm } from '@/components/bookings/booking-form';
 import { createClient } from '@/lib/supabase/server';
+import { getStaffSession } from '@/lib/staff-portal/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,13 @@ export default async function NewBookingPage() {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
+  const { data: staffAccount } = await supabase
+    .from('staff_members')
+    .select('owner_id')
+    .eq('user_id', auth.user.id)
+    .maybeSingle();
+  const bookingOwnerId = staffAccount?.owner_id ?? auth.user.id;
+  const staffSession = await getStaffSession();
   const [
     { data: customers },
     { data: products },
@@ -46,8 +54,9 @@ export default async function NewBookingPage() {
       .order('name'),
   ]);
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <BookingForm
+        ownerId={bookingOwnerId}
         customers={customers ?? []}
         products={products ?? []}
         packages={packages ?? []}
@@ -64,7 +73,8 @@ export default async function NewBookingPage() {
           })),
         )}
         staff={staff ?? []}
+        quoteOnly={staffSession?.accessType === 'staff'}
       />
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }

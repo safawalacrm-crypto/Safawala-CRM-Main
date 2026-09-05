@@ -3,7 +3,7 @@ import {
   InventoryDirectory,
   type InventoryProduct,
 } from '@/components/inventory/inventory-directory';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -22,11 +22,11 @@ export default async function InventoryPage() {
     .order('created_at', { ascending: false });
 
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <InventoryDirectory
         initialProducts={(data ?? []) as InventoryProduct[]}
         loadError={error?.message ?? ''}
       />
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }

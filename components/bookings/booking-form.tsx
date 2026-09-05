@@ -93,17 +93,21 @@ const inputClass =
 const uid = () => Math.random().toString(36).slice(2);
 
 export function BookingForm({
+  ownerId,
   customers,
   products,
   packages,
   rentalPackages,
   staff,
+  quoteOnly = false,
 }: {
+  ownerId: string;
   customers: Customer[];
   products: Product[];
   packages: PackageRow[];
   rentalPackages: RentalPackage[];
   staff: Staff[];
+  quoteOnly?: boolean;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -421,6 +425,13 @@ export function BookingForm({
     const submitter = (event.nativeEvent as SubmitEvent)
       .submitter as HTMLButtonElement | null;
     const quote = submitter?.value === 'quote';
+    if (quoteOnly && !quote) {
+      setMessage({
+        title: 'Quote-only staff access',
+        text: 'Staff IDs can save quotations only. A Main ID must review the quote, take payment and create the order.',
+      });
+      return;
+    }
     if (!type) return;
     if (!selectedCustomer) {
       setMessage({
@@ -534,6 +545,7 @@ export function BookingForm({
       )}
       {customerModalOpen && (
         <NewCustomerDialog
+          ownerId={ownerId}
           onClose={() => setCustomerModalOpen(false)}
           onCreated={(customer) => {
             setCustomerList((current) => [customer, ...current]);
@@ -1666,7 +1678,7 @@ export function BookingForm({
                 <Card className="gap-0 border-border py-0 shadow-none ring-0">
                   <CardHeader className="border-b px-4 py-4">
                     <CardTitle className="text-sm font-semibold">
-                      Payment method & discounts
+                      {quoteOnly ? 'Payment details · Main ID only' : 'Payment method & discounts'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 p-4">
@@ -1674,7 +1686,7 @@ export function BookingForm({
                       <span className="mb-1.5 block text-muted-foreground">
                         Payment method
                       </span>
-                      <select name="payment_method" className={inputClass}>
+                      <select name="payment_method" className={inputClass} disabled={quoteOnly}>
                         <option value="cash">Cash / offline payment</option>
                         <option value="upi">UPI</option>
                         <option value="card">Card</option>
@@ -1686,17 +1698,19 @@ export function BookingForm({
                       label="Discount amount"
                       value={discount}
                       onChange={setDiscount}
+                      disabled={quoteOnly}
                     />
                     <NumberField
                       label="Amount paid"
                       value={paid}
                       onChange={setPaid}
+                      disabled={quoteOnly}
                     />
                     <label className="block text-sm">
                       <span className="mb-1.5 block text-muted-foreground">
                         Sales staff
                       </span>
-                      <select name="assigned_staff_id" className={inputClass}>
+                      <select name="assigned_staff_id" className={inputClass} disabled={quoteOnly}>
                         <option value="">Unassigned</option>
                         {staff.map((member) => (
                           <option key={member.id} value={member.id}>
@@ -1710,6 +1724,7 @@ export function BookingForm({
                         type="checkbox"
                         checked={taxEnabled}
                         onChange={(e) => setTaxEnabled(e.target.checked)}
+                        disabled={quoteOnly}
                         className="size-4 accent-[#9a6728]"
                       />
                       Apply GST (5%)
@@ -1760,14 +1775,7 @@ export function BookingForm({
                     </strong>
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => window.print()}
-                    >
-                      <Printer />
-                      Print
-                    </Button>
+                    {!quoteOnly ? <Button type="button" variant="outline" onClick={() => window.print()}><Printer />Print</Button> : null}
                     <Button
                       type="submit"
                       name="intent"
@@ -1778,15 +1786,7 @@ export function BookingForm({
                       <FileText />
                       Save as quote
                     </Button>
-                    <Button
-                      type="submit"
-                      name="intent"
-                      value="order"
-                      disabled={busy}
-                    >
-                      <Check />
-                      {busy ? 'Creating…' : 'Complete order'}
-                    </Button>
+                    {!quoteOnly ? <Button type="submit" name="intent" value="order" disabled={busy}><Check />{busy ? 'Creating…' : 'Complete order'}</Button> : null}
                   </div>
                 </div>
               </div>
@@ -1948,9 +1948,11 @@ function TypeChooser({
 }
 
 function NewCustomerDialog({
+  ownerId,
   onClose,
   onCreated,
 }: {
+  ownerId: string;
   onClose: () => void;
   onCreated: (customer: Customer) => void;
 }) {
@@ -1976,7 +1978,7 @@ function NewCustomerDialog({
     const { data, error: insertError } = await supabase
       .from('customers')
       .insert({
-        owner_id: auth.user.id,
+        owner_id: ownerId,
         name: formText('name'),
         phone: formText('phone'),
         email: null,
@@ -2245,10 +2247,12 @@ function NumberField({
   label,
   value,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: number;
   onChange: (value: number) => void;
+  disabled?: boolean;
 }) {
   return (
     <label className="block text-sm">
@@ -2259,6 +2263,7 @@ function NumberField({
         step="1"
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
+        disabled={disabled}
         className={inputClass}
       />
     </label>

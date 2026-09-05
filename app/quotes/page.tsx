@@ -13,7 +13,7 @@ import {
   Plus,
   XCircle,
 } from 'lucide-react';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import {
   BookingPdfButton,
@@ -216,7 +216,7 @@ export default async function QuotesPage({ searchParams }: Props) {
   ];
 
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <div className="mx-auto max-w-[1440px] space-y-6">
         <DashboardHeader
           title="Quote Management"
@@ -486,7 +486,7 @@ export default async function QuotesPage({ searchParams }: Props) {
           </div>
         </Card>
       </div>
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }
 

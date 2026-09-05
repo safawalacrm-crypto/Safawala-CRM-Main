@@ -3,7 +3,7 @@ import {
   PackageManagement,
   type PackageCategory,
 } from '@/components/packages/package-management';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -30,11 +30,11 @@ export default async function PackagesPage() {
   }));
 
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <PackageManagement
         initialCategories={categories}
         loadError={error?.message ?? ''}
       />
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }

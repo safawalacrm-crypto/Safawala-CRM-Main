@@ -30,10 +30,11 @@ export default async function StaffPage() {
     }
   }
 
+  const staffMembers = (staffResult.data ?? []) as StaffMember[];
   return (
     <DashboardShell email={auth.user.email ?? 'Safawala user'}>
       <StaffDirectory
-        initialStaff={(staffResult.data ?? []) as StaffMember[]}
+        initialStaff={staffMembers}
         assignmentCounts={assignmentCounts}
         loadError={staffResult.error?.message ?? assignmentResult.error?.message ?? ''}
       />

@@ -1,15 +1,20 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { statusTone } from '@/lib/bookings';
+import {
+  CalendarDayGrid,
+  type CalendarBooking,
+} from '@/components/bookings/calendar-day-grid';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+
+const BOOKING_FIELDS =
+  'id,booking_number,booking_type,status,payment_status,is_quote,event_name,event_date,event_time,event_location,pickup_date,due_date,subtotal,discount,tax,security_deposit,total,paid_amount,balance_amount,notes,customers(name,phone),booking_items(item_name,quantity,unit_price,line_total,product_id,products(image_urls,barcode))';
+
 export default async function BookingCalendar({
   searchParams,
 }: {
@@ -30,15 +35,29 @@ export default async function BookingCalendar({
   const pad = (n: number) => String(n).padStart(2, '0');
   const start = `${year}-${pad(month + 1)}-01`;
   const end = `${year}-${pad(month + 1)}-${pad(last.getDate())}`;
+
   const { data: bookings, error } = await supabase
     .from('bookings')
-    .select('id,booking_number,event_name,event_date,booking_type,status')
+    .select(BOOKING_FIELDS)
     .or(
       'is_quote.eq.false,and(is_quote.eq.true,status.not.in.(draft,cancelled))',
     )
     .gte('event_date', start)
     .lte('event_date', end)
     .order('event_date');
+
+  // A "sale modification" request carries its own dispatch date inside the
+  // booking's notes (independent of the event date), so it's fetched
+  // separately — same source the Modifications queue already uses.
+  const { data: modificationBookings } = await supabase
+    .from('bookings')
+    .select(BOOKING_FIELDS)
+    .eq('booking_type', 'sale')
+    .or(
+      'is_quote.eq.false,and(is_quote.eq.true,status.not.in.(draft,cancelled))',
+    )
+    .ilike('notes', '%SALE MODIFICATION REQUIRED%');
+
   const cells = Array.from(
     { length: first.getDay() + last.getDate() },
     (_, i) => (i < first.getDay() ? null : i - first.getDay() + 1),
@@ -47,8 +66,9 @@ export default async function BookingCalendar({
     const d = new Date(year, month + amount, 1);
     return `/bookings/calendar?month=${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
   };
+
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <div className="mx-auto max-w-[1440px] space-y-6">
         <DashboardHeader
           title="Event calendar"
@@ -78,52 +98,17 @@ export default async function BookingCalendar({
         {error ? (
           <p className="text-sm text-destructive">{error.message}</p>
         ) : (
-          <Card className="gap-0 overflow-x-auto border-border py-0 shadow-level-1 ring-0">
-            <div className="grid min-w-[840px] grid-cols-7 border-b bg-[#fcfaf7]">
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
-                <div
-                  key={day}
-                  className="px-3 py-3 text-xs font-semibold text-muted-foreground"
-                >
-                  {day}
-                </div>
-              ))}
-            </div>
-            <div className="grid min-w-[840px] grid-cols-7">
-              {cells.map((day, index) => (
-                <div key={index} className="min-h-32 border-b border-r p-2">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    {day}
-                  </p>
-                  {day &&
-                    bookings
-                      ?.filter((b) => Number(b.event_date.slice(-2)) === day)
-                      .map((b) => (
-                        <Link
-                          key={b.id}
-                          href={`/bookings/${b.id}`}
-                          className="mt-2 block rounded-lg border border-[#e4d2b6] bg-accent p-2 text-xs hover:border-primary"
-                        >
-                          <span className="block truncate font-semibold">
-                            {b.event_name}
-                          </span>
-                          <span className="mt-1 flex items-center justify-between gap-1 text-muted-foreground">
-                            <span>{b.booking_number}</span>
-                            <Badge
-                              variant="outline"
-                              className={`px-1 py-0 text-[10px] ${statusTone(b.status)}`}
-                            >
-                              {b.booking_type}
-                            </Badge>
-                          </span>
-                        </Link>
-                      ))}
-                </div>
-              ))}
-            </div>
-          </Card>
+          <CalendarDayGrid
+            year={year}
+            month={month}
+            cells={cells}
+            bookings={(bookings ?? []) as unknown as CalendarBooking[]}
+            modificationBookings={
+              (modificationBookings ?? []) as unknown as CalendarBooking[]
+            }
+          />
         )}
       </div>
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }

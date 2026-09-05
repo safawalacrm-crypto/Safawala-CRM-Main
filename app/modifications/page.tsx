@@ -1,5 +1,5 @@
 import { redirect } from 'next/navigation';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import {
   ModificationQueue,
   type ModificationBooking,
@@ -26,11 +26,11 @@ export default async function ModificationsPage() {
     .order('event_date');
 
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <ModificationQueue
         initialBookings={(data ?? []) as unknown as ModificationBooking[]}
         loadError={error?.message ?? ''}
       />
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }

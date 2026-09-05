@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { ArrowLeft, MapPin, Phone, Printer } from 'lucide-react';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { BookingActions } from '@/components/bookings/booking-actions';
 import { Badge } from '@/components/ui/badge';
@@ -42,7 +42,7 @@ export default async function BookingDetailsPage({
     b.created_at.localeCompare(a.created_at),
   );
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <div className="mx-auto max-w-[1200px] space-y-6">
         <DashboardHeader
           title={
@@ -79,6 +79,7 @@ export default async function BookingDetailsPage({
                 variant="outline"
                 size="sm"
                 className="print:hidden"
+                nativeButton
                 render={
                   <button
                     type="button"
@@ -302,7 +303,7 @@ export default async function BookingDetailsPage({
           </aside>
         </div>
       </div>
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }
 

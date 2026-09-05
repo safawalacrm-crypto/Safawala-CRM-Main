@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { CustomerDirectory, type CustomerBooking, type CustomerRecord } from '@/components/customers/customer-directory';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -19,11 +19,11 @@ export default async function CustomersPage() {
       .order('created_at', { ascending: false }),
   ]);
 
-  return <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+  return <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
     <CustomerDirectory
       initialCustomers={(customerResult.data ?? []) as CustomerRecord[]}
       bookings={(bookingResult.data ?? []) as CustomerBooking[]}
       loadError={customerResult.error?.message ?? bookingResult.error?.message ?? ''}
     />
-  </DashboardShell>;
+  </BookingPortalShell>;
 }

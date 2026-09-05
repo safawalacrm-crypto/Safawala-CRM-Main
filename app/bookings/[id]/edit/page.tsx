@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { BookingEditForm } from '@/components/bookings/booking-edit-form';
-import { DashboardShell } from '@/components/layout/dashboard-shell';
+import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +47,7 @@ export default async function EditBookingPage({
   ]);
   if (error || !booking) notFound();
   return (
-    <DashboardShell email={auth.user.email ?? 'Safawala user'}>
+    <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <BookingEditForm
         booking={booking}
         customers={customers ?? []}
@@ -55,6 +55,6 @@ export default async function EditBookingPage({
         products={products ?? []}
         packages={packages ?? []}
       />
-    </DashboardShell>
+    </BookingPortalShell>
   );
 }
