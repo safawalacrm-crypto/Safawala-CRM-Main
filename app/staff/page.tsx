@@ -12,7 +12,12 @@ export default async function StaffPage() {
 
   const today = new Date().toISOString().slice(0, 10);
   const [staffResult, assignmentResult] = await Promise.all([
-    supabase.from('staff_members').select('id,name,phone,is_active,created_at,updated_at').order('name'),
+    supabase
+      .from('staff_members')
+      .select(
+        'id,name,phone,email,address,is_active,created_at,updated_at,user_id,login_id,portal_active,access_type,staff_departments(department),staff_access_modules(module,enabled)',
+      )
+      .order('name'),
     supabase
       .from('bookings')
       .select('assigned_staff_id')

@@ -74,6 +74,7 @@ export default async function NewBookingPage() {
         )}
         staff={staff ?? []}
         quoteOnly={staffSession?.accessType === 'staff'}
+        quoteCreatorStaffId={staffSession?.accessType === 'staff' ? staffSession.staffMemberId : undefined}
       />
     </BookingPortalShell>
   );

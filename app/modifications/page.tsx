@@ -16,7 +16,7 @@ export default async function ModificationsPage() {
   const { data, error } = await supabase
     .from('bookings')
     .select(
-      'id,booking_number,status,event_name,event_date,event_time,event_location,notes,created_at,customers(name,phone,address),staff_members(name),booking_items(id,item_name,quantity),booking_activity(id,action,details,created_at)',
+      'id,booking_number,status,event_name,event_date,event_time,event_location,notes,created_at,customers(name,phone,address),staff_members:staff_members!bookings_assigned_staff_id_fkey(name),booking_items(id,item_name,quantity),booking_activity(id,action,details,created_at)',
     )
     .eq('booking_type', 'sale')
     .or(

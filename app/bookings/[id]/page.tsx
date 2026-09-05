@@ -18,6 +18,7 @@ import {
   statusTone,
 } from '@/lib/bookings';
 import { createClient } from '@/lib/supabase/server';
+import { getStaffSession } from '@/lib/staff-portal/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,10 +31,12 @@ export default async function BookingDetailsPage({
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
+  const staffSession = await getStaffSession();
+  const quoteOnly = staffSession?.accessType === 'staff';
   const { data: booking, error } = await supabase
     .from('bookings')
     .select(
-      '*,customers(*),staff_members(name),booking_items(*,products(image_urls,barcode)),booking_payments(*),booking_activity(*)',
+      '*,customers(*),staff_members:staff_members!bookings_assigned_staff_id_fkey(name),booking_items(*,products(image_urls,barcode)),booking_payments(*),booking_activity(*)',
     )
     .eq('id', id)
     .single();
@@ -71,11 +74,11 @@ export default async function BookingDetailsPage({
               <Button
                 variant="outline"
                 size="icon-sm"
-                render={<Link href="/bookings" aria-label="Back to bookings" />}
+                render={<Link href={booking.is_quote ? '/quotes' : '/bookings'} aria-label={booking.is_quote ? 'Back to quotes' : 'Back to bookings'} />}
               >
                 <ArrowLeft />
               </Button>
-              <Button
+              {!quoteOnly ? <Button
                 variant="outline"
                 size="sm"
                 className="print:hidden"
@@ -90,11 +93,11 @@ export default async function BookingDetailsPage({
               >
                 <Printer />
                 <span className="hidden xl:inline">Print booking</span>
-              </Button>
+              </Button> : null}
             </>
           }
         />
-        <BookingActions
+        {!quoteOnly ? <BookingActions
           booking={{
             id: booking.id,
             booking_type: booking.booking_type,
@@ -103,7 +106,7 @@ export default async function BookingDetailsPage({
             paid_amount: Number(booking.paid_amount),
             security_deposit: Number(booking.security_deposit),
           }}
-        />
+        /> : null}
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1.5fr)_minmax(300px,.7fr)]">
           <div className="space-y-6">
             <Card className="border-border shadow-level-1 ring-0">
@@ -201,7 +204,7 @@ export default async function BookingDetailsPage({
             </Card>
             <Card className="border-border shadow-level-1 ring-0">
               <CardHeader className="border-b">
-                <CardTitle>Payments</CardTitle>
+                <CardTitle>{quoteOnly ? 'Payments · Main ID only' : 'Payments'}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 {booking.booking_payments.length ? (

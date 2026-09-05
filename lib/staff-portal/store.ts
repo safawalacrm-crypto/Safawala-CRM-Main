@@ -107,9 +107,15 @@ export async function createAccount(ownerId: string, input: {
     staffId = Number(data.id);
   }
 
-  if (input.departments.length) {
-    const { error } = await admin.from('staff_departments').insert(
-      input.departments.map((department) => ({ staff_id: staffId, department, granted_by: ownerId })),
+  const departments: StaffDepartment[] = input.accessType === 'staff' ? ['booking'] : input.departments;
+  if (input.accessType === 'staff') {
+    const { error } = await admin.from('staff_departments').delete().eq('staff_id', staffId);
+    if (error) return { error: error.message };
+  }
+  if (departments.length) {
+    const { error } = await admin.from('staff_departments').upsert(
+      departments.map((department) => ({ staff_id: staffId, department, granted_by: ownerId })),
+      { onConflict: 'staff_id,department' },
     );
     if (error) return { error: error.message };
   }
@@ -143,6 +149,18 @@ export async function setAccountActive(ownerId: string, userId: string, active: 
 
 export async function setDepartmentGrant(ownerId: string, userId: string, department: StaffDepartment, active: boolean) {
   const { admin, staffId } = await getOwnedStaff(ownerId, userId);
+  const { data: account, error: accountError } = await admin
+    .from('staff_members')
+    .select('access_type')
+    .eq('id', staffId)
+    .eq('owner_id', ownerId)
+    .single();
+  if (accountError) throw new Error(accountError.message);
+  if (account.access_type === 'staff') {
+    if (department !== 'booking' || !active) {
+      throw new Error('Staff IDs are fixed to the Booking department for quote creation.');
+    }
+  }
   const query = active
     ? admin.from('staff_departments').upsert({ staff_id: staffId, department, granted_by: ownerId })
     : admin.from('staff_departments').delete().eq('staff_id', staffId).eq('department', department);

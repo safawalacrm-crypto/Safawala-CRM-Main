@@ -68,7 +68,7 @@ export default async function BookingsPage({ searchParams }: Props) {
   let query = supabase
     .from('bookings')
     .select(
-      'id,booking_number,booking_type,status,payment_status,is_quote,event_name,event_date,event_time,event_location,pickup_date,due_date,subtotal,discount,tax,total,paid_amount,balance_amount,security_deposit,created_at,customers(name,phone,address),staff_members(name),booking_items(item_name,quantity,unit_price,line_total,product_id,products(image_urls,barcode))',
+      'id,booking_number,booking_type,status,payment_status,is_quote,event_name,event_date,event_time,event_location,pickup_date,due_date,subtotal,discount,tax,total,paid_amount,balance_amount,security_deposit,created_at,customers(name,phone,address),staff_members:staff_members!bookings_assigned_staff_id_fkey(name),booking_items(item_name,quantity,unit_price,line_total,product_id,products(image_urls,barcode))',
       { count: 'exact' },
     )
     // Quotes stay exclusively in the Quotes module, even after conversion.

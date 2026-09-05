@@ -100,6 +100,7 @@ export function BookingForm({
   rentalPackages,
   staff,
   quoteOnly = false,
+  quoteCreatorStaffId,
 }: {
   ownerId: string;
   customers: Customer[];
@@ -108,6 +109,7 @@ export function BookingForm({
   rentalPackages: RentalPackage[];
   staff: Staff[];
   quoteOnly?: boolean;
+  quoteCreatorStaffId?: number;
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
@@ -488,7 +490,9 @@ export function BookingForm({
       alternate_mobile: type === 'rental' ? alternateMobile : null,
       pickup_date: type === 'rental' ? form.get('pickup_date') : null,
       due_date: type === 'rental' ? form.get('due_date') : null,
-      assigned_staff_id: form.get('assigned_staff_id'),
+      assigned_staff_id: quoteOnly
+        ? quoteCreatorStaffId ?? null
+        : form.get('assigned_staff_id'),
       notes:
         [plainNotes, modificationNotes].filter(Boolean).join('\n\n') || null,
       items: items.map(
@@ -558,7 +562,7 @@ export function BookingForm({
       <form ref={formRef} onSubmit={submit} className="space-y-5">
         <DashboardHeader
           title={`New ${isSale ? 'Sale' : 'Rental'} Booking`}
-          subtitle="Complete the details below to create a live booking"
+          subtitle={quoteOnly ? 'Prepare a customer quotation for Main ID review' : 'Complete the details below to create a live booking'}
           actions={
             <>
               <Button
@@ -1775,7 +1779,16 @@ export function BookingForm({
                     </strong>
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {!quoteOnly ? <Button type="button" variant="outline" onClick={() => window.print()}><Printer />Print</Button> : null}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => window.print()}
+                      disabled={quoteOnly}
+                      title={quoteOnly ? 'PDF and printing are available to Main IDs only' : 'Print or save as PDF'}
+                    >
+                      <Printer />
+                      Print / PDF
+                    </Button>
                     <Button
                       type="submit"
                       name="intent"
@@ -1786,7 +1799,16 @@ export function BookingForm({
                       <FileText />
                       Save as quote
                     </Button>
-                    {!quoteOnly ? <Button type="submit" name="intent" value="order" disabled={busy}><Check />{busy ? 'Creating…' : 'Complete order'}</Button> : null}
+                    <Button
+                      type="submit"
+                      name="intent"
+                      value="order"
+                      disabled={busy || quoteOnly}
+                      title={quoteOnly ? 'A Main ID must convert the saved quote into a booking' : undefined}
+                    >
+                      <Check />
+                      {busy ? 'Creating…' : 'Create order'}
+                    </Button>
                   </div>
                 </div>
               </div>

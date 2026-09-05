@@ -39,6 +39,7 @@ import {
   type QuoteState,
 } from '@/lib/bookings';
 import { createClient } from '@/lib/supabase/server';
+import { getStaffSession } from '@/lib/staff-portal/session';
 
 export const dynamic = 'force-dynamic';
 const PAGE_SIZES = [10, 25, 50, 100] as const;
@@ -65,6 +66,8 @@ export default async function QuotesPage({ searchParams }: Props) {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
+  const staffSession = await getStaffSession();
+  const quoteOnly = staffSession?.accessType === 'staff';
 
   const now = new Date();
   const todayStart = new Date(now);
@@ -92,12 +95,13 @@ export default async function QuotesPage({ searchParams }: Props) {
   }
 
   const baseFields =
-    'id,booking_number,booking_type,status,payment_status,is_quote,event_name,event_date,event_time,event_location,pickup_date,due_date,subtotal,discount,tax,total,paid_amount,balance_amount,security_deposit,created_at,customers(name,phone,address),staff_members(name),booking_items(item_name,quantity,unit_price,line_total,product_id,products(image_urls,barcode))';
+    'id,booking_number,booking_type,status,payment_status,is_quote,converted_booking_id,created_by_staff_id,event_name,event_date,event_time,event_location,pickup_date,due_date,subtotal,discount,tax,total,paid_amount,balance_amount,security_deposit,created_at,customers(name,phone,address),staff_members:staff_members!bookings_assigned_staff_id_fkey(name),booking_items(item_name,quantity,unit_price,line_total,product_id,products(image_urls,barcode))';
 
   let query = supabase
     .from('bookings')
     .select(baseFields, { count: 'exact' })
     .eq('is_quote', true);
+  if (quoteOnly && staffSession) query = query.eq('created_by_staff_id', staffSession.staffMemberId);
   if (search) {
     const clauses = [
       `booking_number.ilike.%${search}%`,
@@ -116,15 +120,16 @@ export default async function QuotesPage({ searchParams }: Props) {
   if (timeFrom) query = query.gte('created_at', timeFrom.toISOString());
 
   const from = (page - 1) * pageSize;
+  let summaryQuery = supabase
+    .from('bookings')
+    .select('id,status,created_at,booking_number', { count: 'exact' })
+    .eq('is_quote', true)
+    .eq('booking_type', type);
+  if (quoteOnly && staffSession) summaryQuery = summaryQuery.eq('created_by_staff_id', staffSession.staffMemberId);
+
   const [{ data, count, error }, summaryResult] = await Promise.all([
     query.order('created_at', { ascending: false }).range(from, from + pageSize - 1),
-    supabase
-      .from('bookings')
-      .select('id,status,created_at,booking_number', { count: 'exact' })
-      .eq('is_quote', true)
-      .eq('booking_type', type)
-      .order('created_at', { ascending: true })
-      .limit(10000),
+    summaryQuery.order('created_at', { ascending: true }).limit(10000),
   ]);
 
   const quoteSummary = summaryResult.data ?? [];
@@ -229,13 +234,13 @@ export default async function QuotesPage({ searchParams }: Props) {
                 render={<Link href="/bookings" aria-label="Back to bookings" />}
               >
                 <ArrowLeft />
-                <span className="hidden sm:inline">Back</span>
+                <span className="hidden md:inline">Back</span>
               </Button>
               <RefreshQuotesButton />
-              <ExportQuotesButton quotes={quotes} />
+              {!quoteOnly ? <ExportQuotesButton quotes={quotes} /> : null}
               <Button size="sm" render={<Link href="/bookings/new" />}>
                 <Plus />
-                <span className="hidden sm:inline">New Quote</span>
+                <span className="hidden md:inline">New Quote</span>
               </Button>
             </>
           }
@@ -419,7 +424,7 @@ export default async function QuotesPage({ searchParams }: Props) {
                               >
                                 <Eye />
                               </Button>
-                              <Button
+                              {!quoteOnly ? <Button
                                 variant="ghost"
                                 size="icon-sm"
                                 render={
@@ -431,12 +436,13 @@ export default async function QuotesPage({ searchParams }: Props) {
                                 title="Edit quote"
                               >
                                 <Pencil />
-                              </Button>
-                              <BookingPdfButton booking={quote} />
-                              <QuoteActions
+                              </Button> : null}
+                              {!quoteOnly ? <BookingPdfButton booking={quote} /> : null}
+                              {!quoteOnly ? <QuoteActions
                                 bookingId={quote.id}
                                 state={currentState}
-                              />
+                                convertedBookingId={quote.converted_booking_id}
+                              /> : null}
                             </div>
                           </td>
                         </tr>

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CircleCheck, CircleX } from 'lucide-react';
+import { ArrowRight, CircleCheck, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import type { QuoteState } from '@/lib/bookings';
@@ -31,17 +32,19 @@ function StatusIcon({
 export function QuoteActions({
   bookingId,
   state,
+  convertedBookingId,
 }: {
   bookingId: number;
   state: QuoteState;
+  convertedBookingId?: number | null;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState<'accept' | 'reject' | null>(null);
   const [error, setError] = useState('');
 
   async function decide(
-    nextStatus: 'confirmed' | 'cancelled',
-    which: 'accept' | 'reject',
+    nextStatus: 'cancelled',
+    which: 'reject',
   ) {
     if (busy) return;
     setBusy(which);
@@ -55,11 +58,38 @@ export function QuoteActions({
     else router.refresh();
   }
 
+  async function convert() {
+    if (busy) return;
+    setBusy('accept');
+    setError('');
+    const { data, error: rpcError } = await createClient().rpc(
+      'convert_quote_to_booking',
+      { quote_key: bookingId },
+    );
+    setBusy(null);
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+    const convertedId = Number((data as { id?: number } | null)?.id);
+    if (Number.isFinite(convertedId)) router.push(`/bookings/${convertedId}`);
+    else router.refresh();
+  }
+
   if (state === 'converted') {
     return (
       <div className="flex items-center gap-1">
         <StatusIcon icon={CircleCheck} tone="won" />
-        <StatusIcon icon={CircleX} tone="lost" />
+        {convertedBookingId ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            render={<Link href={`/bookings/${convertedBookingId}`} />}
+          >
+            Open booking
+            <ArrowRight />
+          </Button>
+        ) : null}
       </div>
     );
   }
@@ -83,15 +113,13 @@ export function QuoteActions({
       <div className="flex items-center gap-1">
         <Button
           type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="!rounded-full text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700"
+          size="sm"
           disabled={busy !== null}
-          onClick={() => decide('confirmed', 'accept')}
-          title="Accept quote"
-          aria-label="Accept quote"
+          onClick={convert}
+          title="Create a booking from this quote"
         >
           <CircleCheck />
+          {busy === 'accept' ? 'Converting…' : 'Convert to booking'}
         </Button>
         <Button
           type="button"

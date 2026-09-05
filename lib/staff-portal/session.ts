@@ -23,7 +23,7 @@ export async function getStaffSession(): Promise<StaffSession | null> {
     .filter((item) => item.enabled)
     .map((item) => item.module as AccessModule);
   const accessModules: AccessModule[] = accessType === 'staff'
-    ? ['quotations', 'create_booking']
+    ? departments.includes('booking') ? ['quotations', 'create_booking'] : []
     : [...new Set(configuredModules)];
   return {
     id: auth.user.id,

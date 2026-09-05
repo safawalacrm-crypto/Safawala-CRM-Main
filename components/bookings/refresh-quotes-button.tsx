@@ -14,7 +14,7 @@ export function RefreshQuotesButton() {
       onClick={() => router.refresh()}
     >
       <RefreshCw />
-      <span className="hidden sm:inline">Refresh</span>
+      <span className="hidden md:inline">Refresh</span>
     </Button>
   );
 }

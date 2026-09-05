@@ -67,7 +67,7 @@ export function ExportQuotesButton({ quotes }: { quotes: ExportableQuote[] }) {
       disabled={quotes.length === 0}
     >
       <Download />
-      <span className="hidden sm:inline">Export</span>
+      <span className="hidden md:inline">Export</span>
     </Button>
   );
 }

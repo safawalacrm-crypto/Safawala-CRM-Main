@@ -25,7 +25,6 @@ import {
   Landmark,
   Layers3,
   LayoutDashboard,
-  KeyRound,
   LogOut,
   Menu,
   PlaneTakeoff,
@@ -55,7 +54,6 @@ function SidebarNavigation() {
     { href: '/customers', label: 'Customers', icon: ContactRound },
     { href: '/ledger', label: 'Customer ledger', icon: Landmark },
     { href: '/staff', label: 'Staff', icon: UsersRound },
-    { href: '/staff-access', label: 'Staff Access', icon: KeyRound },
     { href: '/settings', label: 'Settings', icon: Settings },
   ];
   return (

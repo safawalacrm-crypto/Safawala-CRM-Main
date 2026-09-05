@@ -24,6 +24,8 @@ export type BookingRow = {
   status: string;
   payment_status: string;
   is_quote?: boolean;
+  converted_booking_id?: number | null;
+  created_by_staff_id?: number | null;
   event_name: string;
   event_date: string;
   event_time: string | null;

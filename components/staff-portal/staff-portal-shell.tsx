@@ -14,27 +14,18 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { staffLogoutAction } from '@/lib/staff-portal/logout-action';
-import { DEPARTMENT_META, type StaffDepartment } from '@/lib/staff-portal/constants';
+import { DEPARTMENT_META } from '@/lib/staff-portal/constants';
 import type { StaffDepartmentGrant } from '@/lib/staff-portal/types';
-import {
-  DEPARTMENT_STAFF_MODULES,
-  STAFF_MODULE_META,
-  type StaffModule,
-} from '@/lib/staff-portal/modules';
+import type { StaffModule } from '@/lib/staff-portal/modules';
 import { ACCESS_MODULE_META, type AccessModule } from '@/lib/staff-portal/access-modules';
 import {
   Bell,
-  Activity,
   Boxes,
   CalendarDays,
-  CalendarOff,
   ChevronUp,
   CircleGauge,
-  Clock3,
-  FileSignature,
   IndianRupee,
   ClipboardList,
-  FileText,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -45,15 +36,6 @@ import {
   UsersRound,
   Wrench,
 } from 'lucide-react';
-
-const DEPARTMENT_ICON: Record<StaffDepartment, typeof LayoutDashboard> = {
-  booking: FileText,
-  warehouse: Boxes,
-  qc: ClipboardList,
-  stylist: UserRound,
-  collection: PackageCheck,
-  modification: Wrench,
-};
 
 function SidebarNavigation({ modules }: { modules: AccessModule[] }) {
   const pathname = usePathname();
@@ -170,9 +152,7 @@ export function StaffPortalShell({
   departments,
   children,
   notificationCount = 0,
-  permissions,
   accessModules,
-  isMainId,
 }: {
   name: string;
   departments: StaffDepartmentGrant[];
@@ -226,7 +206,7 @@ export function StaffPortalShell({
             <Link
               href="/staff-portal/notifications"
               aria-label="Notifications"
-              className="pointer-events-auto relative inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="pointer-events-auto fixed right-4 top-4 z-50 inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-6 lg:right-8"
             >
               <Bell aria-hidden="true" className="size-4" />
               {notificationCount > 0 ? (

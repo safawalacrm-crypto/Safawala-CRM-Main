@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation';
 import { BookingEditForm } from '@/components/bookings/booking-edit-form';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { createClient } from '@/lib/supabase/server';
+import { getStaffSession } from '@/lib/staff-portal/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +15,8 @@ export default async function EditBookingPage({
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
+  const staffSession = await getStaffSession();
+  if (staffSession?.accessType === 'staff') redirect(`/bookings/${id}`);
   const [
     { data: booking, error },
     { data: customers },

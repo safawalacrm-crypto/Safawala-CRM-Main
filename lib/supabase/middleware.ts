@@ -27,10 +27,24 @@ export async function updateSession(request: NextRequest) {
     : { data: null };
   const role = profile?.role ?? 'admin';
 
-  if (data.user && role === 'staff' && !path.startsWith('/staff-portal')) {
-    const module = accessModuleForPath(path);
-    if (module) {
-      const { data: allowed } = await supabase.rpc('staff_can_access', { requested_module: module });
+  let staffAccountActive = true;
+  if (data.user && role === 'staff') {
+    const { data: staffAccount } = await supabase
+      .from('staff_members')
+      .select('portal_active,is_active')
+      .eq('user_id', data.user.id)
+      .maybeSingle();
+    staffAccountActive = Boolean(staffAccount?.portal_active && staffAccount.is_active);
+
+    if (!staffAccountActive) {
+      await supabase.auth.signOut();
+    }
+  }
+
+  if (data.user && role === 'staff' && staffAccountActive && !path.startsWith('/staff-portal')) {
+    const requestedModule = accessModuleForPath(path);
+    if (requestedModule) {
+      const { data: allowed } = await supabase.rpc('staff_can_access', { requested_module: requestedModule });
       if (allowed) return response;
     }
     return NextResponse.redirect(new URL('/staff-portal', request.url));
@@ -39,8 +53,12 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(new URL('/dashboard', request.url));
   }
   if (path.startsWith('/staff-portal')) {
-    if (!data.user && path !== '/staff-portal/login') return NextResponse.redirect(new URL('/staff-portal/login', request.url));
-    if (data.user && path === '/staff-portal/login') return NextResponse.redirect(new URL('/staff-portal', request.url));
+    if ((!data.user || (role === 'staff' && !staffAccountActive)) && path !== '/staff-portal/login') {
+      return NextResponse.redirect(new URL('/staff-portal/login', request.url));
+    }
+    if (data.user && role === 'staff' && staffAccountActive && path === '/staff-portal/login') {
+      return NextResponse.redirect(new URL('/staff-portal', request.url));
+    }
     return response;
   }
   if (!data.user && path.startsWith('/dashboard')) return NextResponse.redirect(new URL('/login', request.url));
