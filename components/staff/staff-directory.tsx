@@ -510,8 +510,12 @@ function StaffDialog({
       const value = form.get(key);
       return typeof value === 'string' ? value.trim() : '';
     };
+    const readExactText = (key: string) => {
+      const value = form.get(key);
+      return typeof value === 'string' ? value : '';
+    };
     const loginId = readText('loginId');
-    const password = readText('password');
+    const password = readExactText('password');
     const wantsLogin = showLoginSection && loginId.length > 0;
 
     if (wantsLogin) {
@@ -593,6 +597,7 @@ function StaffDialog({
       }
       onSaved({
         ...savedMember,
+        is_active: true,
         user_id: loginResult.account.id,
         login_id: loginResult.account.loginId,
         portal_active: loginResult.account.active,
@@ -995,6 +1000,7 @@ function CreateLoginForm({
       return;
     }
     onCreated({
+      is_active: true,
       user_id: result.account.id,
       login_id: result.account.loginId,
       portal_active: result.account.active,

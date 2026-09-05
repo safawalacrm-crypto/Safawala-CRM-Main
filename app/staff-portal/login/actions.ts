@@ -2,20 +2,29 @@
 
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { isValidStaffLoginId, staffAuthEmail } from '@/lib/staff-portal/credentials';
 
 export type StaffLoginState = { error: string };
+
+function formText(formData: FormData, name: string) {
+  const value = formData.get(name);
+  return typeof value === 'string' ? value : '';
+}
 
 export async function staffLogin(
   _prevState: StaffLoginState,
   formData: FormData,
 ): Promise<StaffLoginState> {
-  const loginId = String(formData.get('loginId') ?? '').trim();
-  const password = String(formData.get('password') ?? '');
+  const loginId = formText(formData, 'loginId').trim();
+  const password = formText(formData, 'password');
   if (!loginId || !password) {
     return { error: 'Enter your login ID and password.' };
   }
+  if (!isValidStaffLoginId(loginId)) {
+    return { error: 'Enter the Login ID exactly as provided by your admin.' };
+  }
   const supabase = await createClient();
-  const email = `${loginId.toLowerCase().replace(/[^a-z0-9._-]/g, '')}@staff.safawala.internal`;
+  const email = staffAuthEmail(loginId);
   const { data: auth, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error || !auth.user) {
     return { error: 'Invalid login ID or password, or your access has been disabled.' };
@@ -29,7 +38,7 @@ export async function staffLogin(
     .maybeSingle();
   if (!account?.portal_active || !account.is_active) {
     await supabase.auth.signOut();
-    return { error: 'Invalid login ID or password, or your access has been disabled.' };
+    return { error: 'Your Login ID and password are correct, but portal access is disabled. Ask your admin to enable it.' };
   }
   redirect('/staff-portal');
 }

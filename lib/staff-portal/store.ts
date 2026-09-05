@@ -1,17 +1,14 @@
 import 'server-only';
 
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { supabaseConfig } from '@/lib/supabase/config';
 import type { StaffDepartment } from './constants';
 import type { StaffPortalAccount } from './types';
 import type { AccessModule } from './access-modules';
 import type { StaffAccessType } from './types';
-
-function staffEmail(loginId: string) {
-  const normalized = loginId.trim().toLowerCase().replace(/[^a-z0-9._-]/g, '');
-  if (!normalized) throw new Error('Enter a valid login ID.');
-  return `${normalized}@staff.safawala.internal`;
-}
+import { normalizeStaffLoginId, staffAuthEmail } from './credentials';
 
 type StaffRow = {
   id: number;
@@ -69,8 +66,11 @@ export async function createAccount(ownerId: string, input: {
   modules?: AccessModule[];
 }): Promise<{ account?: StaffPortalAccount; error?: string }> {
   const admin = createAdminClient();
-  const loginId = input.loginId.trim().toLowerCase();
-  const email = staffEmail(loginId);
+  const loginId = normalizeStaffLoginId(input.loginId);
+  const email = staffAuthEmail(loginId);
+  const accessType = input.accessType ?? 'staff';
+  if (input.name.trim().length < 2) return { error: 'Enter the staff member’s name.' };
+  if (input.password.length < 6) return { error: 'Password must be at least 6 characters.' };
   const { data: created, error: authError } = await admin.auth.admin.createUser({
     email,
     password: input.password,
@@ -88,17 +88,18 @@ export async function createAccount(ownerId: string, input: {
 
   let staffId = input.staffMemberId;
   if (staffId) {
-    const { error } = await admin.from('staff_members').update({
-      user_id: userId, login_id: loginId, portal_active: true, name: input.name.trim(), access_type: input.accessType ?? 'staff',
-    }).eq('id', staffId).eq('owner_id', ownerId);
-    if (error) {
+    const { data, error } = await admin.from('staff_members').update({
+      user_id: userId, login_id: loginId, portal_active: true, is_active: true,
+      name: input.name.trim(), access_type: accessType,
+    }).eq('id', staffId).eq('owner_id', ownerId).select('id').single();
+    if (error || !data) {
       await admin.auth.admin.deleteUser(userId);
-      return { error: error.message };
+      return { error: error?.message ?? 'Could not link the staff directory record.' };
     }
   } else {
     const { data, error } = await admin.from('staff_members').insert({
       owner_id: ownerId, user_id: userId, login_id: loginId, portal_active: true,
-      name: input.name.trim(), is_active: true, access_type: input.accessType ?? 'staff',
+      name: input.name.trim(), is_active: true, access_type: accessType,
     }).select('id').single();
     if (error || !data) {
       await admin.auth.admin.deleteUser(userId);
@@ -107,8 +108,8 @@ export async function createAccount(ownerId: string, input: {
     staffId = Number(data.id);
   }
 
-  const departments: StaffDepartment[] = input.accessType === 'staff' ? ['booking'] : input.departments;
-  if (input.accessType === 'staff') {
+  const departments: StaffDepartment[] = accessType === 'staff' ? ['booking'] : input.departments;
+  if (accessType === 'staff') {
     const { error } = await admin.from('staff_departments').delete().eq('staff_id', staffId);
     if (error) return { error: error.message };
   }
@@ -120,16 +121,50 @@ export async function createAccount(ownerId: string, input: {
     if (error) return { error: error.message };
   }
 
-  const modules = input.accessType === 'staff' ? ['quotations', 'create_booking'] : (input.modules ?? []);
+  const modules = accessType === 'staff' ? ['quotations', 'create_booking'] : (input.modules ?? []);
   if (modules.length) {
-    const { error } = await admin.from('staff_access_modules').insert(
+    const { error } = await admin.from('staff_access_modules').upsert(
       modules.map((module) => ({ owner_id: ownerId, staff_id: staffId, module, enabled: true })),
+      { onConflict: 'staff_id,module' },
     );
     if (error) return { error: error.message };
   }
 
-  const accounts = await listAccounts(ownerId);
-  return { account: accounts.find((account) => account.id === userId) };
+  // Verify the exact credentials before reporting success. A separate,
+  // non-persistent client keeps the service-role client untouched.
+  const verifier = createSupabaseClient(supabaseConfig.url, supabaseConfig.key, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+  const { error: verificationError } = await verifier.auth.signInWithPassword({
+    email,
+    password: input.password,
+  });
+  if (verificationError) {
+    await admin.from('staff_access_modules').delete().eq('staff_id', staffId);
+    await admin.from('staff_departments').delete().eq('staff_id', staffId);
+    if (input.staffMemberId) {
+      await admin.from('staff_members').update({
+        user_id: null,
+        login_id: null,
+        portal_active: false,
+      }).eq('id', staffId).eq('owner_id', ownerId);
+    } else {
+      await admin.from('staff_members').delete().eq('id', staffId).eq('owner_id', ownerId);
+    }
+    await admin.auth.admin.deleteUser(userId);
+    return { error: `The login could not be verified: ${verificationError.message}` };
+  }
+
+  const { data: accountRow, error: accountError } = await admin
+    .from('staff_members')
+    .select('id,user_id,name,login_id,portal_active,access_type,created_at,updated_at,staff_departments(department),staff_access_modules(module,enabled)')
+    .eq('id', staffId)
+    .eq('owner_id', ownerId)
+    .single();
+  if (accountError || !accountRow) {
+    return { error: accountError?.message ?? 'The staff login was created but could not be loaded.' };
+  }
+  return { account: toAccount(accountRow as StaffRow) };
 }
 
 async function getOwnedStaff(ownerId: string, userId: string) {
@@ -141,7 +176,9 @@ async function getOwnedStaff(ownerId: string, userId: string) {
 
 export async function setAccountActive(ownerId: string, userId: string, active: boolean) {
   const { admin } = await getOwnedStaff(ownerId, userId);
-  const { error } = await admin.from('staff_members').update({ portal_active: active }).eq('owner_id', ownerId).eq('user_id', userId);
+  const { error } = await admin.from('staff_members').update(
+    active ? { portal_active: true, is_active: true } : { portal_active: false },
+  ).eq('owner_id', ownerId).eq('user_id', userId);
   if (error) throw new Error(error.message);
   const { error: authError } = await admin.auth.admin.updateUserById(userId, { ban_duration: active ? 'none' : '876000h' });
   if (authError) throw new Error(authError.message);
