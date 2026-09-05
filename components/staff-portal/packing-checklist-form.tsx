@@ -1,78 +1,94 @@
 'use client';
 
-import { useActionState } from 'react';
-import { AlertCircle, LoaderCircle } from 'lucide-react';
+import { useActionState, useState } from 'react';
+import { AlertCircle, Camera, Check, LoaderCircle, PackageCheck } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { submitPackingChecklistAction, type QcFormState } from '@/app/staff-portal/qc/actions';
+import { PackingSlipButton, type PackingSlipDetails, type PackingSlipItem } from '@/components/staff-portal/packing-slip-button';
 
 const initialState: QcFormState = { error: '' };
 
-const CHECKS: { name: string; label: string }[] = [
-  { name: 'correctQuantityPacked', label: 'Correct quantity packed' },
+const CHECKS = [
+  { name: 'correctQuantityPacked', label: 'Count verified' },
   { name: 'correctBoxes', label: 'Correct boxes used' },
-  { name: 'properLabels', label: 'Proper labels attached' },
+  { name: 'properLabels', label: 'Labels applied' },
   { name: 'accessoriesIncluded', label: 'Accessories included' },
-  { name: 'itemsSecured', label: 'Items secured' },
-  { name: 'correctEventIdentification', label: 'Correct event identification' },
-];
+  { name: 'itemsSecured', label: 'Products secured' },
+  { name: 'correctEventIdentification', label: 'Event details verified' },
+] as const;
 
-export function PackingChecklistForm({ jobId }: { jobId: string }) {
+export function PackingChecklistForm({
+  jobId,
+  details,
+  items,
+}: {
+  jobId: string;
+  details: PackingSlipDetails;
+  items: PackingSlipItem[];
+}) {
   const [state, formAction, pending] = useActionState(submitPackingChecklistAction, initialState);
+  const [checked, setChecked] = useState(() => CHECKS.map(() => false));
+  const [photoNames, setPhotoNames] = useState<string[]>([]);
+  const checkedCount = checked.filter(Boolean).length;
+  const validPhotoCount = photoNames.length > 0 && photoNames.length <= 3;
+  const ready = checkedCount === CHECKS.length && validPhotoCount;
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="overflow-hidden rounded-2xl border bg-white shadow-level-1">
       <input type="hidden" name="jobId" value={jobId} />
-      <Card className="border-border shadow-level-1">
-        <CardHeader>
-          <CardTitle>Packing check</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {state?.error ? (
-            <Alert variant="destructive" className="px-3 py-3" aria-live="polite">
-              <AlertCircle aria-hidden="true" />
-              <AlertDescription>{state.error}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <div className="grid gap-2 sm:grid-cols-2">
-            {CHECKS.map((check) => (
-              <label
-                key={check.name}
-                className="flex items-center gap-2 rounded-lg border border-border p-3 text-sm"
-              >
-                <input type="checkbox" name={check.name} className="size-4 rounded border-input accent-primary" />
-                {check.label}
-              </label>
-            ))}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <PackageCheck className="size-5 text-[#9a6a2f]" />
+            <h2 className="font-semibold">Packing</h2>
+            <Badge variant="outline">{checkedCount}/{CHECKS.length}</Badge>
           </div>
+          <p className="mt-1 text-sm text-muted-foreground">Complete the checklist and add proof before dispatch.</p>
+        </div>
+        <PackingSlipButton details={details} items={items} />
+      </div>
 
-          <label className="block text-sm">
-            <span className="mb-1.5 block text-muted-foreground">Remarks (optional)</span>
-            <textarea
-              name="remarks"
-              rows={2}
-              placeholder="Anything the Event team should know before pickup…"
-              className="w-full resize-y rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
-            />
-          </label>
+      <div className="space-y-4 p-4 sm:p-5">
+        {state?.error ? <Alert variant="destructive" className="px-3 py-3" aria-live="polite"><AlertCircle /><AlertDescription>{state.error}</AlertDescription></Alert> : null}
 
-          <p className="text-xs text-muted-foreground">
-            All six checks must be confirmed before packing can be marked complete.
-          </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {CHECKS.map((check, index) => (
+            <label key={check.name} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3.5 transition ${checked[index] ? 'border-emerald-200 bg-emerald-50/70' : 'hover:bg-[#fcfaf7]'}`}>
+              <input type="checkbox" name={check.name} checked={checked[index]} onChange={(event) => setChecked((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.checked : value))} className="sr-only" />
+              <span className={`grid size-6 shrink-0 place-items-center rounded-md border ${checked[index] ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-[#cfc4b5] text-transparent'}`}><Check className="size-4" /></span>
+              <span className="text-sm font-medium">{check.label}</span>
+            </label>
+          ))}
+        </div>
 
-          <Button type="submit" disabled={pending} className="h-11 w-full sm:w-auto">
-            {pending ? (
-              <>
-                <LoaderCircle aria-hidden="true" className="animate-spin" /> Submitting...
-              </>
-            ) : (
-              'Complete packing'
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+        <label className="block rounded-xl border border-dashed border-[#d6b98d] bg-[#fcfaf7] p-4 text-center">
+          <Camera className="mx-auto size-5 text-[#9a6a2f]" />
+          <span className="mt-2 block text-sm font-medium">Packing proof photos</span>
+          <span className="mt-1 block text-xs text-muted-foreground">1-3 images, maximum 3 MB each</span>
+          <input
+            name="proofPhotos"
+            type="file"
+            accept="image/*"
+            multiple
+            required
+            className="mt-3 block w-full cursor-pointer text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-[#f5ead8] file:px-3 file:py-2 file:font-medium file:text-[#70481c]"
+            onChange={(event) => setPhotoNames(Array.from(event.target.files ?? []).map((file) => file.name))}
+          />
+          {photoNames.length ? <span className={`mt-2 block text-xs ${validPhotoCount ? 'text-emerald-700' : 'text-red-600'}`}>{photoNames.length} photo{photoNames.length === 1 ? '' : 's'} selected{validPhotoCount ? '' : ' - select no more than 3'}</span> : null}
+        </label>
+
+        <label className="block text-sm">
+          <span className="mb-1.5 block text-muted-foreground">Remarks (optional)</span>
+          <textarea name="remarks" rows={2} placeholder="Anything the event team should know…" className="w-full resize-y rounded-lg border bg-white p-3 outline-none focus:border-[#a86f2c] focus:ring-2 focus:ring-[#a86f2c]/15" />
+        </label>
+
+        <Button type="submit" disabled={pending || !ready} className="h-11 w-full">
+          {pending ? <><LoaderCircle className="animate-spin" /> Uploading &amp; completing…</> : <><Check /> Verify &amp; complete packing</>}
+        </Button>
+        {!ready ? <p className="text-center text-xs text-muted-foreground">Complete all checks and add at least one proof photo.</p> : null}
+      </div>
     </form>
   );
 }

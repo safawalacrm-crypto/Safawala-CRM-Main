@@ -102,6 +102,7 @@ export type PackingChecklist = {
   itemsSecured: boolean;
   correctEventIdentification: boolean;
   remarks: string;
+  proofPhotoPaths: string[];
   completedAt: string | null;
   completedBy: string | null;
 };

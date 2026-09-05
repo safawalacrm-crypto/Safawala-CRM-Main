@@ -54,6 +54,9 @@ function normalizeJob(job: EventJob): EventJob {
     collectionCheck: job.collectionCheck ?? null,
     returnQualityCheck: job.returnQualityCheck ?? null,
     returnWarehouseCheck: job.returnWarehouseCheck ?? null,
+    packingChecklist: job.packingChecklist
+      ? { ...job.packingChecklist, proofPhotoPaths: job.packingChecklist.proofPhotoPaths ?? [] }
+      : null,
     paymentSummary: job.paymentSummary ?? null,
     bookingFinalCheck: job.bookingFinalCheck ?? null,
     performanceCredited: job.performanceCredited ?? false,
@@ -112,6 +115,74 @@ async function writeAll(jobs: EventJob[]) {
   })));
   const { error: stageError } = await admin.from('event_job_stages').upsert(stageRows, { onConflict: 'event_job_id,stage' });
   if (stageError) throw new Error(stageError.message);
+
+  const { data: persistedStages, error: persistedStageError } = await admin
+    .from('event_job_stages')
+    .select('id,event_job_id,stage')
+    .in('event_job_id', jobs.map((job) => job.id));
+  if (persistedStageError) throw new Error(persistedStageError.message);
+  const stageIds = new Map(
+    (persistedStages ?? []).map((stage) => [`${stage.event_job_id}:${stage.stage}`, String(stage.id)]),
+  );
+
+  const qcRows = jobs.flatMap((job) => {
+    const qualityStageId = stageIds.get(`${job.id}:quality_check`);
+    const returnStageId = stageIds.get(`${job.id}:return_quality_check`);
+    const outbound = qualityStageId && job.qualityCheck
+      ? job.qualityCheck.items.map((item) => ({
+          event_job_stage_id: qualityStageId,
+          item_name: item.itemName,
+          checked_quantity: item.checkedQuantity,
+          good_quantity: item.goodQuantity,
+          issue_type: item.issueType,
+          remarks: item.remarks,
+          evidence_photo_url: item.evidenceNote || null,
+        }))
+      : [];
+    const returned = returnStageId && job.returnQualityCheck
+      ? job.returnQualityCheck.items.map((item) => ({
+          event_job_stage_id: returnStageId,
+          item_name: item.itemName,
+          checked_quantity: item.returnedQuantity,
+          good_quantity: item.goodQuantity,
+          damaged_quantity: item.damagedQuantity,
+          repair_required_quantity: item.repairRequired ? item.damagedQuantity : 0,
+          unusable_quantity: item.unusable ? item.damagedQuantity : 0,
+          remarks: item.remarks,
+          evidence_photo_url: item.evidenceNote || null,
+        }))
+      : [];
+    return [...outbound, ...returned];
+  });
+  if (qcRows.length) {
+    const { error: qcError } = await admin.from('event_job_qc_items').upsert(qcRows, {
+      onConflict: 'event_job_stage_id,item_name',
+    });
+    if (qcError) throw new Error(qcError.message);
+  }
+
+  const packingRows = jobs.flatMap((job) => {
+    const packingStageId = stageIds.get(`${job.id}:packing`);
+    if (!packingStageId || !job.packingChecklist) return [];
+    const checklist = job.packingChecklist;
+    return [{
+      event_job_stage_id: packingStageId,
+      correct_quantity_packed: checklist.correctQuantityPacked,
+      correct_boxes: checklist.correctBoxes,
+      proper_labels: checklist.properLabels,
+      accessories_included: checklist.accessoriesIncluded,
+      items_secured: checklist.itemsSecured,
+      correct_event_identification: checklist.correctEventIdentification,
+      remarks: checklist.remarks,
+      proof_photo_url: checklist.proofPhotoPaths[0] ?? null,
+    }];
+  });
+  if (packingRows.length) {
+    const { error: packingError } = await admin.from('event_job_packing_checklist').upsert(packingRows, {
+      onConflict: 'event_job_stage_id',
+    });
+    if (packingError) throw new Error(packingError.message);
+  }
 
   const activityRows = jobs.flatMap((job) => job.activity.map((entry) => ({
     id: entry.id,
@@ -466,6 +537,9 @@ export async function submitQualityCheck(jobId: string, items: QcItemCheck[], st
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
+  if (job.bookingType !== 'rental') {
+    return { error: 'Quality Check is available only for rental bookings.' };
+  }
   const stage = findStage(job, 'quality_check');
   if (!stage || (stage.status !== 'open' && stage.status !== 'in_progress')) {
     return { error: 'Quality check is not open for this job yet.' };
@@ -473,8 +547,17 @@ export async function submitQualityCheck(jobId: string, items: QcItemCheck[], st
   if (items.some((item) => item.checkedQuantity === null || item.goodQuantity === null)) {
     return { error: 'Enter a checked quantity and a good quantity for every item.' };
   }
+  if (items.some((item) => !Number.isFinite(item.checkedQuantity) || !Number.isFinite(item.goodQuantity) || (item.checkedQuantity ?? 0) < 0 || (item.goodQuantity ?? 0) < 0)) {
+    return { error: 'Quality Check quantities must be valid positive numbers.' };
+  }
   if (items.some((item) => (item.goodQuantity ?? 0) > (item.checkedQuantity ?? 0))) {
     return { error: 'Good quantity cannot be more than checked quantity.' };
+  }
+  if (items.some((item) => (item.goodQuantity ?? 0) < (item.checkedQuantity ?? 0) && item.issueType === 'none')) {
+    return { error: 'Select an issue for every product that does not pass.' };
+  }
+  if (!items.some((item) => (item.goodQuantity ?? 0) > 0)) {
+    return { error: 'At least one product must pass QC before packing can begin.' };
   }
 
   const now = new Date().toISOString();
@@ -513,6 +596,9 @@ export async function submitPackingChecklist(
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
+  if (job.bookingType !== 'rental') {
+    return { error: 'Packing is available only for rental bookings.' };
+  }
   const qcStage = findStage(job, 'quality_check');
   if (!qcStage || qcStage.status !== 'done') {
     return { error: 'Complete the quality check before packing.' };
@@ -927,6 +1013,9 @@ export async function submitReturnQualityCheck(jobId: string, items: ReturnQcIte
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
+  if (job.bookingType !== 'rental') {
+    return { error: 'Return Quality Check is available only for rental bookings.' };
+  }
   const stage = findStage(job, 'return_quality_check');
   if (!stage || (stage.status !== 'open' && stage.status !== 'in_progress')) {
     return { error: 'Return QC is not open for this job yet.' };

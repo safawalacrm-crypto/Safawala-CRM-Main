@@ -1,125 +1,92 @@
 'use client';
 
-import { useActionState } from 'react';
-import { AlertCircle, LoaderCircle } from 'lucide-react';
+import { useActionState, useState } from 'react';
+import { AlertCircle, Check, ClipboardCheck, LoaderCircle, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { submitQualityCheckAction, type QcFormState } from '@/app/staff-portal/qc/actions';
-import type { RequiredItem } from '@/lib/event-jobs/types';
 
 const initialState: QcFormState = { error: '' };
-const inputClass =
-  'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
-const ISSUE_OPTIONS: { value: string; label: string }[] = [
-  { value: 'none', label: 'No issue' },
+export type QcReviewItem = {
+  itemName: string;
+  quantity: number;
+  barcode: string | null;
+};
+
+type ReviewDecision = 'pass' | 'fail' | null;
+
+const ISSUE_OPTIONS = [
   { value: 'stain', label: 'Stain' },
   { value: 'tear', label: 'Tear' },
   { value: 'missing_part', label: 'Missing part' },
   { value: 'other', label: 'Other' },
-];
+] as const;
 
-export function QualityCheckForm({ jobId, items }: { jobId: string; items: RequiredItem[] }) {
+export function QualityCheckForm({ jobId, items }: { jobId: string; items: QcReviewItem[] }) {
   const [state, formAction, pending] = useActionState(submitQualityCheckAction, initialState);
+  const [decisions, setDecisions] = useState<ReviewDecision[]>(() => items.map(() => null));
+  const reviewedCount = decisions.filter(Boolean).length;
+  const allReviewed = reviewedCount === items.length;
 
   if (items.length === 0) {
-    return (
-      <Card className="border-border shadow-level-1">
-        <CardContent className="p-5 text-sm text-muted-foreground">
-          This job has no required items recorded, so there is nothing to quality-check here.
-        </CardContent>
-      </Card>
-    );
+    return <section className="rounded-2xl border bg-white p-5 text-sm text-muted-foreground shadow-level-1">No picked rental products are available for quality checking.</section>;
   }
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="overflow-hidden rounded-2xl border bg-white shadow-level-1">
       <input type="hidden" name="jobId" value={jobId} />
-      <Card className="border-border shadow-level-1">
-        <CardHeader>
-          <CardTitle>Quality check</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-5">
-          {state?.error ? (
-            <Alert variant="destructive" className="px-3 py-3" aria-live="polite">
-              <AlertCircle aria-hidden="true" />
-              <AlertDescription>{state.error}</AlertDescription>
-            </Alert>
-          ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-5">
+        <div>
+          <div className="flex items-center gap-2">
+            <ClipboardCheck className="size-5 text-[#9a6a2f]" />
+            <h2 className="font-semibold">Quality check</h2>
+            <Badge variant="outline">{reviewedCount}/{items.length} reviewed</Badge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">Pass or flag every picked product.</p>
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-[#eee7dd] sm:w-36">
+          <div className="h-full rounded-full bg-[#a86f2c] transition-all" style={{ width: `${(reviewedCount / items.length) * 100}%` }} />
+        </div>
+      </div>
 
-          {items.map((item, index) => (
-            <div key={`${item.itemName}-${index}`} className="rounded-xl border border-border p-4">
-              <input type="hidden" name="itemName" value={item.itemName} />
-              <div className="flex flex-wrap items-baseline justify-between gap-2">
-                <p className="font-medium">{item.itemName}</p>
-                <p className="text-xs text-muted-foreground">Prepared: {item.quantity}</p>
-              </div>
-              <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                <label className="block text-sm">
-                  <span className="mb-1.5 block text-muted-foreground">Checked quantity</span>
-                  <input
-                    name={`checkedQuantity-${index}`}
-                    type="number"
-                    min={0}
-                    required
-                    defaultValue={item.quantity}
-                    className={inputClass}
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1.5 block text-muted-foreground">Good quantity</span>
-                  <input
-                    name={`goodQuantity-${index}`}
-                    type="number"
-                    min={0}
-                    required
-                    defaultValue={item.quantity}
-                    className={inputClass}
-                  />
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1.5 block text-muted-foreground">Issue type</span>
-                  <select name={`issueType-${index}`} defaultValue="none" className={inputClass}>
-                    {ISSUE_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="block text-sm">
-                  <span className="mb-1.5 block text-muted-foreground">Evidence note (optional)</span>
-                  <input
-                    name={`evidenceNote-${index}`}
-                    placeholder="Photo upload isn't available yet — add a note or link"
-                    className={inputClass}
-                  />
-                </label>
-                <label className="block text-sm sm:col-span-2">
-                  <span className="mb-1.5 block text-muted-foreground">Remarks (optional)</span>
-                  <textarea
-                    name={`remarks-${index}`}
-                    rows={2}
-                    placeholder="Describe the problem, if any…"
-                    className="w-full resize-y rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
-                  />
-                </label>
-              </div>
-            </div>
-          ))}
+      <div className="space-y-3 p-4 sm:p-5">
+        {state?.error ? <Alert variant="destructive" className="px-3 py-3" aria-live="polite"><AlertCircle /><AlertDescription>{state.error}</AlertDescription></Alert> : null}
 
-          <Button type="submit" disabled={pending} className="h-11 w-full sm:w-auto">
-            {pending ? (
-              <>
-                <LoaderCircle aria-hidden="true" className="animate-spin" /> Submitting...
-              </>
-            ) : (
-              'Complete quality check'
-            )}
-          </Button>
-        </CardContent>
-      </Card>
+        <ul className="space-y-3">
+          {items.map((item, index) => {
+            const decision = decisions[index];
+            return (
+              <li key={`${item.itemName}-${index}`} className={`rounded-xl border p-3 transition ${decision === 'pass' ? 'border-emerald-200 bg-emerald-50/70' : decision === 'fail' ? 'border-red-200 bg-red-50/60' : 'bg-white'}`}>
+                <input type="hidden" name="itemName" value={item.itemName} />
+                <input type="hidden" name={`checkedQuantity-${index}`} value={item.quantity} />
+                <input type="hidden" name={`goodQuantity-${index}`} value={decision === 'pass' ? item.quantity : decision === 'fail' ? 0 : ''} />
+                {decision !== 'fail' ? <input type="hidden" name={`issueType-${index}`} value="none" /> : null}
+                <div className="flex items-center gap-3">
+                  <span className="min-w-0 flex-1">
+                    <strong className="block truncate text-sm font-medium">{item.itemName}</strong>
+                    <span className="mt-0.5 block text-xs text-muted-foreground">{item.barcode ? `Barcode: ${item.barcode}` : 'No barcode'} · Quantity {item.quantity}</span>
+                  </span>
+                  <Button type="button" size="icon" variant="outline" aria-label={`Flag ${item.itemName}`} className={decision === 'fail' ? 'border-red-500 bg-red-600 text-white hover:bg-red-700 hover:text-white' : ''} onClick={() => setDecisions((current) => current.map((value, itemIndex) => itemIndex === index ? 'fail' : value))}><X /></Button>
+                  <Button type="button" size="icon" variant="outline" aria-label={`Pass ${item.itemName}`} className={decision === 'pass' ? 'border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-700 hover:text-white' : ''} onClick={() => setDecisions((current) => current.map((value, itemIndex) => itemIndex === index ? 'pass' : value))}><Check /></Button>
+                </div>
+                {decision === 'fail' ? (
+                  <div className="mt-3 grid gap-2 border-t border-red-200 pt-3 sm:grid-cols-2">
+                    <label className="text-sm"><span className="mb-1 block text-muted-foreground">Issue</span><select name={`issueType-${index}`} defaultValue="other" className="h-10 w-full rounded-lg border bg-white px-3">{ISSUE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                    <label className="text-sm"><span className="mb-1 block text-muted-foreground">Remarks (optional)</span><input name={`remarks-${index}`} placeholder="Short issue note" className="h-10 w-full rounded-lg border bg-white px-3" /></label>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+
+        <Button type="submit" disabled={pending || !allReviewed} className="h-11 w-full">
+          {pending ? <><LoaderCircle className="animate-spin" /> Submitting…</> : <><Check /> Submit quality check</>}
+        </Button>
+        {!allReviewed ? <p className="text-center text-xs text-muted-foreground">Review every product to continue.</p> : null}
+      </div>
     </form>
   );
 }

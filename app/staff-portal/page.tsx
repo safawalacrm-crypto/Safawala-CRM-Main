@@ -9,7 +9,7 @@ import { STAFF_MODULE_META } from '@/lib/staff-portal/modules';
 import { requireStaffSession } from '@/lib/staff-portal/guard';
 import { unreadCountForSession } from '@/lib/notifications/store';
 import { listJobs } from '@/lib/event-jobs/store';
-import { Boxes, CheckCircle2, Clock3 } from 'lucide-react';
+import { Boxes, CheckCircle2, Clock3, PackageCheck } from 'lucide-react';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +32,9 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
     return [{ ...module, href: module.href }];
   });
   const hasWarehouse = activeDepartments.some((grant) => grant.department === 'warehouse');
-  const warehouseJobs = hasWarehouse ? (await listJobs()).filter((job) => job.bookingType === 'rental') : [];
+  const hasQc = activeDepartments.some((grant) => grant.department === 'qc');
+  const rentalJobs = hasWarehouse || hasQc ? (await listJobs()).filter((job) => job.bookingType === 'rental') : [];
+  const warehouseJobs = hasWarehouse ? rentalJobs : [];
   const openWarehouseJobs = warehouseJobs.filter((job) =>
     job.status === 'active' && job.stages.some((stage) =>
       (stage.key === 'warehouse_pick' || stage.key === 'return_warehouse') &&
@@ -45,6 +47,15 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
       (stage.status === 'open' || stage.status === 'in_progress'),
     ) && Boolean(job.warehousePrep || job.returnWarehouseCheck),
   );
+  const qcJobs = hasQc ? rentalJobs : [];
+  const hasOpenQcStage = (job: (typeof qcJobs)[number]) => job.stages.some((stage) =>
+    ['quality_check', 'packing', 'return_quality_check'].includes(stage.key) &&
+    (stage.status === 'open' || stage.status === 'in_progress'),
+  );
+  const openQcJobs = qcJobs.filter((job) => job.status === 'active' && hasOpenQcStage(job));
+  const closedQcJobs = qcJobs.filter((job) =>
+    !hasOpenQcStage(job) && Boolean(job.qualityCheck || job.packingChecklist || job.returnQualityCheck),
+  );
   const deniedDepartment = STAFF_DEPARTMENTS.includes(params.denied as StaffDepartment)
     ? (params.denied as StaffDepartment)
     : null;
@@ -54,7 +65,7 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
   );
 
   return (
-    <StaffPortalShell name={session.name} departments={session.departments} accessModules={session.accessModules} isMainId={session.isMainId} notificationCount={notificationCount}>
+    <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} accessModules={session.accessModules} isMainId={session.isMainId} notificationCount={notificationCount}>
       <div className="mx-auto max-w-[1440px] space-y-6">
         <DashboardHeader title={`Welcome, ${session.name}`} subtitle="Your Safawala staff portal" />
 
@@ -77,6 +88,19 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
             <Link href="/staff-portal/warehouse?view=closed" className="rounded-xl border bg-white p-4 shadow-sm transition hover:bg-[#fcfaf7] hover:shadow-level-1">
               <span className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="size-4 text-emerald-700" /> Closed warehouse jobs</span>
               <strong className="mt-2 block text-3xl">{closedWarehouseJobs.length}</strong>
+            </Link>
+          </div>
+        ) : null}
+
+        {hasQc ? (
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Link href="/staff-portal/qc" className="rounded-xl border border-[#d6b98d] bg-[#f5ead8] p-4 text-[#70481c] shadow-sm transition hover:shadow-level-1">
+              <span className="flex items-center gap-2 text-sm font-medium"><Clock3 className="size-4" /> Open QC jobs</span>
+              <span className="mt-2 flex items-end justify-between"><strong className="text-3xl">{openQcJobs.length}</strong><PackageCheck className="size-5" /></span>
+            </Link>
+            <Link href="/staff-portal/qc?view=closed" className="rounded-xl border bg-white p-4 shadow-sm transition hover:bg-[#fcfaf7] hover:shadow-level-1">
+              <span className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="size-4 text-emerald-700" /> Closed QC jobs</span>
+              <strong className="mt-2 block text-3xl">{closedQcJobs.length}</strong>
             </Link>
           </div>
         ) : null}
