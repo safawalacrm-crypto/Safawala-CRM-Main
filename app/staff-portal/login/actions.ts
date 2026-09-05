@@ -1,7 +1,6 @@
 'use server';
 
 import { redirect } from 'next/navigation';
-import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 
 export type StaffLoginState = { error: string };
@@ -21,8 +20,9 @@ export async function staffLogin(
   if (error || !auth.user) {
     return { error: 'Invalid login ID or password, or your access has been disabled.' };
   }
-  const admin = createAdminClient();
-  const { data: account } = await admin
+  // The signed-in staff member may read their own account through RLS.
+  // Login must not depend on a deployment-only service-role secret.
+  const { data: account } = await supabase
     .from('staff_members')
     .select('portal_active,is_active')
     .eq('user_id', auth.user.id)

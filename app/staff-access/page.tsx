@@ -13,7 +13,7 @@ export default async function StaffAccessPage() {
   const { data: profile } = await supabase.from('profiles').select('role').eq('id', auth.user.id).single();
   if (profile?.role !== 'admin') redirect('/staff-portal');
   const [{ data: staff }, accounts] = await Promise.all([
-    supabase.from('staff_members').select('id,name').eq('owner_id', auth.user.id).order('name'),
+    supabase.from('staff_members').select('id,name').eq('owner_id', auth.user.id).is('user_id', null).order('name'),
     listAccounts(auth.user.id),
   ]);
   return (

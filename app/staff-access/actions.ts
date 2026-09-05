@@ -25,13 +25,21 @@ export async function createStaffAccessAction(input: {
   accessType: StaffAccessType;
   modules: AccessModule[];
 }) {
-  const result = await createAccount(await requireAdmin(), {
-    ...input,
-    departments: [input.department],
-    modules: input.accessType === 'staff' ? ['quotations', 'create_booking'] : input.modules,
-  });
-  revalidatePath('/staff-access');
-  return result;
+  try {
+    const result = await createAccount(await requireAdmin(), {
+      ...input,
+      departments: [input.department],
+      modules: input.accessType === 'staff' ? ['quotations', 'create_booking'] : input.modules,
+    });
+    revalidatePath('/staff-access');
+    return result;
+  } catch (error) {
+    return {
+      error: error instanceof Error && error.message.includes('environment variables')
+        ? 'Staff credential service is not configured on this deployment.'
+        : error instanceof Error ? error.message : 'Could not create this ID.',
+    };
+  }
 }
 
 export async function setStaffAccessActiveAction(userId: string, active: boolean) {
