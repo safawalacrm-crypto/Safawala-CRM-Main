@@ -143,7 +143,7 @@ export function StaffDirectory({
       const exists = current.some((row) => row.id === member.id);
       return exists
         ? current.map((row) => (row.id === member.id ? { ...row, ...member } : row))
-        : [{ ...member, user_id: null, login_id: null, portal_active: false, access_type: null, staff_departments: [], staff_access_modules: [] }, ...current];
+        : [member, ...current];
     });
     setEditing(undefined);
     setMessage('');
@@ -495,7 +495,8 @@ function StaffDialog({
   const [error, setError] = useState('');
   const [warning, setWarning] = useState('');
   const showLoginSection = !member || !member.user_id;
-  const [accessType, setAccessType] = useState<StaffAccessType>('main');
+  const loginRequired = member === null;
+  const [accessType, setAccessType] = useState<StaffAccessType>('staff');
   const [departments, setDepartments] = useState<StaffDepartment[]>([]);
 
   const effectiveDepartments = accessType === 'staff' ? (['booking'] as StaffDepartment[]) : departments;
@@ -516,9 +517,14 @@ function StaffDialog({
     };
     const loginId = readText('loginId');
     const password = readExactText('password');
-    const wantsLogin = showLoginSection && loginId.length > 0;
+    const wantsLogin = showLoginSection && (loginRequired || loginId.length > 0);
 
     if (wantsLogin) {
+      if (!loginId) {
+        setError('Enter a Login ID so this staff member can sign in to the Staff Portal.');
+        setBusy(false);
+        return;
+      }
       if (!/^[a-zA-Z0-9._-]+$/.test(loginId)) {
         setError('Use a simple Login ID such as deep.patel or staff-11. Do not enter an email address.');
         setBusy(false);
@@ -530,7 +536,7 @@ function StaffDialog({
         return;
       }
       if (effectiveDepartments.length === 0) {
-        setError('Select at least one department to grant portal access, or leave the Login ID blank to skip creating a login.');
+        setError('Select at least one department to grant portal access.');
         setBusy(false);
         return;
       }
@@ -586,11 +592,15 @@ function StaffDialog({
         departments: effectiveDepartments,
         accessType,
         modules: [],
+        rollbackStaffMemberOnFailure: !member,
       });
       if (loginResult.error || !loginResult.account) {
-        setWarning(
-          `Staff member was saved, but the login could not be created: ${loginResult.error ?? 'Unknown error.'} Use “Create login” on their row to try again.`,
-        );
+        if (!member) {
+          setError(`Nothing was saved because the portal login could not be created: ${loginResult.error ?? 'Unknown error.'}`);
+          setBusy(false);
+          return;
+        }
+        setWarning(`The login could not be created: ${loginResult.error ?? 'Unknown error.'}`);
         setBusy(false);
         onSaved(savedMember);
         return;
@@ -633,7 +643,7 @@ function StaffDialog({
               <p className="mt-1 text-xs text-muted-foreground">
                 {member
                   ? 'Update the team member’s directory information.'
-                  : 'Save a new member, and optionally set up their portal login now.'}
+                  : 'Create the staff member and their verified portal login together.'}
               </p>
             </div>
           </div>
@@ -702,18 +712,20 @@ function StaffDialog({
           {showLoginSection ? (
             <div className="space-y-4 rounded-xl border border-dashed border-[#e4d2b6] bg-[#fcfaf7] p-4">
               <div>
-                <p className="text-sm font-medium">Portal login (optional)</p>
+                <p className="text-sm font-medium">Portal login{loginRequired ? ' (required)' : ' (optional)'}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Fill this in to also create a Staff Portal / admin login for this person right now. Leave the Login ID blank to skip it — you can always add one later from “Create login” on their row.
+                  {loginRequired
+                    ? 'A working Staff Portal login will be created and verified when this staff member is saved.'
+                    : 'Enter credentials to add portal access, or leave the Login ID blank to keep this as a directory-only record.'}
                 </p>
               </div>
               <label className="block text-sm">
                 <span className="font-medium">Login ID</span>
-                <input name="loginId" placeholder="e.g. deep.patel" className={fieldClass} />
+                <input name="loginId" required={loginRequired} placeholder="e.g. deep.patel" className={fieldClass} />
               </label>
               <label className="block text-sm">
                 <span className="font-medium">Temporary password</span>
-                <input name="password" type="password" minLength={6} placeholder="At least 6 characters" className={fieldClass} />
+                <input name="password" type="password" required={loginRequired} minLength={6} placeholder="At least 6 characters" className={fieldClass} />
               </label>
               <label className="block text-sm">
                 <span className="font-medium">Access type</span>
@@ -722,8 +734,8 @@ function StaffDialog({
                   onChange={(event) => setAccessType(event.target.value as StaffAccessType)}
                   className={fieldClass}
                 >
-                  <option value="main">Main ID — choose departments</option>
                   <option value="staff">Staff ID — booking quotations only</option>
+                  <option value="main">Main ID — choose departments</option>
                 </select>
               </label>
               {accessType === 'main' ? (
@@ -777,7 +789,7 @@ function StaffDialog({
             </Button>
             <Button type="submit" disabled={busy}>
               <Check />
-              {busy ? 'Saving…' : member ? 'Save changes' : 'Add staff member'}
+              {busy ? 'Saving…' : member ? 'Save changes' : 'Add staff & create login'}
             </Button>
           </div>
         </form>
@@ -959,7 +971,7 @@ function CreateLoginForm({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [accessType, setAccessType] = useState<StaffAccessType>('main');
+  const [accessType, setAccessType] = useState<StaffAccessType>('staff');
   const [departments, setDepartments] = useState<StaffDepartment[]>([]);
   const [modules, setModules] = useState<AccessModule[]>([]);
 
@@ -1031,8 +1043,8 @@ function CreateLoginForm({
           onChange={(event) => setAccessType(event.target.value as StaffAccessType)}
           className={fieldClass}
         >
-          <option value="main">Main ID — choose departments &amp; modules</option>
           <option value="staff">Staff ID — booking quotations only</option>
+          <option value="main">Main ID — choose departments &amp; modules</option>
         </select>
       </label>
 

@@ -64,6 +64,7 @@ export async function createAccount(ownerId: string, input: {
   departments: StaffDepartment[];
   accessType?: StaffAccessType;
   modules?: AccessModule[];
+  removeStaffMemberOnFailure?: boolean;
 }): Promise<{ account?: StaffPortalAccount; error?: string }> {
   const admin = createAdminClient();
   const loginId = normalizeStaffLoginId(input.loginId);
@@ -71,18 +72,36 @@ export async function createAccount(ownerId: string, input: {
   const accessType = input.accessType ?? 'staff';
   if (input.name.trim().length < 2) return { error: 'Enter the staff member’s name.' };
   if (input.password.length < 6) return { error: 'Password must be at least 6 characters.' };
+  async function removePendingStaffMember() {
+    if (!input.removeStaffMemberOnFailure || !input.staffMemberId) return null;
+    const { error } = await admin
+      .from('staff_members')
+      .delete()
+      .eq('id', input.staffMemberId)
+      .eq('owner_id', ownerId)
+      .is('user_id', null);
+    return error?.message ?? null;
+  }
   const { data: created, error: authError } = await admin.auth.admin.createUser({
     email,
     password: input.password,
     email_confirm: true,
     user_metadata: { display_name: input.name.trim(), login_id: loginId },
   });
-  if (authError || !created.user) return { error: authError?.message ?? 'Could not create staff login.' };
+  if (authError || !created.user) {
+    const cleanupError = await removePendingStaffMember();
+    return {
+      error: cleanupError
+        ? `${authError?.message ?? 'Could not create staff login.'} The incomplete staff record also could not be removed: ${cleanupError}`
+        : authError?.message ?? 'Could not create staff login.',
+    };
+  }
 
   const userId = created.user.id;
   const { error: profileError } = await admin.from('profiles').upsert({ id: userId, full_name: input.name.trim(), role: 'staff' });
   if (profileError) {
     await admin.auth.admin.deleteUser(userId);
+    await removePendingStaffMember();
     return { error: profileError.message };
   }
 
@@ -94,6 +113,7 @@ export async function createAccount(ownerId: string, input: {
     }).eq('id', staffId).eq('owner_id', ownerId).select('id').single();
     if (error || !data) {
       await admin.auth.admin.deleteUser(userId);
+      await removePendingStaffMember();
       return { error: error?.message ?? 'Could not link the staff directory record.' };
     }
   } else {
@@ -108,26 +128,51 @@ export async function createAccount(ownerId: string, input: {
     staffId = Number(data.id);
   }
 
+  const linkedStaffId = staffId;
+  async function rollbackCreatedLogin() {
+    await admin.from('staff_access_modules').delete().eq('staff_id', linkedStaffId);
+    await admin.from('staff_departments').delete().eq('staff_id', linkedStaffId);
+    if (input.staffMemberId && !input.removeStaffMemberOnFailure) {
+      await admin.from('staff_members').update({
+        user_id: null,
+        login_id: null,
+        portal_active: false,
+      }).eq('id', linkedStaffId).eq('owner_id', ownerId);
+    } else {
+      await admin.from('staff_members').delete().eq('id', linkedStaffId).eq('owner_id', ownerId);
+    }
+    await admin.auth.admin.deleteUser(userId);
+  }
+
   const departments: StaffDepartment[] = accessType === 'staff' ? ['booking'] : input.departments;
   if (accessType === 'staff') {
-    const { error } = await admin.from('staff_departments').delete().eq('staff_id', staffId);
-    if (error) return { error: error.message };
+    const { error } = await admin.from('staff_departments').delete().eq('staff_id', linkedStaffId);
+    if (error) {
+      await rollbackCreatedLogin();
+      return { error: error.message };
+    }
   }
   if (departments.length) {
     const { error } = await admin.from('staff_departments').upsert(
-      departments.map((department) => ({ staff_id: staffId, department, granted_by: ownerId })),
+      departments.map((department) => ({ staff_id: linkedStaffId, department, granted_by: ownerId })),
       { onConflict: 'staff_id,department' },
     );
-    if (error) return { error: error.message };
+    if (error) {
+      await rollbackCreatedLogin();
+      return { error: error.message };
+    }
   }
 
   const modules = accessType === 'staff' ? ['quotations', 'create_booking'] : (input.modules ?? []);
   if (modules.length) {
     const { error } = await admin.from('staff_access_modules').upsert(
-      modules.map((module) => ({ owner_id: ownerId, staff_id: staffId, module, enabled: true })),
+      modules.map((module) => ({ owner_id: ownerId, staff_id: linkedStaffId, module, enabled: true })),
       { onConflict: 'staff_id,module' },
     );
-    if (error) return { error: error.message };
+    if (error) {
+      await rollbackCreatedLogin();
+      return { error: error.message };
+    }
   }
 
   // Verify the exact credentials before reporting success. A separate,
@@ -140,28 +185,18 @@ export async function createAccount(ownerId: string, input: {
     password: input.password,
   });
   if (verificationError) {
-    await admin.from('staff_access_modules').delete().eq('staff_id', staffId);
-    await admin.from('staff_departments').delete().eq('staff_id', staffId);
-    if (input.staffMemberId) {
-      await admin.from('staff_members').update({
-        user_id: null,
-        login_id: null,
-        portal_active: false,
-      }).eq('id', staffId).eq('owner_id', ownerId);
-    } else {
-      await admin.from('staff_members').delete().eq('id', staffId).eq('owner_id', ownerId);
-    }
-    await admin.auth.admin.deleteUser(userId);
+    await rollbackCreatedLogin();
     return { error: `The login could not be verified: ${verificationError.message}` };
   }
 
   const { data: accountRow, error: accountError } = await admin
     .from('staff_members')
     .select('id,user_id,name,login_id,portal_active,access_type,created_at,updated_at,staff_departments(department),staff_access_modules(module,enabled)')
-    .eq('id', staffId)
+    .eq('id', linkedStaffId)
     .eq('owner_id', ownerId)
     .single();
   if (accountError || !accountRow) {
+    await rollbackCreatedLogin();
     return { error: accountError?.message ?? 'The staff login was created but could not be loaded.' };
   }
   return { account: toAccount(accountRow as StaffRow) };

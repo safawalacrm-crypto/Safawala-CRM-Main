@@ -30,6 +30,7 @@ export async function createStaffLoginAction(input: {
   departments: StaffDepartment[];
   accessType: StaffAccessType;
   modules: AccessModule[];
+  rollbackStaffMemberOnFailure?: boolean;
 }) {
   try {
     const result = await createAccount(await requireAdmin(), {
@@ -40,6 +41,7 @@ export async function createStaffLoginAction(input: {
       departments: input.departments,
       accessType: input.accessType,
       modules: input.accessType === 'staff' ? ['quotations', 'create_booking'] : input.modules,
+      removeStaffMemberOnFailure: input.rollbackStaffMemberOnFailure,
     });
     revalidatePath('/staff');
     return result;
