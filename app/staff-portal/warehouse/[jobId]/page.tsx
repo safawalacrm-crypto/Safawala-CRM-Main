@@ -1,147 +1,178 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, CalendarClock, MapPin } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Check, Circle, MapPin, Route, UserRound } from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
-import { DashboardHeader } from '@/components/layout/dashboard-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { getJob } from '@/lib/event-jobs/store';
+import { STAGE_LABEL } from '@/lib/event-jobs/constants';
 import { WarehousePrepForm } from '@/components/staff-portal/warehouse-prep-form';
+import { WarehousePickSlipButton } from '@/components/staff-portal/warehouse-pick-slip-button';
 import { ReturnWarehouseForm } from '@/components/staff-portal/return-warehouse-form';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
-export default async function WarehouseJobDetailPage({
-  params,
-}: {
-  params: Promise<{ jobId: string }>;
-}) {
+type BookingContext = {
+  booking_number: string;
+  event_name: string;
+  event_date: string;
+  event_time: string | null;
+  event_location: string | null;
+  pickup_date: string | null;
+  due_date: string | null;
+  contact_name: string | null;
+  alternate_mobile: string | null;
+  customers: { name: string; phone: string } | { name: string; phone: string }[] | null;
+  booking_items: {
+    item_name: string;
+    quantity: number;
+    products: { barcode: string | null } | { barcode: string | null }[] | null;
+  }[];
+};
+
+function firstRelation<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+}
+
+export default async function WarehouseJobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
   const session = await requireDepartment('warehouse');
   const { jobId } = await params;
   const job = await getJob(jobId);
   if (!job) notFound();
+  if (job.bookingType !== 'rental') redirect('/staff-portal/warehouse');
 
   const stage = job.stages.find((item) => item.key === 'warehouse_pick');
   const returnStage = job.stages.find((item) => item.key === 'return_warehouse');
   if (!stage || !returnStage) notFound();
   const isOpen = stage.status === 'open' || stage.status === 'in_progress';
   const returnIsOpen = returnStage.status === 'open' || returnStage.status === 'in_progress';
-
   if (!isOpen && !job.warehousePrep && !returnIsOpen && !job.returnWarehouseCheck) {
-    // Nothing to do here yet and nothing was ever submitted — send the staff member
-    // back to the list rather than showing a broken/empty screen.
     redirect('/staff-portal/warehouse');
   }
 
-  // Pre-fill Return Warehouse from Return QC's good/damaged split, and missing/lost
-  // from Collection's sent-vs-returned gap — staff confirm rather than re-type.
+  const admin = createAdminClient();
+  const { data: bookingData } = await admin
+    .from('bookings')
+    .select('booking_number,event_name,event_date,event_time,event_location,pickup_date,due_date,contact_name,alternate_mobile,customers(name,phone),booking_items(item_name,quantity,products(barcode))')
+    .eq('id', job.bookingId)
+    .single();
+  const booking = bookingData as BookingContext | null;
+  const customer = firstRelation(booking?.customers);
+  const pickItems = booking?.booking_items?.length
+    ? booking.booking_items.map((item) => {
+        const product = firstRelation(item.products);
+        return {
+          itemName: item.item_name,
+          quantity: Number(item.quantity),
+          barcode: product?.barcode ?? null,
+        };
+      })
+    : job.requiredItems.map((item) => ({ ...item, barcode: null }));
+  const slipDetails = {
+    jobId: job.id,
+    bookingNumber: job.bookingNumber,
+    customerName: customer?.name ?? booking?.contact_name ?? 'Customer',
+    customerPhone: booking?.alternate_mobile ?? customer?.phone ?? '',
+    eventName: booking?.event_name ?? job.eventSummary.eventName,
+    eventDate: booking?.event_date ?? job.eventSummary.eventDate,
+    eventTime: booking?.event_time ?? job.eventSummary.eventTime,
+    venue: booking?.event_location ?? job.eventSummary.venue,
+  };
+
   const returnItems = (job.returnQualityCheck?.items ?? []).map((item) => {
     const collected = job.collectionCheck?.items.find((entry) => entry.itemName === item.itemName);
-    const missingLostQuantity = collected ? Math.max(collected.sentQuantity - (collected.returnedQuantity ?? 0), 0) : 0;
     return {
       itemName: item.itemName,
       usableQuantity: item.goodQuantity ?? 0,
       damagedRepairQuantity: item.damagedQuantity ?? 0,
-      missingLostQuantity,
+      missingLostQuantity: collected ? Math.max(collected.sentQuantity - (collected.returnedQuantity ?? 0), 0) : 0,
     };
   });
 
   return (
-    <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} isMainId={session.isMainId}>
-      <div className="mx-auto max-w-[900px] space-y-6">
-        <div>
-          <Link
-            href="/staff-portal/warehouse"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> Back to Warehouse
-          </Link>
-        </div>
-        <DashboardHeader title={job.id} subtitle={`${job.eventSummary.eventName} · ${job.bookingNumber}`} />
+    <StaffPortalShell
+      name={session.name}
+      departments={session.departments}
+      permissions={session.permissions}
+      accessModules={session.accessModules}
+      isMainId={session.isMainId}
+    >
+      <div className="mx-auto max-w-[900px] space-y-5">
+        <Link href="/staff-portal/warehouse" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" /> Back to warehouse
+        </Link>
 
-        <Card className="border-border shadow-level-1">
-          <CardHeader>
-            <CardTitle>Event details</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <CalendarClock className="size-4" /> {friendlyDate(job.eventSummary.eventDate)} ·{' '}
-              {friendlyTime(job.eventSummary.eventTime)}
-            </p>
-            {job.eventSummary.venue ? (
-              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <MapPin className="size-4" /> {job.eventSummary.venue}
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
+        <section className="rounded-2xl border border-[#dfd3c3] bg-white p-5 shadow-level-1">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-semibold tracking-tight">{slipDetails.customerName}</h1>
+                <Badge variant="outline" className="border-[#e4d2b6] bg-[#f5ead8] text-[#70481c]">Rental picking</Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{job.id} · {job.bookingNumber}</p>
+            </div>
+            <p className="text-sm font-medium text-[#70481c]">{pickItems.length} item{pickItems.length === 1 ? '' : 's'}</p>
+          </div>
+          <div className="mt-4 grid gap-3 border-t pt-4 text-sm sm:grid-cols-2">
+            <p className="flex items-start gap-2"><UserRound className="mt-0.5 size-4 text-[#9a6a2f]" /><span><strong className="block font-medium">{slipDetails.eventName}</strong><span className="text-muted-foreground">{slipDetails.customerPhone || 'No alternate number'}</span></span></p>
+            <p className="flex items-start gap-2"><CalendarDays className="mt-0.5 size-4 text-[#9a6a2f]" /><span><strong className="block font-medium">{friendlyDate(slipDetails.eventDate)}</strong><span className="text-muted-foreground">{slipDetails.eventTime ? friendlyTime(slipDetails.eventTime) : 'Time not added'}</span></span></p>
+            {slipDetails.venue ? <p className="flex items-center gap-2 text-muted-foreground sm:col-span-2"><MapPin className="size-4 text-[#9a6a2f]" /> {slipDetails.venue}</p> : null}
+          </div>
+        </section>
+
+        <details className="group rounded-xl border bg-white shadow-level-1">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium">
+            <span className="flex items-center gap-2"><Route className="size-4 text-[#9a6a2f]" /> Track this job</span>
+            <span className="text-xs text-muted-foreground group-open:hidden">View workflow</span>
+          </summary>
+          <ol className="space-y-0 border-t px-5 py-3">
+            {job.stages.map((jobStage, index) => {
+              const done = jobStage.status === 'done';
+              const current = jobStage.status === 'open' || jobStage.status === 'in_progress';
+              return (
+                <li key={jobStage.key} className="relative flex gap-3 pb-4 last:pb-1">
+                  {index < job.stages.length - 1 ? <span className="absolute left-[9px] top-5 h-full w-px bg-border" /> : null}
+                  <span className={`relative z-10 mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border ${done ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : current ? 'border-[#a86f2c] bg-[#f5ead8] text-[#70481c]' : 'border-border bg-white text-muted-foreground'}`}>
+                    {done ? <Check className="size-3" /> : <Circle className="size-2 fill-current" />}
+                  </span>
+                  <span><strong className="block text-sm font-medium">{STAGE_LABEL[jobStage.key]}</strong><span className={`text-xs ${current ? 'text-[#9a6a2f]' : 'text-muted-foreground'}`}>{done ? 'Completed' : current ? 'In progress' : 'Waiting'}</span></span>
+                </li>
+              );
+            })}
+          </ol>
+        </details>
 
         {job.warehousePrep ? (
-          <Card className="border-emerald-200 bg-emerald-50/60">
-            <CardHeader>
-              <CardTitle className="text-emerald-800">Preparation completed</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-emerald-800">
-                Completed by {job.warehousePrep.completedBy} on {friendlyDate(job.warehousePrep.completedAt ?? '')}.
-                This job has moved to QC &amp; Packing.
-              </p>
-              <ul className="space-y-2">
-                {job.warehousePrep.items.map((item, index) => (
-                  <li key={index} className="rounded-lg border border-emerald-200 bg-white p-3 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium">{item.itemName}</p>
-                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-                        {item.preparedQuantity ?? 0} / {item.requiredQuantity} prepared
-                      </Badge>
-                    </div>
-                    {item.unavailable || item.damaged || item.otherIssue ? (
-                      <p className="mt-1 text-xs text-amber-700">
-                        {[item.unavailable && 'Unavailable', item.damaged && 'Damaged', item.otherIssue]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </p>
-                    ) : null}
-                    {item.remarks ? <p className="mt-1 text-xs text-muted-foreground">{item.remarks}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        ) : (
-          <WarehousePrepForm jobId={job.id} items={job.requiredItems} />
-        )}
+          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="font-semibold text-emerald-800">Picking completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.warehousePrep.completedBy} on {friendlyDate(job.warehousePrep.completedAt ?? '')}</p></div>
+              <WarehousePickSlipButton
+                details={slipDetails}
+                items={job.warehousePrep.items.map((item) => ({ itemName: item.itemName, quantity: item.requiredQuantity, barcode: pickItems.find((entry) => entry.itemName === item.itemName)?.barcode ?? null, picked: (item.preparedQuantity ?? 0) > 0 }))}
+              />
+            </div>
+            <ul className="mt-4 divide-y rounded-xl border">
+              {job.warehousePrep.items.map((item) => (
+                <li key={item.itemName} className="flex items-center justify-between gap-3 px-3 py-3 text-sm">
+                  <span className="font-medium">{item.itemName}</span>
+                  <Badge variant="outline" className={(item.preparedQuantity ?? 0) > 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800'}>
+                    {(item.preparedQuantity ?? 0) > 0 ? 'Picked' : 'Not picked'}
+                  </Badge>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : isOpen ? (
+          <WarehousePrepForm jobId={job.id} items={pickItems} details={slipDetails} />
+        ) : null}
 
         {job.returnWarehouseCheck ? (
-          <Card className="border-emerald-200 bg-emerald-50/60">
-            <CardHeader>
-              <CardTitle className="text-emerald-800">Return Warehouse completed</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-emerald-800">
-                Completed by {job.returnWarehouseCheck.completedBy} on{' '}
-                {friendlyDate(job.returnWarehouseCheck.completedAt ?? '')}. Job has moved to Booking Final Check.
-              </p>
-              <ul className="space-y-2">
-                {job.returnWarehouseCheck.items.map((item, index) => (
-                  <li key={index} className="rounded-lg border border-emerald-200 bg-white p-3 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium">{item.itemName}</p>
-                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-                        {item.usableQuantity} usable
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {item.damagedRepairQuantity} damaged/repair · {item.missingLostQuantity} missing/lost
-                    </p>
-                    {item.remarks ? <p className="mt-1 text-xs text-muted-foreground">{item.remarks}</p> : null}
-                  </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
+          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+            <h2 className="font-semibold text-emerald-800">Return receiving completed</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Completed by {job.returnWarehouseCheck.completedBy} on {friendlyDate(job.returnWarehouseCheck.completedAt ?? '')}</p>
+          </section>
         ) : returnIsOpen && job.returnQualityCheck ? (
           <ReturnWarehouseForm jobId={job.id} items={returnItems} />
         ) : null}

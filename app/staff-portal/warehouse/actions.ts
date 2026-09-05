@@ -8,31 +8,38 @@ import type { ReturnWarehouseItemResult, WarehouseItemPrep } from '@/lib/event-j
 
 export type WarehousePrepFormState = { error: string };
 
+function textValue(value: FormDataEntryValue | null) {
+  return typeof value === 'string' ? value : '';
+}
+
 export async function submitWarehousePrepAction(
   _prevState: WarehousePrepFormState,
   formData: FormData,
 ): Promise<WarehousePrepFormState> {
   const session = await requireDepartment('warehouse');
-  const jobId = String(formData.get('jobId') ?? '');
+  const jobId = textValue(formData.get('jobId'));
   const itemNamesRaw = formData.getAll('itemName');
   if (!jobId || itemNamesRaw.length === 0) {
     return { error: 'This job has no items to prepare.' };
   }
 
   const items: WarehouseItemPrep[] = itemNamesRaw.map((itemNameValue, index) => {
-    const itemName = String(itemNameValue);
-    const requiredQuantity = Number(formData.get(`requiredQuantity-${index}`) ?? 0);
-    const preparedQuantityRaw = String(formData.get(`preparedQuantity-${index}`) ?? '').trim();
+    const itemName = textValue(itemNameValue);
+    const requiredQuantity = Number(textValue(formData.get(`requiredQuantity-${index}`)) || 0);
+    const picked = formData.get(`picked-${index}`) === 'on';
     return {
       itemName,
       requiredQuantity,
-      preparedQuantity: preparedQuantityRaw === '' ? null : Number(preparedQuantityRaw),
-      unavailable: formData.get(`unavailable-${index}`) === 'on',
-      damaged: formData.get(`damaged-${index}`) === 'on',
-      otherIssue: String(formData.get(`otherIssue-${index}`) ?? '').trim(),
-      remarks: String(formData.get(`remarks-${index}`) ?? '').trim(),
+      preparedQuantity: picked ? requiredQuantity : 0,
+      unavailable: !picked,
+      damaged: false,
+      otherIssue: '',
+      remarks: '',
     };
   });
+  if (!items.some((item) => (item.preparedQuantity ?? 0) > 0)) {
+    return { error: 'Select at least one picked product before submitting.' };
+  }
 
   const result = await submitWarehousePreparation(jobId, items, session.name);
   if (result.error) return { error: result.error };
@@ -51,18 +58,18 @@ export async function submitReturnWarehouseAction(
   formData: FormData,
 ): Promise<ReturnWarehouseFormState> {
   const session = await requireDepartment('warehouse');
-  const jobId = String(formData.get('jobId') ?? '');
+  const jobId = textValue(formData.get('jobId'));
   const itemNamesRaw = formData.getAll('itemName');
   if (!jobId || itemNamesRaw.length === 0) {
     return { error: 'This job has no returned items to sort.' };
   }
 
   const items: ReturnWarehouseItemResult[] = itemNamesRaw.map((itemNameValue, index) => ({
-    itemName: String(itemNameValue),
-    usableQuantity: Number(formData.get(`usableQuantity-${index}`) ?? 0),
-    damagedRepairQuantity: Number(formData.get(`damagedRepairQuantity-${index}`) ?? 0),
-    missingLostQuantity: Number(formData.get(`missingLostQuantity-${index}`) ?? 0),
-    remarks: String(formData.get(`remarks-${index}`) ?? '').trim(),
+    itemName: textValue(itemNameValue),
+    usableQuantity: Number(textValue(formData.get(`usableQuantity-${index}`)) || 0),
+    damagedRepairQuantity: Number(textValue(formData.get(`damagedRepairQuantity-${index}`)) || 0),
+    missingLostQuantity: Number(textValue(formData.get(`missingLostQuantity-${index}`)) || 0),
+    remarks: textValue(formData.get(`remarks-${index}`)).trim(),
   }));
 
   const result = await submitReturnWarehouseCheck(jobId, items, session.name);

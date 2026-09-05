@@ -407,6 +407,9 @@ export async function submitWarehousePreparation(
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
+  if (job.bookingType !== 'rental') {
+    return { error: 'Warehouse picking is available only for rental bookings.' };
+  }
   const stage = findStage(job, 'warehouse_pick');
   if (!stage || (stage.status !== 'open' && stage.status !== 'in_progress')) {
     return { error: 'Warehouse preparation is not open for this job.' };
@@ -975,6 +978,9 @@ export async function submitReturnWarehouseCheck(
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
+  if (job.bookingType !== 'rental') {
+    return { error: 'Return Warehouse is available only for rental bookings.' };
+  }
   const stage = findStage(job, 'return_warehouse');
   if (!stage || (stage.status !== 'open' && stage.status !== 'in_progress')) {
     return { error: 'Return Warehouse is not open for this job yet.' };

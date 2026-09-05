@@ -18,6 +18,7 @@ import { DEPARTMENT_META } from '@/lib/staff-portal/constants';
 import type { StaffDepartmentGrant } from '@/lib/staff-portal/types';
 import type { StaffModule } from '@/lib/staff-portal/modules';
 import { ACCESS_MODULE_META, type AccessModule } from '@/lib/staff-portal/access-modules';
+import { STAFF_MODULE_META } from '@/lib/staff-portal/modules';
 import {
   Bell,
   Boxes,
@@ -37,7 +38,7 @@ import {
   Wrench,
 } from 'lucide-react';
 
-function SidebarNavigation({ modules }: { modules: AccessModule[] }) {
+function SidebarNavigation({ modules, permissions }: { modules: AccessModule[]; permissions: StaffModule[] }) {
   const pathname = usePathname();
   const moduleIcons: Partial<Record<AccessModule, typeof LayoutDashboard>> = {
     dashboard: LayoutDashboard,
@@ -63,6 +64,25 @@ function SidebarNavigation({ modules }: { modules: AccessModule[] }) {
       if (!meta.href || seen.has(meta.href)) return [];
       seen.add(meta.href);
       return [{ href: meta.href, label: meta.label, icon: moduleIcons[module] ?? LayoutDashboard }];
+    }),
+    ...permissions.flatMap((permission) => {
+      const meta = STAFF_MODULE_META[permission];
+      if (!meta.href || seen.has(meta.href)) return [];
+      seen.add(meta.href);
+      const permissionIcons: Partial<Record<StaffModule, typeof LayoutDashboard>> = {
+        warehouse_tasks: Boxes,
+        qc_tasks: PackageCheck,
+        event_jobs: ClipboardList,
+        event_tracking: ClipboardList,
+        calendar: CalendarDays,
+        my_tasks: ClipboardList,
+        attendance: CalendarDays,
+        performance: CircleGauge,
+        leave_management: CalendarDays,
+        collection_tasks: PackageCheck,
+        modification_tasks: Wrench,
+      };
+      return [{ href: meta.href, label: meta.label, icon: permissionIcons[permission] ?? LayoutDashboard }];
     }),
   ];
   return (
@@ -153,6 +173,7 @@ export function StaffPortalShell({
   children,
   notificationCount = 0,
   accessModules,
+  permissions = [],
 }: {
   name: string;
   departments: StaffDepartmentGrant[];
@@ -169,7 +190,7 @@ export function StaffPortalShell({
         <BrandMark className="px-2" />
         <BrandDivider />
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <SidebarNavigation modules={effectiveModules} />
+          <SidebarNavigation modules={effectiveModules} permissions={permissions} />
         </div>
         <div className="mt-4">
           <AccountPanel name={name} departments={departments} />
@@ -195,7 +216,7 @@ export function StaffPortalShell({
                 <BrandMark className="px-2" />
                 <BrandDivider />
                 <div className="min-h-0 flex-1 overflow-y-auto">
-                  <SidebarNavigation modules={effectiveModules} />
+                  <SidebarNavigation modules={effectiveModules} permissions={permissions} />
                 </div>
                 <div className="mt-4">
                   <AccountPanel name={name} departments={departments} />
