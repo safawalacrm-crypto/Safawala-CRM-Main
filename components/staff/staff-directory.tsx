@@ -493,9 +493,8 @@ function StaffDialog({
 }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [warning, setWarning] = useState('');
   const showLoginSection = !member || !member.user_id;
-  const loginRequired = member === null;
+  const loginRequired = showLoginSection;
   const [accessType, setAccessType] = useState<StaffAccessType>('staff');
   const [departments, setDepartments] = useState<StaffDepartment[]>([]);
 
@@ -505,7 +504,6 @@ function StaffDialog({
     event.preventDefault();
     setBusy(true);
     setError('');
-    setWarning('');
     const form = new FormData(event.currentTarget);
     const readText = (key: string) => {
       const value = form.get(key);
@@ -517,7 +515,7 @@ function StaffDialog({
     };
     const loginId = readText('loginId');
     const password = readExactText('password');
-    const wantsLogin = showLoginSection && (loginRequired || loginId.length > 0);
+    const wantsLogin = showLoginSection;
 
     if (wantsLogin) {
       if (!loginId) {
@@ -595,14 +593,12 @@ function StaffDialog({
         rollbackStaffMemberOnFailure: !member,
       });
       if (loginResult.error || !loginResult.account) {
-        if (!member) {
-          setError(`Nothing was saved because the portal login could not be created: ${loginResult.error ?? 'Unknown error.'}`);
-          setBusy(false);
-          return;
-        }
-        setWarning(`The login could not be created: ${loginResult.error ?? 'Unknown error.'}`);
+        setError(
+          member
+            ? `The staff details were saved, but the portal login was not created: ${loginResult.error ?? 'Unknown error.'}`
+            : `Nothing was saved because the portal login could not be created: ${loginResult.error ?? 'Unknown error.'}`,
+        );
         setBusy(false);
-        onSaved(savedMember);
         return;
       }
       onSaved({
@@ -712,11 +708,9 @@ function StaffDialog({
           {showLoginSection ? (
             <div className="space-y-4 rounded-xl border border-dashed border-[#e4d2b6] bg-[#fcfaf7] p-4">
               <div>
-                <p className="text-sm font-medium">Portal login{loginRequired ? ' (required)' : ' (optional)'}</p>
+                <p className="text-sm font-medium">Portal login (required)</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {loginRequired
-                    ? 'A working Staff Portal login will be created and verified when this staff member is saved.'
-                    : 'Enter credentials to add portal access, or leave the Login ID blank to keep this as a directory-only record.'}
+                  A working Staff Portal login will be created and verified when these details are saved.
                 </p>
               </div>
               <label className="block text-sm">
@@ -772,12 +766,6 @@ function StaffDialog({
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           ) : null}
-          {warning ? (
-            <Alert>
-              <AlertTitle>Login was not created</AlertTitle>
-              <AlertDescription>{warning}</AlertDescription>
-            </Alert>
-          ) : null}
           <div className="flex flex-col-reverse gap-2 border-t pt-4 sm:flex-row sm:justify-end">
             <Button
               type="button"
@@ -799,9 +787,9 @@ function StaffDialog({
 }
 function Modal({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: ReactNode }) {
   return (
-    <div className="fixed inset-0 z-[70] grid place-items-center bg-[#211d18]/70 p-4 backdrop-blur-sm">
-      <dialog open className="m-0 max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]">
-        <div className="flex justify-between border-b bg-[#fcfaf7] px-5 py-5">
+    <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-[#211d18]/70 p-4 backdrop-blur-sm sm:p-6">
+      <dialog open className="relative m-0 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)] sm:max-h-[calc(100dvh-3rem)]">
+        <div className="flex justify-between border-b bg-[#fcfaf7] px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">{title}</h2>
             <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
@@ -1023,7 +1011,7 @@ function CreateLoginForm({
   }
 
   return (
-    <form onSubmit={submit} className="space-y-4 p-5">
+    <form onSubmit={submit} className="space-y-3.5 p-5">
       <label className="block text-sm">
         <span className="font-medium">Display name</span>
         <input name="name" defaultValue={member.name} className={fieldClass} />
