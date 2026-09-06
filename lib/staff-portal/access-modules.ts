@@ -29,7 +29,7 @@ export const ACCESS_MODULE_META: Record<
   calendar: { label: 'Calendar', description: 'View the booking calendar', href: '/bookings/calendar' },
   event_jobs: { label: 'Event Jobs', description: 'Track event operations', href: '/event-jobs' },
   stylist_approvals: { label: 'Stylist Approvals', description: 'Approve rental stylists', href: '/stylist-approvals' },
-  travel: { label: 'Travel & Accommodation', description: 'Manage rental-event travel', href: '/travel' },
+  travel: { label: 'Travel Manager', description: 'Manage rental-event travel', href: '/travel' },
   performance: { label: 'Performance', description: 'View staff performance', href: '/performance' },
   modifications: { label: 'Modifications', description: 'Manage alteration work', href: '/modifications' },
   inventory: { label: 'Inventory', description: 'View and manage products', href: '/inventory' },

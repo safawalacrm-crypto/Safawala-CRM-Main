@@ -15,7 +15,7 @@ export function StaffLoginForm() {
 
   return (
     <section className="w-full max-w-[420px] rounded-xl border bg-card p-8 shadow-level-2">
-      <BrandMark className="mx-auto" />
+      <BrandMark className="justify-center" />
       <div className="mt-6 text-center">
         <span className="mx-auto mb-4 block h-1 w-12 rounded-full bg-primary" aria-hidden="true" />
         <h1 className="text-2xl font-semibold tracking-[-0.03em]">Staff Portal</h1>

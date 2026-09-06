@@ -1,106 +1,160 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, CalendarClock, MapPin } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, PackageCheck, UserRound } from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { getJob } from '@/lib/event-jobs/store';
 import { CollectionCheckForm } from '@/components/staff-portal/collection-check-form';
+import { CollectionSlipButton } from '@/components/staff-portal/collection-slip-button';
+import { JobTracker } from '@/components/staff-portal/job-tracker';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
 
+type Relation<T> = T | T[] | null;
+type BookingContext = {
+  event_name: string;
+  event_date: string;
+  event_time: string | null;
+  event_location: string | null;
+  contact_name: string | null;
+  alternate_mobile: string | null;
+  customers: Relation<{ name: string; phone: string }>;
+};
+
+function firstRelation<T>(value: Relation<T> | undefined): T | null {
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+}
+
 export default async function CollectionJobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
-  const session = await requireDepartment('collection');
   const { jobId } = await params;
-  const job = await getJob(jobId);
+  const [session, job] = await Promise.all([requireDepartment('collection'), getJob(jobId)]);
   if (!job) notFound();
+  if (job.bookingType !== 'rental') redirect('/staff-portal/collection');
 
   const stage = job.stages.find((item) => item.key === 'collection');
   if (!stage) notFound();
   const isOpen = stage.status === 'open' || stage.status === 'in_progress';
   if (!isOpen && !job.collectionCheck) redirect('/staff-portal/collection');
 
-  // Sent quantity should reflect what Warehouse actually prepared, not just what the
-  // booking originally required — falls back to requiredItems if warehousePrep is
-  // missing (shouldn't normally happen by the time a job reaches Collection).
+  const admin = createAdminClient();
+  const { data: bookingData } = await admin
+    .from('bookings')
+    .select('event_name,event_date,event_time,event_location,contact_name,alternate_mobile,customers(name,phone)')
+    .eq('id', job.bookingId)
+    .single();
+  const booking = bookingData as BookingContext | null;
+  const customer = firstRelation(booking?.customers);
+  const customerName = customer?.name ?? booking?.contact_name ?? 'Customer';
+  const customerPhone = booking?.alternate_mobile ?? customer?.phone ?? '';
+  const eventName = booking?.event_name ?? job.eventSummary.eventName;
+  const eventDate = booking?.event_date ?? job.eventSummary.eventDate;
+  const eventTime = booking?.event_time ?? job.eventSummary.eventTime;
+  const venue = booking?.event_location ?? job.eventSummary.venue;
   const items = job.requiredItems.map((item) => {
-    const prepared = job.warehousePrep?.items.find((prep) => prep.itemName === item.itemName);
+    const prepared = job.warehousePrep?.items.find((entry) => entry.itemName === item.itemName);
     return { itemName: item.itemName, sentQuantity: prepared?.preparedQuantity ?? item.quantity };
   });
+  const missingCount = (job.collectionCheck?.items ?? []).reduce(
+    (total, item) => total + Math.max(item.sentQuantity - (item.returnedQuantity ?? 0), 0),
+    0,
+  );
 
   return (
-    <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} isMainId={session.isMainId}>
-      <div className="mx-auto max-w-[900px] space-y-6">
-        <div>
-          <Link
-            href="/staff-portal/collection"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> Back to Collection
-          </Link>
-        </div>
-        <DashboardHeader title={job.id} subtitle={`${job.eventSummary.eventName} · ${job.bookingNumber}`} />
+    <StaffPortalShell
+      name={session.name}
+      departments={session.departments}
+      permissions={session.permissions}
+      accessModules={session.accessModules}
+      isMainId={session.isMainId}
+    >
+      <div className="mx-auto max-w-[900px] space-y-5">
+        <DashboardHeader title="Collection job" subtitle={`${job.id} · ${customerName}`} />
+        <Link href="/staff-portal/collection" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="size-4" /> Back to Collection
+        </Link>
 
-        <Card className="border-border shadow-level-1">
-          <CardHeader>
-            <CardTitle>Event details</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3 sm:grid-cols-2">
-            <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-              <CalendarClock className="size-4" /> {friendlyDate(job.eventSummary.eventDate)} ·{' '}
-              {friendlyTime(job.eventSummary.eventTime)}
-            </p>
-            {job.eventSummary.venue ? (
-              <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                <MapPin className="size-4" /> {job.eventSummary.venue}
-              </p>
-            ) : null}
-          </CardContent>
-        </Card>
+        <section className="rounded-2xl border border-[#dfd3c3] bg-white p-5 shadow-level-1">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-xl font-semibold tracking-tight">{customerName}</h1>
+                <Badge variant="outline" className="border-[#e4d2b6] bg-[#f5ead8] text-[#70481c]">Rental collection</Badge>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">{job.id} · {job.bookingNumber}</p>
+            </div>
+            <p className="text-sm font-medium text-[#70481c]">{items.length} product{items.length === 1 ? '' : 's'}</p>
+          </div>
+          <div className="mt-4 grid gap-3 border-t pt-4 text-sm sm:grid-cols-2">
+            <p className="flex items-start gap-2"><UserRound className="mt-0.5 size-4 text-[#9a6a2f]" /><span><strong className="block font-medium">{eventName}</strong><span className="text-muted-foreground">{customerPhone || 'No contact number'}</span></span></p>
+            <p className="flex items-start gap-2"><CalendarDays className="mt-0.5 size-4 text-[#9a6a2f]" /><span><strong className="block font-medium">{friendlyDate(eventDate)}</strong><span className="text-muted-foreground">{eventTime ? friendlyTime(eventTime) : 'Time not added'}</span></span></p>
+            {venue ? <p className="flex items-center gap-2 text-muted-foreground sm:col-span-2"><MapPin className="size-4 text-[#9a6a2f]" /> {venue}</p> : null}
+          </div>
+        </section>
+
+        <JobTracker stages={job.stages} />
 
         {job.collectionCheck ? (
-          <Card className="border-emerald-200 bg-emerald-50/60">
-            <CardHeader>
-              <CardTitle className="text-emerald-800">Collection completed</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-sm text-emerald-800">
-                Completed by {job.collectionCheck.completedBy} on {friendlyDate(job.collectionCheck.completedAt ?? '')}.
-                Job has moved to Return QC.
-              </p>
-              <ul className="space-y-2">
-                {job.collectionCheck.items.map((item, index) => (
-                  <li key={index} className="rounded-lg border border-emerald-200 bg-white p-3 text-sm">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <p className="font-medium">{item.itemName}</p>
-                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
-                        {item.returnedQuantity ?? 0} / {item.sentQuantity} returned
-                      </Badge>
-                    </div>
-                    {item.visibleDamage || item.wrongProduct || item.clientHoldingItem || item.shortQuantity ? (
-                      <p className="mt-1 text-xs text-amber-700">
-                        {[
-                          item.visibleDamage && 'Visible damage',
-                          item.wrongProduct && 'Wrong product',
-                          item.clientHoldingItem && 'Client holding item',
-                          item.shortQuantity && 'Short quantity',
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </p>
-                    ) : null}
-                    {item.remarks ? <p className="mt-1 text-xs text-muted-foreground">{item.remarks}</p> : null}
+          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="flex items-center gap-2 font-semibold text-emerald-800"><PackageCheck className="size-5" /> Collection handed over</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {job.collectionCheck.completedBy} collected from {job.collectionCheck.collectedFrom ?? 'customer'} and handed over to {job.collectionCheck.handedOverTo ?? 'showroom'}.
+                </p>
+              </div>
+              <CollectionSlipButton
+                details={{
+                  jobId: job.id,
+                  bookingNumber: job.bookingNumber,
+                  customerName,
+                  customerPhone,
+                  eventName,
+                  eventDate,
+                  eventTime,
+                  venue,
+                  collectedFrom: job.collectionCheck.collectedFrom ?? 'Customer / venue representative',
+                  handedOverTo: job.collectionCheck.handedOverTo ?? 'Showroom',
+                  completedBy: job.collectionCheck.completedBy ?? session.name,
+                  completedAt: job.collectionCheck.completedAt ?? job.updatedAt,
+                }}
+                items={job.collectionCheck.items.map((item) => ({
+                  itemName: item.itemName,
+                  sentQuantity: item.sentQuantity,
+                  returnedQuantity: item.returnedQuantity ?? 0,
+                  remarks: item.remarks,
+                }))}
+              />
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                {job.collectionCheck.items.length} products checked
+              </Badge>
+              <Badge variant="outline" className={missingCount ? 'border-amber-200 bg-amber-50 text-amber-800' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}>
+                {missingCount ? `${missingCount} missing` : 'Nothing missing'}
+              </Badge>
+            </div>
+            <ul className="mt-4 divide-y rounded-xl border">
+              {job.collectionCheck.items.map((item) => {
+                const complete = (item.returnedQuantity ?? 0) === item.sentQuantity;
+                return (
+                  <li key={item.itemName} className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 text-sm">
+                    <span><strong className="block font-medium">{item.itemName}</strong>{item.remarks ? <span className="text-xs text-muted-foreground">{item.remarks}</span> : null}</span>
+                    <Badge variant="outline" className={complete ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800'}>
+                      {item.returnedQuantity ?? 0} / {item.sentQuantity} collected
+                    </Badge>
                   </li>
-                ))}
-              </ul>
-            </CardContent>
-          </Card>
-        ) : (
+                );
+              })}
+            </ul>
+            {job.collectionCheck.handoverNotes ? <p className="mt-4 rounded-lg bg-[#fcfaf7] p-3 text-sm text-muted-foreground">{job.collectionCheck.handoverNotes}</p> : null}
+          </section>
+        ) : isOpen ? (
           <CollectionCheckForm jobId={job.id} items={items} />
-        )}
+        ) : null}
       </div>
     </StaffPortalShell>
   );

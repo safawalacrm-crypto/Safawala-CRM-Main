@@ -46,7 +46,7 @@ function SidebarNavigation() {
     { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
     { href: '/event-jobs', label: 'Event Jobs', icon: BriefcaseBusiness },
     { href: '/stylist-approvals', label: 'Stylist Approvals', icon: UserCheck },
-    { href: '/travel', label: 'Travel & Accommodation', icon: PlaneTakeoff },
+    { href: '/travel', label: 'Travel Manager', icon: PlaneTakeoff },
     { href: '/performance', label: 'Performance', icon: Trophy },
     { href: '/modifications', label: 'Modifications', icon: Wrench },
     { href: '/inventory', label: 'Inventory', icon: Boxes },

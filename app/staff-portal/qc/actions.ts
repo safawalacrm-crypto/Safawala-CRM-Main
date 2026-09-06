@@ -157,8 +157,56 @@ export async function submitReturnQualityCheckAction(
     };
   });
 
-  const result = await submitReturnQualityCheck(jobId, items, session.name);
-  if (result.error) return { error: result.error };
+  const issuePhotos = formData
+    .getAll('issuePhotos')
+    .filter((value): value is File => value instanceof File && value.size > 0);
+  if (issuePhotos.length > MAX_PROOF_PHOTOS) return { error: `Add no more than ${MAX_PROOF_PHOTOS} issue photos.` };
+  if (issuePhotos.some((file) => !file.type.startsWith('image/'))) return { error: 'Issue proof files must be images.' };
+  if (issuePhotos.some((file) => file.size > MAX_PROOF_BYTES)) return { error: 'Each issue photo must be 3 MB or smaller.' };
+
+  const hasIssue = items.some((item) =>
+    (item.damagedQuantity ?? 0) > 0 || item.repairRequired || item.unusable,
+  );
+  if (hasIssue && issuePhotos.length === 0) {
+    return { error: 'Add at least one proof photo for damaged, repair, or unusable products.' };
+  }
+
+  const job = await getJob(jobId);
+  const returnStage = job?.stages.find((stage) => stage.key === 'return_quality_check');
+  if (!job || job.bookingType !== 'rental' || !job.collectionCheck || !returnStage || !['open', 'in_progress'].includes(returnStage.status)) {
+    return { error: 'Return QC is not open for this rental job.' };
+  }
+
+  const uploadedPaths: string[] = [];
+  if (issuePhotos.length) {
+    const admin = createAdminClient();
+    const { data: eventJob, error: eventJobError } = await admin
+      .from('event_jobs')
+      .select('owner_id')
+      .eq('id', jobId)
+      .single();
+    if (eventJobError || !eventJob?.owner_id) return { error: 'Could not verify this job for issue-photo upload.' };
+
+    for (const [index, photo] of issuePhotos.entries()) {
+      const extension = photo.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '').toLowerCase() || 'jpg';
+      const path = `${eventJob.owner_id}/return-qc/${jobId}/${Date.now()}-${index}.${extension}`;
+      const { error: uploadError } = await admin.storage.from(PROOF_BUCKET).upload(path, await photo.arrayBuffer(), {
+        contentType: photo.type,
+        upsert: false,
+      });
+      if (uploadError) {
+        if (uploadedPaths.length) await admin.storage.from(PROOF_BUCKET).remove(uploadedPaths);
+        return { error: `Issue photo upload failed: ${uploadError.message}` };
+      }
+      uploadedPaths.push(path);
+    }
+  }
+
+  const result = await submitReturnQualityCheck(jobId, items, session.name, uploadedPaths);
+  if (result.error) {
+    if (uploadedPaths.length) await createAdminClient().storage.from(PROOF_BUCKET).remove(uploadedPaths);
+    return { error: result.error };
+  }
 
   revalidateJob(jobId);
   return { error: '', success: true };

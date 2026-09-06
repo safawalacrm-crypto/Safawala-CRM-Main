@@ -1,17 +1,19 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, CalendarDays, Check, Circle, MapPin, PackageCheck, Route, UserRound } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, PackageCheck, UserRound } from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
+import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { getJob } from '@/lib/event-jobs/store';
-import { STAGE_LABEL } from '@/lib/event-jobs/constants';
+import { JobTracker } from '@/components/staff-portal/job-tracker';
 import { QualityCheckForm } from '@/components/staff-portal/quality-check-form';
 import { PackingChecklistForm } from '@/components/staff-portal/packing-checklist-form';
 import { PackingSlipButton } from '@/components/staff-portal/packing-slip-button';
 import { ReturnQualityCheckForm } from '@/components/staff-portal/return-quality-check-form';
+import { ReturnQcSlipButton } from '@/components/staff-portal/return-slips';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -37,9 +39,8 @@ function firstRelation<T>(value: Relation<T> | undefined): T | null {
 }
 
 export default async function QcJobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
-  const session = await requireDepartment('qc');
   const { jobId } = await params;
-  const job = await getJob(jobId);
+  const [session, job] = await Promise.all([requireDepartment('qc'), getJob(jobId)]);
   if (!job) notFound();
   if (job.bookingType !== 'rental') redirect('/staff-portal/qc');
 
@@ -100,6 +101,12 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
         ?.map((item) => item.signedUrl)
         .filter((url): url is string => typeof url === 'string' && url.length > 0) ?? []
     : [];
+  const returnProofPaths = job.returnQualityCheck?.proofPhotoPaths ?? [];
+  const returnProofPhotoUrls = returnProofPaths.length
+    ? (await admin.storage.from('event-operation-files').createSignedUrls(returnProofPaths, 60 * 60)).data
+        ?.map((item) => item.signedUrl)
+        .filter((url): url is string => typeof url === 'string' && url.length > 0) ?? []
+    : [];
   const returnQcItems = (job.collectionCheck?.items ?? []).map((item) => ({
     itemName: item.itemName,
     returnedQuantity: item.returnedQuantity ?? 0,
@@ -114,6 +121,7 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
       isMainId={session.isMainId}
     >
       <div className="mx-auto max-w-[900px] space-y-5">
+        <DashboardHeader title="QC & Packing job" subtitle={`${job.id} · ${slipDetails.customerName}`} />
         <Link href="/staff-portal/qc" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Back to QC &amp; Packing
         </Link>
@@ -145,25 +153,7 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
           </div>
         </div>
 
-        <details className="group rounded-xl border bg-white shadow-level-1">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium">
-            <span className="flex items-center gap-2"><Route className="size-4 text-[#9a6a2f]" /> Track this job</span>
-            <span className="text-xs text-muted-foreground group-open:hidden">View current progress</span>
-          </summary>
-          <ol className="space-y-0 border-t px-5 py-3">
-            {job.stages.map((stage, index) => {
-              const done = stage.status === 'done';
-              const current = stage.status === 'open' || stage.status === 'in_progress';
-              return (
-                <li key={stage.key} className="relative flex gap-3 pb-4 last:pb-1">
-                  {index < job.stages.length - 1 ? <span className="absolute left-[9px] top-5 h-full w-px bg-border" /> : null}
-                  <span className={`relative z-10 mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border ${done ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : current ? 'border-[#a86f2c] bg-[#f5ead8] text-[#70481c]' : 'border-border bg-white text-muted-foreground'}`}>{done ? <Check className="size-3" /> : <Circle className="size-2 fill-current" />}</span>
-                  <span><strong className="block text-sm font-medium">{STAGE_LABEL[stage.key]}</strong><span className={`text-xs ${current ? 'text-[#9a6a2f]' : 'text-muted-foreground'}`}>{done ? 'Completed' : current ? 'In progress' : 'Waiting'}</span></span>
-                </li>
-              );
-            })}
-          </ol>
-        </details>
+        <JobTracker stages={job.stages} />
 
         {job.qualityCheck ? (
           <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
@@ -200,7 +190,24 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
         ) : null}
 
         {job.returnQualityCheck ? (
-          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1"><h2 className="font-semibold text-emerald-800">Return QC completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.returnQualityCheck.completedBy} on {friendlyDate(job.returnQualityCheck.completedAt ?? '')}. Sent to Return Warehouse.</p></section>
+          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="font-semibold text-emerald-800">Return QC completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.returnQualityCheck.completedBy} on {friendlyDate(job.returnQualityCheck.completedAt ?? '')}. Sent to Return Warehouse.</p></div>
+              <ReturnQcSlipButton
+                details={{ ...slipDetails, completedBy: job.returnQualityCheck.completedBy ?? session.name, completedAt: job.returnQualityCheck.completedAt ?? job.updatedAt }}
+                items={job.returnQualityCheck.items.map((item) => ({ itemName: item.itemName, returnedQuantity: item.returnedQuantity, goodQuantity: item.goodQuantity ?? 0, damagedQuantity: item.damagedQuantity ?? 0, remarks: item.remarks }))}
+              />
+            </div>
+            {returnProofPhotoUrls.length ? (
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {returnProofPhotoUrls.map((url, index) => (
+                  <a key={url} href={url} target="_blank" rel="noreferrer" className="overflow-hidden rounded-lg border bg-muted">
+                    <span className="relative block aspect-square"><Image src={url} alt={`Return QC issue proof ${index + 1}`} fill sizes="(max-width: 640px) 50vw, 240px" className="object-cover" /></span>
+                  </a>
+                ))}
+              </div>
+            ) : null}
+          </section>
         ) : returnQcOpen ? (
           <section className="space-y-3">
             <div className="flex items-center gap-2 px-1"><PackageCheck className="size-5 text-[#9a6a2f]" /><h2 className="font-semibold">Return quality check</h2></div>

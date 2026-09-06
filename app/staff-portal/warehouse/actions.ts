@@ -69,10 +69,15 @@ export async function submitReturnWarehouseAction(
     usableQuantity: Number(textValue(formData.get(`usableQuantity-${index}`)) || 0),
     damagedRepairQuantity: Number(textValue(formData.get(`damagedRepairQuantity-${index}`)) || 0),
     missingLostQuantity: Number(textValue(formData.get(`missingLostQuantity-${index}`)) || 0),
+    storageLocation: textValue(formData.get(`storageLocation-${index}`)).trim(),
     remarks: textValue(formData.get(`remarks-${index}`)).trim(),
   }));
 
-  const result = await submitReturnWarehouseCheck(jobId, items, session.name);
+  const result = await submitReturnWarehouseCheck(jobId, items, session.name, {
+    receivedFrom: textValue(formData.get('receivedFrom')).trim(),
+    receivingNotes: textValue(formData.get('receivingNotes')).trim(),
+    handoverConfirmed: formData.get('handoverConfirmed') === 'on',
+  });
   if (result.error) return { error: result.error };
 
   revalidatePath('/staff-portal/warehouse');

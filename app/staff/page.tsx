@@ -15,7 +15,7 @@ export default async function StaffPage() {
     supabase
       .from('staff_members')
       .select(
-        'id,name,phone,email,address,is_active,created_at,updated_at,user_id,login_id,portal_active,access_type,staff_departments(department),staff_access_modules(module,enabled)',
+        'id,name,phone,email,address,is_active,created_at,updated_at,user_id,login_id,portal_active,access_type,staff_type,staff_departments(department),staff_access_modules(module,enabled)',
       )
       .order('name'),
     supabase

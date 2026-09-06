@@ -1,15 +1,17 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, CalendarDays, Check, Circle, MapPin, Route, UserRound } from 'lucide-react';
+import { ArrowLeft, CalendarDays, MapPin, UserRound } from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
+import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { getJob } from '@/lib/event-jobs/store';
-import { STAGE_LABEL } from '@/lib/event-jobs/constants';
+import { JobTracker } from '@/components/staff-portal/job-tracker';
 import { WarehousePrepForm } from '@/components/staff-portal/warehouse-prep-form';
 import { WarehousePickSlipButton } from '@/components/staff-portal/warehouse-pick-slip-button';
 import { ReturnWarehouseForm } from '@/components/staff-portal/return-warehouse-form';
+import { ReturnWarehouseSlipButton } from '@/components/staff-portal/return-slips';
 import { createAdminClient } from '@/lib/supabase/admin';
 
 export const dynamic = 'force-dynamic';
@@ -37,9 +39,8 @@ function firstRelation<T>(value: T | T[] | null | undefined): T | null {
 }
 
 export default async function WarehouseJobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
-  const session = await requireDepartment('warehouse');
   const { jobId } = await params;
-  const job = await getJob(jobId);
+  const [session, job] = await Promise.all([requireDepartment('warehouse'), getJob(jobId)]);
   if (!job) notFound();
   if (job.bookingType !== 'rental') redirect('/staff-portal/warehouse');
 
@@ -100,6 +101,7 @@ export default async function WarehouseJobDetailPage({ params }: { params: Promi
       isMainId={session.isMainId}
     >
       <div className="mx-auto max-w-[900px] space-y-5">
+        <DashboardHeader title="Warehouse job" subtitle={`${job.id} · ${slipDetails.customerName}`} />
         <Link href="/staff-portal/warehouse" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="size-4" /> Back to warehouse
         </Link>
@@ -122,27 +124,7 @@ export default async function WarehouseJobDetailPage({ params }: { params: Promi
           </div>
         </section>
 
-        <details className="group rounded-xl border bg-white shadow-level-1">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium">
-            <span className="flex items-center gap-2"><Route className="size-4 text-[#9a6a2f]" /> Track this job</span>
-            <span className="text-xs text-muted-foreground group-open:hidden">View workflow</span>
-          </summary>
-          <ol className="space-y-0 border-t px-5 py-3">
-            {job.stages.map((jobStage, index) => {
-              const done = jobStage.status === 'done';
-              const current = jobStage.status === 'open' || jobStage.status === 'in_progress';
-              return (
-                <li key={jobStage.key} className="relative flex gap-3 pb-4 last:pb-1">
-                  {index < job.stages.length - 1 ? <span className="absolute left-[9px] top-5 h-full w-px bg-border" /> : null}
-                  <span className={`relative z-10 mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border ${done ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : current ? 'border-[#a86f2c] bg-[#f5ead8] text-[#70481c]' : 'border-border bg-white text-muted-foreground'}`}>
-                    {done ? <Check className="size-3" /> : <Circle className="size-2 fill-current" />}
-                  </span>
-                  <span><strong className="block text-sm font-medium">{STAGE_LABEL[jobStage.key]}</strong><span className={`text-xs ${current ? 'text-[#9a6a2f]' : 'text-muted-foreground'}`}>{done ? 'Completed' : current ? 'In progress' : 'Waiting'}</span></span>
-                </li>
-              );
-            })}
-          </ol>
-        </details>
+        <JobTracker stages={job.stages} />
 
         {job.warehousePrep ? (
           <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
@@ -170,8 +152,22 @@ export default async function WarehouseJobDetailPage({ params }: { params: Promi
 
         {job.returnWarehouseCheck ? (
           <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
-            <h2 className="font-semibold text-emerald-800">Return receiving completed</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Completed by {job.returnWarehouseCheck.completedBy} on {friendlyDate(job.returnWarehouseCheck.completedAt ?? '')}</p>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><h2 className="font-semibold text-emerald-800">Return receiving completed</h2><p className="mt-1 text-sm text-muted-foreground">Received from {job.returnWarehouseCheck.receivedFrom ?? 'QC'} by {job.returnWarehouseCheck.completedBy} on {friendlyDate(job.returnWarehouseCheck.completedAt ?? '')}. Sent to Booking Final Check.</p></div>
+              <ReturnWarehouseSlipButton
+                details={{ ...slipDetails, completedBy: job.returnWarehouseCheck.completedBy ?? session.name, completedAt: job.returnWarehouseCheck.completedAt ?? job.updatedAt }}
+                items={job.returnWarehouseCheck.items.map((item) => ({ ...item, storageLocation: item.storageLocation ?? '' }))}
+              />
+            </div>
+            <ul className="mt-4 divide-y rounded-xl border">
+              {job.returnWarehouseCheck.items.map((item) => (
+                <li key={item.itemName} className="flex flex-col gap-1 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
+                  <span className="font-medium">{item.itemName}</span>
+                  <span className="text-muted-foreground">{item.usableQuantity} usable · {item.damagedRepairQuantity} repair · {item.missingLostQuantity} missing · {item.storageLocation || 'No location'}</span>
+                </li>
+              ))}
+            </ul>
+            {job.returnWarehouseCheck.receivingNotes ? <p className="mt-3 rounded-lg bg-[#fcfaf7] p-3 text-sm text-muted-foreground">{job.returnWarehouseCheck.receivingNotes}</p> : null}
           </section>
         ) : returnIsOpen && job.returnQualityCheck ? (
           <ReturnWarehouseForm jobId={job.id} items={returnItems} />

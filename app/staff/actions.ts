@@ -3,12 +3,13 @@
 import { revalidatePath } from 'next/cache';
 import type { AccessModule } from '@/lib/staff-portal/access-modules';
 import type { StaffDepartment } from '@/lib/staff-portal/constants';
-import type { StaffAccessType } from '@/lib/staff-portal/types';
+import type { StaffAccessType, StaffType } from '@/lib/staff-portal/types';
 import {
   createAccount,
   resetAccountPassword,
   setAccountActive,
   setAccountModule,
+  setAccountStaffType,
   setDepartmentGrant,
 } from '@/lib/staff-portal/store';
 import { createClient } from '@/lib/supabase/server';
@@ -29,6 +30,7 @@ export async function createStaffLoginAction(input: {
   password: string;
   departments: StaffDepartment[];
   accessType: StaffAccessType;
+  staffType: StaffType;
   modules: AccessModule[];
   rollbackStaffMemberOnFailure?: boolean;
 }) {
@@ -40,7 +42,8 @@ export async function createStaffLoginAction(input: {
       password: input.password,
       departments: input.departments,
       accessType: input.accessType,
-      modules: input.accessType === 'staff' ? ['quotations', 'create_booking'] : input.modules,
+      staffType: input.staffType,
+      modules: input.staffType === 'stylist' ? [] : input.accessType === 'staff' ? ['quotations', 'create_booking'] : input.modules,
       removeStaffMemberOnFailure: input.rollbackStaffMemberOnFailure,
     });
     revalidatePath('/staff');
@@ -52,6 +55,11 @@ export async function createStaffLoginAction(input: {
         : error instanceof Error ? error.message : 'Could not create this login.',
     };
   }
+}
+
+export async function setStaffTypeAction(userId: string, staffType: StaffType) {
+  await setAccountStaffType(await requireAdmin(), userId, staffType);
+  revalidatePath('/staff');
 }
 
 export async function setStaffLoginActiveAction(userId: string, active: boolean) {

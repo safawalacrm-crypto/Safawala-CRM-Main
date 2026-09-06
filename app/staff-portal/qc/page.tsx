@@ -14,10 +14,14 @@ export const dynamic = 'force-dynamic';
 type QueueView = 'open' | 'closed';
 
 export default async function StaffQcPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
-  const session = await requireDepartment('qc');
-  const { view: requestedView } = await searchParams;
+  const [session, params, allJobs] = await Promise.all([
+    requireDepartment('qc'),
+    searchParams,
+    listJobs(),
+  ]);
+  const { view: requestedView } = params;
   const view: QueueView = requestedView === 'closed' ? 'closed' : 'open';
-  const rentalJobs = (await listJobs()).filter((job) => job.bookingType === 'rental');
+  const rentalJobs = allJobs.filter((job) => job.bookingType === 'rental');
   const hasOpenQcStage = (job: (typeof rentalJobs)[number]) =>
     job.stages.some((stage) =>
       ['quality_check', 'packing', 'return_quality_check'].includes(stage.key) &&

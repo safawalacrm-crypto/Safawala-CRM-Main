@@ -11,7 +11,17 @@ const initialState: CloseEventFormState = { error: '' };
 const inputClass =
   'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
-export function CloseEventForm({ jobId, canClose }: { jobId: string; canClose: boolean }) {
+export function CloseEventForm({
+  jobId,
+  canClose,
+  pendingBalance,
+  depositAmount,
+}: {
+  jobId: string;
+  canClose: boolean;
+  pendingBalance: number;
+  depositAmount: number;
+}) {
   const [state, formAction, pending] = useActionState(closeEventJobAction, initialState);
 
   if (!canClose) {
@@ -61,12 +71,14 @@ export function CloseEventForm({ jobId, canClose }: { jobId: string; canClose: b
 
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block text-sm">
-              <span className="mb-1.5 block text-muted-foreground">Additional payment collected (if any)</span>
-              <input name="additionalPaymentAmount" type="number" min={0} step="0.01" defaultValue={0} className={inputClass} />
+              <span className="mb-1.5 block text-muted-foreground">Final payment collected</span>
+              <input name="additionalPaymentAmount" type="number" min={pendingBalance} step="0.01" defaultValue={pendingBalance} className={inputClass} />
+              <span className="mt-1 block text-xs text-muted-foreground">Pending balance: ₹{pendingBalance.toLocaleString('en-IN')}</span>
             </label>
             <label className="block text-sm">
               <span className="mb-1.5 block text-muted-foreground">Refund issued (if any)</span>
-              <input name="refundAmount" type="number" min={0} step="0.01" defaultValue={0} className={inputClass} />
+              <input name="refundAmount" type="number" min={0} max={depositAmount} step="0.01" defaultValue={0} className={inputClass} />
+              <span className="mt-1 block text-xs text-muted-foreground">Available deposit: ₹{depositAmount.toLocaleString('en-IN')}</span>
             </label>
           </div>
 

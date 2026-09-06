@@ -10,8 +10,7 @@ import { requirePermission } from '@/lib/staff-portal/guard';
 export const dynamic = 'force-dynamic';
 
 export default async function EventTrackingPage() {
-  const session = await requirePermission('event_tracking');
-  const jobs = await listJobs();
+  const [session, jobs] = await Promise.all([requirePermission('event_tracking'), listJobs()]);
   return <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} isMainId={session.isMainId}>
     <div className="mx-auto max-w-[1440px] space-y-6">
       <DashboardHeader title="Event Tracking" subtitle="Follow every confirmed event through its operational stages" />

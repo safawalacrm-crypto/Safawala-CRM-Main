@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { supabaseConfig } from '@/lib/supabase/config';
 import type { StaffDepartment } from './constants';
-import type { StaffPortalAccount } from './types';
+import type { StaffPortalAccount, StaffType } from './types';
 import type { AccessModule } from './access-modules';
 import type { StaffAccessType } from './types';
 import { normalizeStaffLoginId, staffAuthEmail } from './credentials';
@@ -17,6 +17,7 @@ type StaffRow = {
   login_id: string | null;
   portal_active: boolean;
   access_type: StaffAccessType;
+  staff_type: StaffType;
   created_at: string;
   updated_at: string;
   staff_departments: { department: StaffDepartment }[] | null;
@@ -31,6 +32,7 @@ function toAccount(row: StaffRow): StaffPortalAccount {
     loginId: row.login_id ?? '',
     active: row.portal_active,
     accessType: row.access_type ?? 'staff',
+    staffType: row.staff_type ?? 'regular',
     modules: (row.staff_access_modules ?? []).filter((item) => item.enabled).map((item) => item.module),
     departments: (row.staff_departments ?? []).map(({ department }) => ({
       department,
@@ -48,7 +50,7 @@ export async function listAccounts(ownerId: string): Promise<StaffPortalAccount[
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('staff_members')
-    .select('id,user_id,name,login_id,portal_active,access_type,created_at,updated_at,staff_departments(department),staff_access_modules(module,enabled)')
+    .select('id,user_id,name,login_id,portal_active,access_type,staff_type,created_at,updated_at,staff_departments(department),staff_access_modules(module,enabled)')
     .eq('owner_id', ownerId)
     .not('user_id', 'is', null)
     .order('name');
@@ -63,6 +65,7 @@ export async function createAccount(ownerId: string, input: {
   password: string;
   departments: StaffDepartment[];
   accessType?: StaffAccessType;
+  staffType?: StaffType;
   modules?: AccessModule[];
   removeStaffMemberOnFailure?: boolean;
 }): Promise<{ account?: StaffPortalAccount; error?: string }> {
@@ -70,6 +73,7 @@ export async function createAccount(ownerId: string, input: {
   const loginId = normalizeStaffLoginId(input.loginId);
   const email = staffAuthEmail(loginId);
   const accessType = input.accessType ?? 'staff';
+  const staffType = input.staffType ?? 'regular';
   if (input.name.trim().length < 2) return { error: 'Enter the staff member’s name.' };
   if (input.password.length < 6) return { error: 'Password must be at least 6 characters.' };
   async function removePendingStaffMember() {
@@ -87,6 +91,7 @@ export async function createAccount(ownerId: string, input: {
     password: input.password,
     email_confirm: true,
     user_metadata: { display_name: input.name.trim(), login_id: loginId },
+    app_metadata: { portal: 'staff', staff_type: staffType },
   });
   if (authError || !created.user) {
     const cleanupError = await removePendingStaffMember();
@@ -109,7 +114,7 @@ export async function createAccount(ownerId: string, input: {
   if (staffId) {
     const { data, error } = await admin.from('staff_members').update({
       user_id: userId, login_id: loginId, portal_active: true, is_active: true,
-      name: input.name.trim(), access_type: accessType,
+      name: input.name.trim(), access_type: staffType === 'stylist' ? 'staff' : accessType, staff_type: staffType,
     }).eq('id', staffId).eq('owner_id', ownerId).select('id').single();
     if (error || !data) {
       await admin.auth.admin.deleteUser(userId);
@@ -119,7 +124,7 @@ export async function createAccount(ownerId: string, input: {
   } else {
     const { data, error } = await admin.from('staff_members').insert({
       owner_id: ownerId, user_id: userId, login_id: loginId, portal_active: true,
-      name: input.name.trim(), is_active: true, access_type: accessType,
+      name: input.name.trim(), is_active: true, access_type: staffType === 'stylist' ? 'staff' : accessType, staff_type: staffType,
     }).select('id').single();
     if (error || !data) {
       await admin.auth.admin.deleteUser(userId);
@@ -144,8 +149,10 @@ export async function createAccount(ownerId: string, input: {
     await admin.auth.admin.deleteUser(userId);
   }
 
-  const departments: StaffDepartment[] = accessType === 'staff' ? ['booking'] : input.departments;
-  if (accessType === 'staff') {
+  const departments: StaffDepartment[] = staffType === 'stylist'
+    ? ['stylist']
+    : accessType === 'staff' ? ['booking'] : input.departments;
+  if (accessType === 'staff' || staffType === 'stylist') {
     const { error } = await admin.from('staff_departments').delete().eq('staff_id', linkedStaffId);
     if (error) {
       await rollbackCreatedLogin();
@@ -163,7 +170,9 @@ export async function createAccount(ownerId: string, input: {
     }
   }
 
-  const modules = accessType === 'staff' ? ['quotations', 'create_booking'] : (input.modules ?? []);
+  const modules = staffType === 'stylist'
+    ? []
+    : accessType === 'staff' ? ['quotations', 'create_booking'] : (input.modules ?? []);
   if (modules.length) {
     const { error } = await admin.from('staff_access_modules').upsert(
       modules.map((module) => ({ owner_id: ownerId, staff_id: linkedStaffId, module, enabled: true })),
@@ -191,7 +200,7 @@ export async function createAccount(ownerId: string, input: {
 
   const { data: accountRow, error: accountError } = await admin
     .from('staff_members')
-    .select('id,user_id,name,login_id,portal_active,access_type,created_at,updated_at,staff_departments(department),staff_access_modules(module,enabled)')
+    .select('id,user_id,name,login_id,portal_active,access_type,staff_type,created_at,updated_at,staff_departments(department),staff_access_modules(module,enabled)')
     .eq('id', linkedStaffId)
     .eq('owner_id', ownerId)
     .single();
@@ -223,12 +232,16 @@ export async function setDepartmentGrant(ownerId: string, userId: string, depart
   const { admin, staffId } = await getOwnedStaff(ownerId, userId);
   const { data: account, error: accountError } = await admin
     .from('staff_members')
-    .select('access_type')
+    .select('access_type,staff_type')
     .eq('id', staffId)
     .eq('owner_id', ownerId)
     .single();
   if (accountError) throw new Error(accountError.message);
-  if (account.access_type === 'staff') {
+  if (account.staff_type === 'stylist') {
+    if (department !== 'stylist' || !active) {
+      throw new Error('Stylist accounts are fixed to the Stylist department.');
+    }
+  } else if (account.access_type === 'staff') {
     if (department !== 'booking' || !active) {
       throw new Error('Staff IDs are fixed to the Booking department for quote creation.');
     }
@@ -238,6 +251,23 @@ export async function setDepartmentGrant(ownerId: string, userId: string, depart
     : admin.from('staff_departments').delete().eq('staff_id', staffId).eq('department', department);
   const { error } = await query;
   if (error) throw new Error(error.message);
+}
+
+export async function setAccountStaffType(ownerId: string, userId: string, staffType: StaffType) {
+  const { admin } = await getOwnedStaff(ownerId, userId);
+  const supabase = await createClient();
+  const { error: configureError } = await supabase.rpc('configure_staff_type', {
+    staff_user_id: userId,
+    requested_type: staffType,
+  });
+  if (configureError) throw new Error(configureError.message);
+
+  const { data: authUser, error: authReadError } = await admin.auth.admin.getUserById(userId);
+  if (authReadError) throw new Error(authReadError.message);
+  const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+    app_metadata: { ...authUser.user.app_metadata, portal: 'staff', staff_type: staffType },
+  });
+  if (authError) throw new Error(authError.message);
 }
 
 export async function resetAccountPassword(ownerId: string, userId: string, password: string) {

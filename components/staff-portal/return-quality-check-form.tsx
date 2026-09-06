@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { AlertCircle, LoaderCircle } from 'lucide-react';
+import { AlertCircle, Camera, LoaderCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -83,10 +83,10 @@ export function ReturnQualityCheckForm({
                   />
                 </label>
                 <label className="block text-sm sm:col-span-2">
-                  <span className="mb-1.5 block text-muted-foreground">Evidence note (optional)</span>
+                  <span className="mb-1.5 block text-muted-foreground">Issue reference (required if there is damage)</span>
                   <input
                     name={`evidenceNote-${index}`}
-                    placeholder="Photo upload isn't available yet — add a note or link"
+                    placeholder="Short damage or repair reference"
                     className={inputClass}
                   />
                 </label>
@@ -107,7 +107,7 @@ export function ReturnQualityCheckForm({
                   Unusable
                 </label>
                 <label className="block text-sm sm:col-span-2">
-                  <span className="mb-1.5 block text-muted-foreground">Remarks (optional)</span>
+                  <span className="mb-1.5 block text-muted-foreground">Remarks (required if there is a problem)</span>
                   <textarea
                     name={`remarks-${index}`}
                     rows={2}
@@ -119,13 +119,19 @@ export function ReturnQualityCheckForm({
             </div>
           ))}
 
-          <Button type="submit" disabled={pending} className="h-11 w-full sm:w-auto">
+          <label className="block rounded-xl border border-dashed border-[#d8c5a8] bg-[#fcfaf7] p-4 text-sm">
+            <span className="flex items-center gap-2 font-medium text-[#70481c]"><Camera className="size-4" /> Issue proof photos</span>
+            <span className="mt-1 block text-xs text-muted-foreground">Required only when an item is damaged, needs repair, or is unusable. Maximum 3 images, 3 MB each.</span>
+            <input name="issuePhotos" type="file" accept="image/*" multiple className="mt-3 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#f5ead8] file:px-3 file:py-2 file:text-[#70481c]" />
+          </label>
+
+          <Button type="submit" disabled={pending} className="h-11 w-full">
             {pending ? (
               <>
                 <LoaderCircle aria-hidden="true" className="animate-spin" /> Submitting...
               </>
             ) : (
-              'Complete Return QC'
+              'Complete Return QC & send to Warehouse'
             )}
           </Button>
         </CardContent>

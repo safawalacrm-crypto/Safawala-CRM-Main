@@ -132,7 +132,7 @@ export type StylistInterest = {
   decidedBy: string | null;
 };
 
-// ---- Step 8: Travel & Accommodation (admin/franchise-admin only) --------------
+// ---- Step 8: Travel Manager (admin/franchise-admin only) -----------------------
 
 export type TravelMode = 'train' | 'flight' | 'bus' | 'cab';
 
@@ -204,6 +204,10 @@ export type CollectionItemCheck = {
 
 export type CollectionCheck = {
   items: CollectionItemCheck[];
+  collectedFrom?: string;
+  handedOverTo?: string;
+  handoverNotes?: string;
+  handoverConfirmedAt?: string | null;
   completedAt: string | null;
   completedBy: string | null;
 };
@@ -223,6 +227,7 @@ export type ReturnQcItemCheck = {
 
 export type ReturnQualityCheck = {
   items: ReturnQcItemCheck[];
+  proofPhotoPaths?: string[];
   completedAt: string | null;
   completedBy: string | null;
 };
@@ -234,11 +239,15 @@ export type ReturnWarehouseItemResult = {
   usableQuantity: number;
   damagedRepairQuantity: number;
   missingLostQuantity: number;
+  storageLocation?: string;
   remarks: string;
 };
 
 export type ReturnWarehouseCheck = {
   items: ReturnWarehouseItemResult[];
+  receivedFrom?: string;
+  receivingNotes?: string;
+  receivedConfirmedAt?: string | null;
   completedAt: string | null;
   completedBy: string | null;
 };

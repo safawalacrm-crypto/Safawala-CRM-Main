@@ -10,9 +10,8 @@ import { requirePermission } from '@/lib/staff-portal/guard';
 export const dynamic = 'force-dynamic';
 
 export default async function MyTasksPage() {
-  const session = await requirePermission('my_tasks');
+  const [session, jobs] = await Promise.all([requirePermission('my_tasks'), listJobs()]);
   const departments = new Set(session.departments.filter((grant) => grant.active).map((grant) => grant.department));
-  const jobs = await listJobs();
   const tasks = jobs.flatMap((job) => job.stages.filter((stage) => stage.status !== 'done' && (stage.assignedStaffId === String(session.staffMemberId) || (session.isMainId && departments.has(STAGE_DEPARTMENT[stage.key])))).map((stage) => ({ job, stage })));
   return <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} isMainId={session.isMainId}>
     <div className="mx-auto max-w-[1200px] space-y-6"><DashboardHeader title="My Tasks" subtitle="Operational work assigned to you or your department" />

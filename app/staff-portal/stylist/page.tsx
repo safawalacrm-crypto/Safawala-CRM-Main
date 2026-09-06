@@ -1,15 +1,16 @@
 import Link from 'next/link';
 import { CalendarClock, MapPin, Sparkles } from 'lucide-react';
-import { requireDepartment } from '@/lib/staff-portal/guard';
+import { requireStylistSession } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
-import { jobsForDepartment } from '@/lib/event-jobs/store';
+import { stylistJobsForAccount } from '@/lib/event-jobs/store';
+import { unreadCountForSession } from '@/lib/notifications/store';
 import type { StylistInterestStatus } from '@/lib/event-jobs/types';
-import { expressInterestAction } from '@/app/staff-portal/stylist/actions';
+import { StylistInterestButton } from '@/components/staff-portal/stylist-interest-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,13 +29,13 @@ const STATUS_TONE: Record<StylistInterestStatus, string> = {
 };
 
 export default async function StaffStylistPage() {
-  const session = await requireDepartment('stylist');
-  const entries = (await jobsForDepartment('stylist')).filter((entry) =>
-    entry.stages.some((stage) => stage.key === 'stylist_opportunity'),
-  );
+  const session = await requireStylistSession();
+  const jobs = await stylistJobsForAccount(session.id);
+  const activeDepartments = session.departments.filter((grant) => grant.active).map((grant) => grant.department);
+  const notificationCount = await unreadCountForSession(session.id, activeDepartments);
 
   return (
-    <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} isMainId={session.isMainId}>
+    <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} accessModules={session.accessModules} isMainId={session.isMainId} notificationCount={notificationCount}>
       <div className="mx-auto max-w-[1440px] space-y-6">
         <DashboardHeader title="Stylist" subtitle="Available events — mark yourself as interested and available" />
 
@@ -46,11 +47,12 @@ export default async function StaffStylistPage() {
 
         <Card className="border-border shadow-level-1">
           <CardContent className="p-0">
-            {entries.length ? (
+            {jobs.length ? (
               <ul className="divide-y divide-border">
-                {entries.map(({ job }) => {
+                {jobs.map((job) => {
                   const myInterest = job.stylistInterests.find((interest) => interest.stylistAccountId === session.id);
-                  const approvedCount = job.stylistInterests.filter((interest) => interest.status === 'approved').length;
+                  const interestedCount = job.stylistInterests.filter((interest) => interest.status === 'interested').length;
+                  const rentalQuantity = job.requiredItems.reduce((sum, item) => sum + item.quantity, 0);
                   return (
                     <li key={job.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -66,22 +68,17 @@ export default async function StaffStylistPage() {
                             </span>
                           ) : null}
                           <span>
-                            {approvedCount} / {job.stylistsRequiredCount} stylists approved
+                            {rentalQuantity} rental items
+                          </span>
+                          <span>
+                            {job.stylistsRequiredCount} required · {interestedCount} interested
                           </span>
                         </p>
                       </div>
-                      {myInterest ? (
-                        <Badge variant="outline" className={STATUS_TONE[myInterest.status]}>
-                          {STATUS_LABEL[myInterest.status]}
-                        </Badge>
-                      ) : (
-                        <form action={expressInterestAction}>
-                          <input type="hidden" name="jobId" value={job.id} />
-                          <Button type="submit" size="sm">
-                            I&apos;m Interested
-                          </Button>
-                        </form>
-                      )}
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button variant="outline" size="sm" render={<Link href={`/staff-portal/stylist/${job.id}`} />}>View details</Button>
+                        {myInterest ? <Badge variant="outline" className={STATUS_TONE[myInterest.status]}>{STATUS_LABEL[myInterest.status]}</Badge> : <StylistInterestButton jobId={job.id} />}
+                      </div>
                     </li>
                   );
                 })}

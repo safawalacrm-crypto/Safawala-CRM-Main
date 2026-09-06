@@ -27,13 +27,14 @@ import { createClient } from '@/lib/supabase/client';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { ACCESS_MODULES, ACCESS_MODULE_META, type AccessModule } from '@/lib/staff-portal/access-modules';
 import { DEPARTMENT_META, STAFF_DEPARTMENTS, type StaffDepartment } from '@/lib/staff-portal/constants';
-import type { StaffAccessType } from '@/lib/staff-portal/types';
+import type { StaffAccessType, StaffType } from '@/lib/staff-portal/types';
 import {
   createStaffLoginAction,
   resetStaffLoginPasswordAction,
   setStaffDepartmentAction,
   setStaffLoginActiveAction,
   setStaffModuleAction,
+  setStaffTypeAction,
 } from '@/app/staff/actions';
 
 function formText(form: FormData, name: string) {
@@ -54,6 +55,7 @@ export type StaffMember = {
   login_id: string | null;
   portal_active: boolean | null;
   access_type: StaffAccessType | null;
+  staff_type: StaffType | null;
   staff_departments: { department: StaffDepartment }[] | null;
   staff_access_modules: { module: AccessModule; enabled: boolean }[] | null;
 };
@@ -256,11 +258,12 @@ export function StaffDirectory({
         <CardContent className="p-0">
           {visibleStaff.length ? (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[920px] text-left text-sm">
+              <table className="w-full min-w-[1020px] text-left text-sm">
                 <thead className="border-b bg-[#f7f4ef] text-xs text-muted-foreground">
                   <tr>
                     <th className="px-5 py-3 font-medium">Staff member</th>
                     <th className="px-5 py-3 font-medium">Contact</th>
+                    <th className="px-5 py-3 font-medium">Type</th>
                     <th className="px-5 py-3 font-medium">Status</th>
                     <th className="px-5 py-3 font-medium">Upcoming work</th>
                     <th className="px-5 py-3 font-medium">Added</th>
@@ -422,6 +425,14 @@ function StaffRow({
       <td className="px-5 py-4">
         <Badge
           variant="outline"
+          className={member.staff_type === 'stylist' ? 'border-[#dfc6a4] bg-[#f5ead8] text-[#70481c]' : ''}
+        >
+          {member.staff_type === 'stylist' ? 'Stylist' : 'Regular staff'}
+        </Badge>
+      </td>
+      <td className="px-5 py-4">
+        <Badge
+          variant="outline"
           className={
             member.is_active
               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -496,9 +507,12 @@ function StaffDialog({
   const showLoginSection = !member || !member.user_id;
   const loginRequired = showLoginSection;
   const [accessType, setAccessType] = useState<StaffAccessType>('staff');
+  const [staffType, setStaffType] = useState<StaffType>('regular');
   const [departments, setDepartments] = useState<StaffDepartment[]>([]);
 
-  const effectiveDepartments = accessType === 'staff' ? (['booking'] as StaffDepartment[]) : departments;
+  const effectiveDepartments = staffType === 'stylist'
+    ? (['stylist'] as StaffDepartment[])
+    : accessType === 'staff' ? (['booking'] as StaffDepartment[]) : departments;
 
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -589,6 +603,7 @@ function StaffDialog({
         password,
         departments: effectiveDepartments,
         accessType,
+        staffType,
         modules: [],
         rollbackStaffMemberOnFailure: !member,
       });
@@ -608,6 +623,7 @@ function StaffDialog({
         login_id: loginResult.account.loginId,
         portal_active: loginResult.account.active,
         access_type: loginResult.account.accessType,
+        staff_type: loginResult.account.staffType,
         staff_departments: loginResult.account.departments.map((grant) => ({ department: grant.department })),
         staff_access_modules: loginResult.account.modules.map((module) => ({ module, enabled: true })),
       });
@@ -722,6 +738,17 @@ function StaffDialog({
                 <input name="password" type="password" required={loginRequired} minLength={6} placeholder="At least 6 characters" className={fieldClass} />
               </label>
               <label className="block text-sm">
+                <span className="font-medium">Staff type</span>
+                <select
+                  value={staffType}
+                  onChange={(event) => setStaffType(event.target.value as StaffType)}
+                  className={fieldClass}
+                >
+                  <option value="regular">Regular staff</option>
+                  <option value="stylist">Stylist</option>
+                </select>
+              </label>
+              {staffType === 'regular' ? <label className="block text-sm">
                 <span className="font-medium">Access type</span>
                 <select
                   value={accessType}
@@ -731,8 +758,8 @@ function StaffDialog({
                   <option value="staff">Staff ID — booking quotations only</option>
                   <option value="main">Main ID — choose departments</option>
                 </select>
-              </label>
-              {accessType === 'main' ? (
+              </label> : null}
+              {staffType === 'regular' && accessType === 'main' ? (
                 <div>
                   <p className="text-sm font-medium">Departments</p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -751,6 +778,10 @@ function StaffDialog({
                       </label>
                     ))}
                   </div>
+                </div>
+              ) : staffType === 'stylist' ? (
+                <div className="rounded-lg border border-[#e4d2b6] bg-[#f5ead8] p-3 text-xs text-[#70481c]">
+                  Fixed to the Stylist Portal — rental opportunities, assigned events and personal notifications.
                 </div>
               ) : (
                 <div className="rounded-lg border border-[#e4d2b6] bg-[#f5ead8] p-3 text-xs text-[#70481c]">
@@ -838,7 +869,37 @@ function AccessDialog({
           </Badge>
         </div>
 
-        {member.access_type === 'main' ? (
+        <label className="block text-sm">
+          <span className="font-medium">Staff type</span>
+          <select
+            value={member.staff_type === 'stylist' ? 'stylist' : 'regular'}
+            disabled={pending}
+            onChange={(event) => {
+              const next = event.target.value as StaffType;
+              startTransition(async () => {
+                await setStaffTypeAction(member.user_id as string, next);
+                const department: StaffDepartment = next === 'stylist' ? 'stylist' : 'booking';
+                onPatch({
+                  staff_type: next,
+                  access_type: 'staff',
+                  staff_departments: [{ department }],
+                  staff_access_modules: next === 'stylist'
+                    ? []
+                    : [
+                        { module: 'quotations', enabled: true },
+                        { module: 'create_booking', enabled: true },
+                      ],
+                });
+              });
+            }}
+            className={fieldClass}
+          >
+            <option value="regular">Regular staff</option>
+            <option value="stylist">Stylist</option>
+          </select>
+        </label>
+
+        {member.staff_type !== 'stylist' && member.access_type === 'main' ? (
           <div>
             <p className="text-sm font-medium">Departments</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -871,6 +932,11 @@ function AccessDialog({
             })}
             </div>
           </div>
+        ) : member.staff_type === 'stylist' ? (
+          <div className="rounded-xl border border-[#e4d2b6] bg-[#fffaf2] p-4 text-sm">
+            <p className="font-medium text-[#70481c]">Stylist Portal</p>
+            <p className="mt-1 text-muted-foreground">This personal login sees rental opportunities, its own applications, assignments and notifications.</p>
+          </div>
         ) : (
           <div className="rounded-xl border border-[#e4d2b6] bg-[#fffaf2] p-4 text-sm">
             <p className="font-medium text-[#70481c]">Booking department</p>
@@ -880,7 +946,7 @@ function AccessDialog({
           </div>
         )}
 
-        {member.access_type === 'main' ? (
+        {member.staff_type !== 'stylist' && member.access_type === 'main' ? (
           <div>
             <p className="text-sm font-medium">Module access</p>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -911,7 +977,7 @@ function AccessDialog({
               })}
             </div>
           </div>
-        ) : (
+        ) : member.staff_type === 'stylist' ? null : (
           <div className="rounded-xl border border-[#e4d2b6] bg-[#f5ead8] p-4 text-sm text-[#70481c]">
             <strong>Fixed quote-only access</strong>
             <p className="mt-1">Payment fields are locked and Create Order is unavailable for Staff IDs.</p>
@@ -960,10 +1026,13 @@ function CreateLoginForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [accessType, setAccessType] = useState<StaffAccessType>('staff');
+  const [staffType, setStaffType] = useState<StaffType>('regular');
   const [departments, setDepartments] = useState<StaffDepartment[]>([]);
   const [modules, setModules] = useState<AccessModule[]>([]);
 
-  const effectiveDepartments = accessType === 'staff' ? (['booking'] as StaffDepartment[]) : departments;
+  const effectiveDepartments = staffType === 'stylist'
+    ? (['stylist'] as StaffDepartment[])
+    : accessType === 'staff' ? (['booking'] as StaffDepartment[]) : departments;
 
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -992,6 +1061,7 @@ function CreateLoginForm({
       password,
       departments: effectiveDepartments,
       accessType,
+      staffType,
       modules,
     });
     setBusy(false);
@@ -1005,6 +1075,7 @@ function CreateLoginForm({
       login_id: result.account.loginId,
       portal_active: result.account.active,
       access_type: result.account.accessType,
+      staff_type: result.account.staffType,
       staff_departments: result.account.departments.map((grant) => ({ department: grant.department })),
       staff_access_modules: result.account.modules.map((module) => ({ module, enabled: true })),
     });
@@ -1025,6 +1096,13 @@ function CreateLoginForm({
         <input name="password" type="password" required minLength={6} className={fieldClass} />
       </label>
       <label className="block text-sm">
+        <span className="font-medium">Staff type</span>
+        <select value={staffType} onChange={(event) => setStaffType(event.target.value as StaffType)} className={fieldClass}>
+          <option value="regular">Regular staff</option>
+          <option value="stylist">Stylist</option>
+        </select>
+      </label>
+      {staffType === 'regular' ? <label className="block text-sm">
         <span className="font-medium">Access type</span>
         <select
           value={accessType}
@@ -1034,9 +1112,9 @@ function CreateLoginForm({
           <option value="staff">Staff ID — booking quotations only</option>
           <option value="main">Main ID — choose departments &amp; modules</option>
         </select>
-      </label>
+      </label> : null}
 
-      {accessType === 'main' ? (
+      {staffType === 'regular' && accessType === 'main' ? (
         <div>
           <p className="text-sm font-medium">Departments</p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
@@ -1057,6 +1135,11 @@ function CreateLoginForm({
             ))}
           </div>
         </div>
+      ) : staffType === 'stylist' ? (
+        <div className="rounded-xl border border-[#e4d2b6] bg-[#f5ead8] p-4 text-sm text-[#70481c]">
+          <strong>Fixed to the Stylist Portal</strong>
+          <p className="mt-1">Rental opportunities, assigned events and personal notifications only.</p>
+        </div>
       ) : (
         <div className="rounded-xl border border-[#e4d2b6] bg-[#f5ead8] p-4 text-sm text-[#70481c]">
           <strong>Fixed to the Booking department</strong>
@@ -1064,7 +1147,7 @@ function CreateLoginForm({
         </div>
       )}
 
-      {accessType === 'main' ? (
+      {staffType === 'regular' && accessType === 'main' ? (
         <div>
           <p className="text-sm font-medium">Module access</p>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">

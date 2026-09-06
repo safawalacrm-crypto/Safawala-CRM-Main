@@ -48,6 +48,10 @@ export default async function EventJobDetailPage({
 
   const job = await getJob(id);
   if (!job) notFound();
+  const isCollectionAccount = staffSession?.departments.some(
+    (grant) => grant.active && grant.department === 'collection',
+  );
+  if (isCollectionAccount && job.bookingType !== 'rental') redirect('/event-jobs');
 
   const { data: bookingRaw } = await supabase
     .from('bookings')

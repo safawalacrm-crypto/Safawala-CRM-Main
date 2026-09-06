@@ -1,7 +1,7 @@
 'use client';
 
 import { useActionState } from 'react';
-import { AlertCircle, LoaderCircle } from 'lucide-react';
+import { AlertCircle, Check, LoaderCircle, Warehouse } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,8 +48,7 @@ export function ReturnWarehouseForm({
             </Alert>
           ) : null}
           <p className="text-xs text-muted-foreground">
-            Pre-filled from Return QC — confirm before completing. Only the usable quantity is meant to go back into
-            usable stock, not the full quantity originally sent.
+            Quantities are fixed from Return QC. Confirm where usable products were stored and record every exception.
           </p>
 
           {items.map((item, index) => (
@@ -64,8 +63,9 @@ export function ReturnWarehouseForm({
                     type="number"
                     min={0}
                     required
+                    readOnly
                     defaultValue={item.usableQuantity}
-                    className={inputClass}
+                    className={`${inputClass} bg-muted/40`}
                   />
                 </label>
                 <label className="block text-sm">
@@ -75,8 +75,9 @@ export function ReturnWarehouseForm({
                     type="number"
                     min={0}
                     required
+                    readOnly
                     defaultValue={item.damagedRepairQuantity}
-                    className={inputClass}
+                    className={`${inputClass} bg-muted/40`}
                   />
                 </label>
                 <label className="block text-sm">
@@ -86,12 +87,22 @@ export function ReturnWarehouseForm({
                     type="number"
                     min={0}
                     required
+                    readOnly
                     defaultValue={item.missingLostQuantity}
+                    className={`${inputClass} bg-muted/40`}
+                  />
+                </label>
+                <label className="block text-sm sm:col-span-3">
+                  <span className="mb-1.5 block text-muted-foreground">Storage / rack location</span>
+                  <input
+                    name={`storageLocation-${index}`}
+                    required={item.usableQuantity > 0}
+                    placeholder="e.g. Rack A-12"
                     className={inputClass}
                   />
                 </label>
                 <label className="block text-sm sm:col-span-3">
-                  <span className="mb-1.5 block text-muted-foreground">Remarks (optional)</span>
+                  <span className="mb-1.5 block text-muted-foreground">Remarks (required for damaged or missing items)</span>
                   <textarea
                     name={`remarks-${index}`}
                     rows={2}
@@ -103,13 +114,34 @@ export function ReturnWarehouseForm({
             </div>
           ))}
 
-          <Button type="submit" disabled={pending} className="h-11 w-full sm:w-auto">
+          <div className="rounded-xl border border-[#dfd3c3] bg-[#fcfaf7] p-4">
+            <div className="flex items-center gap-2 font-medium text-[#70481c]"><Warehouse className="size-4" /> Warehouse receiving</div>
+            <div className="mt-3 grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm">
+                <span className="mb-1.5 block text-muted-foreground">Received from</span>
+                <input name="receivedFrom" required placeholder="QC staff / authorized person" className={inputClass} />
+              </label>
+              <label className="block text-sm">
+                <span className="mb-1.5 block text-muted-foreground">Receiving note (optional)</span>
+                <input name="receivingNotes" placeholder="Any handover note" className={inputClass} />
+              </label>
+            </div>
+            <div className="mt-3 flex items-start gap-2 rounded-lg border bg-white p-3 text-sm">
+              <input id="handoverConfirmed" type="checkbox" name="handoverConfirmed" required className="mt-0.5 size-4 rounded border-input accent-primary" />
+              <label htmlFor="handoverConfirmed" className="cursor-pointer">
+                <strong className="font-medium">Physical receiving confirmed</strong>
+                <span className="mt-0.5 block text-xs text-muted-foreground">All listed quantities were checked and placed in the recorded locations.</span>
+              </label>
+            </div>
+          </div>
+
+          <Button type="submit" disabled={pending} className="h-11 w-full">
             {pending ? (
               <>
                 <LoaderCircle aria-hidden="true" className="animate-spin" /> Submitting...
               </>
             ) : (
-              'Complete Return Warehouse'
+              <><Check /> Confirm receiving &amp; send to Booking</>
             )}
           </Button>
         </CardContent>

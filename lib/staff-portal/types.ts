@@ -4,6 +4,8 @@ import type { AccessModule } from './access-modules';
 
 export type StaffAccessType = 'main' | 'staff';
 
+export type StaffType = 'regular' | 'stylist';
+
 export type StaffPortalRole = 'staff' | 'lead';
 
 export type StaffDepartmentGrant = {
@@ -19,6 +21,7 @@ export type StaffPortalAccount = {
   loginId: string;
   active: boolean;
   accessType: StaffAccessType;
+  staffType: StaffType;
   modules: AccessModule[];
   departments: StaffDepartmentGrant[];
   createdAt: string;
@@ -33,6 +36,7 @@ export type StaffSession = {
   departments: StaffDepartmentGrant[];
   permissions: StaffModule[];
   accessType: StaffAccessType;
+  staffType: StaffType;
   accessModules: AccessModule[];
   isMainId: boolean;
   managedDepartment: StaffDepartment | null;

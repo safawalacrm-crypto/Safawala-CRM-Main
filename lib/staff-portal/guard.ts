@@ -18,6 +18,12 @@ export async function requireDepartment(department: StaffDepartment): Promise<St
   return session;
 }
 
+export async function requireStylistSession(): Promise<StaffSession> {
+  const session = await requireDepartment('stylist');
+  if (session.staffType !== 'stylist') redirect('/staff-portal?denied=stylist');
+  return session;
+}
+
 export async function requirePermission(permission: StaffModule): Promise<StaffSession> {
   const session = await requireStaffSession();
   const department = MODULE_DEPARTMENT[permission];

@@ -22,9 +22,9 @@ const TONE_CLASS: Record<string, string> = {
 };
 
 export default async function BookingJobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
-  const session = await requireDepartment('booking');
   const { jobId } = await params;
-  const job = await getJob(jobId);
+  const [session, job] = await Promise.all([requireDepartment('booking'), getJob(jobId)]);
+  if (!session.isMainId) redirect('/staff-portal');
   if (!job) notFound();
 
   const stage = job.stages.find((item) => item.key === 'booking_final_check');
@@ -159,7 +159,14 @@ export default async function BookingJobDetailPage({ params }: { params: Promise
           </CardContent>
         </Card>
 
-        {job.status === 'closed' ? null : <CloseEventForm jobId={job.id} canClose={canClose} />}
+        {job.status === 'closed' ? null : (
+          <CloseEventForm
+            jobId={job.id}
+            canClose={canClose}
+            pendingBalance={Math.max(job.paymentSummary?.pendingBalance ?? 0, 0)}
+            depositAmount={Math.max(job.paymentSummary?.depositAmount ?? 0, 0)}
+          />
+        )}
       </div>
     </StaffPortalShell>
   );

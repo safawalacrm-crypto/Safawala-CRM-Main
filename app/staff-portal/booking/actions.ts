@@ -6,12 +6,17 @@ import { closeEventJob } from '@/lib/event-jobs/store';
 
 export type CloseEventFormState = { error: string };
 
+function textValue(value: FormDataEntryValue | null) {
+  return typeof value === 'string' ? value : '';
+}
+
 export async function closeEventJobAction(
   _prevState: CloseEventFormState,
   formData: FormData,
 ): Promise<CloseEventFormState> {
   const session = await requireDepartment('booking');
-  const jobId = String(formData.get('jobId') ?? '');
+  if (!session.isMainId) return { error: 'Only a Booking Main ID can close an Event Job.' };
+  const jobId = textValue(formData.get('jobId'));
   if (!jobId) return { error: 'Missing job.' };
 
   const result = await closeEventJob(
@@ -22,7 +27,7 @@ export async function closeEventJobAction(
       damageLossAcknowledged: formData.get('damageLossAcknowledged') === 'on',
       refundAmount: Number(formData.get('refundAmount') ?? 0) || 0,
       additionalPaymentAmount: Number(formData.get('additionalPaymentAmount') ?? 0) || 0,
-      notes: String(formData.get('notes') ?? '').trim(),
+      notes: textValue(formData.get('notes')).trim(),
     },
     session.name,
   );

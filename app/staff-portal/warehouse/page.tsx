@@ -18,10 +18,14 @@ export default async function StaffWarehousePage({
 }: {
   searchParams: Promise<{ completed?: string; view?: string }>;
 }) {
-  const session = await requireDepartment('warehouse');
-  const { completed, view: requestedView } = await searchParams;
+  const [session, params, allJobs] = await Promise.all([
+    requireDepartment('warehouse'),
+    searchParams,
+    listJobs(),
+  ]);
+  const { completed, view: requestedView } = params;
   const view: QueueView = requestedView === 'closed' ? 'closed' : 'open';
-  const rentalJobs = (await listJobs()).filter((job) => job.bookingType === 'rental');
+  const rentalJobs = allJobs.filter((job) => job.bookingType === 'rental');
   const hasOpenWarehouseStage = (job: (typeof rentalJobs)[number]) =>
     job.stages.some(
       (stage) =>

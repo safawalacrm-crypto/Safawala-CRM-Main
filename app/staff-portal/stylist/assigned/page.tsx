@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ArrowLeft, CalendarClock, CheckCircle2, MapPin } from 'lucide-react';
-import { requireDepartment } from '@/lib/staff-portal/guard';
+import { requireStylistSession } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { assignedJobsForStylist } from '@/lib/event-jobs/store';
+import { unreadCountForSession } from '@/lib/notifications/store';
 import type { ExecutionAction } from '@/lib/event-jobs/store';
 import type { StylistExecutionStatus } from '@/lib/event-jobs/types';
 import { recordExecutionAction } from '@/app/staff-portal/stylist/execution-actions';
@@ -29,11 +30,13 @@ const STATUS_LABEL: Record<StylistExecutionStatus, string> = {
 };
 
 export default async function StylistAssignedEventsPage() {
-  const session = await requireDepartment('stylist');
+  const session = await requireStylistSession();
   const jobs = await assignedJobsForStylist(session.id);
+  const activeDepartments = session.departments.filter((grant) => grant.active).map((grant) => grant.department);
+  const notificationCount = await unreadCountForSession(session.id, activeDepartments);
 
   return (
-    <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} isMainId={session.isMainId}>
+    <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} accessModules={session.accessModules} isMainId={session.isMainId} notificationCount={notificationCount}>
       <div className="mx-auto max-w-[1080px] space-y-6">
         <div>
           <Link
@@ -49,7 +52,6 @@ export default async function StylistAssignedEventsPage() {
           <div className="space-y-6">
             {jobs.map((job) => {
               const interest = job.stylistInterests.find((entry) => entry.stylistAccountId === session.id);
-              const isBackup = interest?.status === 'backup';
               const plan = job.travelPlans.find((entry) => entry.interestId === interest?.id);
               const execution = job.stylistExecutions.find((entry) => entry.stylistAccountId === session.id);
               const status: StylistExecutionStatus = execution?.status ?? 'not_started';
@@ -60,7 +62,6 @@ export default async function StylistAssignedEventsPage() {
                   <CardHeader>
                     <div className="flex flex-wrap items-center gap-2">
                       <CardTitle>{job.eventSummary.eventName}</CardTitle>
-                      {isBackup ? <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">Backup stylist</Badge> : null}
                     </div>
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="flex items-center gap-1.5">
@@ -98,10 +99,10 @@ export default async function StylistAssignedEventsPage() {
                                 : 'mt-1 border-amber-200 bg-amber-50 text-amber-800'
                           }
                         >
-                          {isBackup ? 'Backup — awaiting activation' : STATUS_LABEL[status]}
+                          {STATUS_LABEL[status]}
                         </Badge>
                       </div>
-                      {next && !isBackup ? (
+                      {next ? (
                         <form action={recordExecutionAction} className="flex items-center gap-2">
                           <input type="hidden" name="jobId" value={job.id} />
                           <input type="hidden" name="action" value={next.action} />

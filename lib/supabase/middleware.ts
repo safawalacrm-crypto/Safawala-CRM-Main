@@ -21,6 +21,18 @@ export async function updateSession(request: NextRequest) {
       },
     },
   });
+  // Staff Portal pages perform the complete role, active-account, department, and
+  // module checks in their server-side guards. Avoid repeating those same database
+  // reads in middleware on every internal navigation. This cookie-session check is
+  // only a routing shortcut; the guarded page still validates the user with getUser()
+  // before it can return any protected data.
+  if (path.startsWith('/staff-portal') && path !== '/staff-portal/login') {
+    const { data: sessionData } = await supabase.auth.getSession();
+    return sessionData.session
+      ? response
+      : NextResponse.redirect(new URL('/staff-portal/login', request.url));
+  }
+
   const { data } = await supabase.auth.getUser();
   const { data: profile } = data.user
     ? await supabase.from('profiles').select('role').eq('id', data.user.id).maybeSingle()

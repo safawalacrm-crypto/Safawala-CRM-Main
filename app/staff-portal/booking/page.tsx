@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { CalendarClock, ClipboardCheck, FileText, Plus, ReceiptText } from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
@@ -14,13 +15,18 @@ export const dynamic = 'force-dynamic';
 
 export default async function StaffBookingPage() {
   const session = await requireDepartment('booking');
+  if (!session.isMainId) redirect('/staff-portal');
   const supabase = await createClient();
   const [jobs, bookingCount, quoteCount] = await Promise.all([
     listJobs(),
     supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('is_quote', false),
     supabase.from('bookings').select('id', { count: 'exact', head: true }).eq('is_quote', true),
   ]);
-  const activeJobs = jobs.filter((job) => job.status === 'active');
+  const finalJobs = jobs.filter((job) => {
+    const finalStage = job.stages.find((stage) => stage.key === 'booking_final_check');
+    return job.status === 'closed' || finalStage?.status === 'open' || finalStage?.status === 'in_progress';
+  });
+  const activeJobs = finalJobs.filter((job) => job.status === 'active');
 
   return (
     <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} isMainId={session.isMainId}>
@@ -43,9 +49,9 @@ export default async function StaffBookingPage() {
 
         <Card id="event-jobs" className="border-border shadow-level-1">
           <CardContent className="p-0">
-            {jobs.length ? (
+            {finalJobs.length ? (
               <ul className="divide-y divide-border">
-                {jobs.map((job) => (
+                {finalJobs.map((job) => (
                   <li key={job.id}>
                     <Link
                       href={`/staff-portal/booking/${job.id}`}
@@ -73,9 +79,9 @@ export default async function StaffBookingPage() {
                   <span className="mx-auto grid size-12 place-items-center rounded-full bg-accent text-primary">
                     <ClipboardCheck />
                   </span>
-                  <h3 className="mt-4 font-semibold">No Event Jobs yet</h3>
+                  <h3 className="mt-4 font-semibold">No jobs ready for final closure</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Confirmed bookings appear here automatically.
+                    Rental jobs appear here after Return Warehouse is complete.
                   </p>
                 </div>
               </div>

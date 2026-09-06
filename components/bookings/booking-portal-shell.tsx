@@ -14,7 +14,13 @@ export async function BookingPortalShell({
 
   if (staffSession) {
     return (
-      <StaffPortalShell name={staffSession.name} departments={staffSession.departments} accessModules={staffSession.accessModules} isMainId={staffSession.isMainId}>
+      <StaffPortalShell
+        name={staffSession.name}
+        departments={staffSession.departments}
+        accessModules={staffSession.accessModules}
+        permissions={staffSession.permissions}
+        isMainId={staffSession.isMainId}
+      >
         {children}
       </StaffPortalShell>
     );

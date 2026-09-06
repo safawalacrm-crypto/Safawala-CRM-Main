@@ -29,7 +29,7 @@ import {
   ClipboardList,
   LayoutDashboard,
   LogOut,
-  Menu,
+  PanelLeftOpen,
   PackageCheck,
   Plus,
   ReceiptText,
@@ -199,14 +199,14 @@ export function StaffPortalShell({
       </aside>
 
       <div className="lg:pl-64">
-        <header className="pointer-events-none sticky top-0 z-40 flex h-16 items-center justify-between border-b border-transparent bg-transparent px-4 sm:px-6 lg:px-8">
+        <header className="pointer-events-none sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/80 bg-white/95 px-4 shadow-[0_1px_0_rgba(98,68,38,0.03)] backdrop-blur sm:px-6 lg:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <Sheet>
               <SheetTrigger
                 aria-label="Open navigation"
-                className="pointer-events-auto fixed left-4 top-4 z-40 inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+                className="pointer-events-auto absolute left-4 top-1/2 z-40 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-lg border border-[#dfd3c3] bg-[#fcfaf7] text-[#70481c] shadow-sm transition hover:bg-[#f5ead8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:left-6 lg:hidden"
               >
-                <Menu aria-hidden="true" className="size-5" />
+                <PanelLeftOpen aria-hidden="true" className="size-5" />
               </SheetTrigger>
               <SheetContent side="left" className="flex w-72 flex-col border-border bg-white px-4 py-6">
                 <SheetHeader className="sr-only">
@@ -227,7 +227,7 @@ export function StaffPortalShell({
             <Link
               href="/staff-portal/notifications"
               aria-label="Notifications"
-              className="pointer-events-auto fixed right-4 top-4 z-50 inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-6 lg:right-8"
+              className="pointer-events-auto absolute right-4 top-1/2 z-50 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-lg border border-[#dfd3c3] bg-[#fcfaf7] text-[#70481c] shadow-sm transition hover:bg-[#f5ead8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:right-6 lg:right-8"
             >
               <Bell aria-hidden="true" className="size-4" />
               {notificationCount > 0 ? (
@@ -241,7 +241,7 @@ export function StaffPortalShell({
             </Link>
           </div>
         </header>
-        <main className="bg-surface px-4 py-6 sm:px-6 sm:py-8 lg:px-8">{children}</main>
+        <main className="min-w-0 bg-surface px-4 py-5 sm:px-6 sm:py-7 lg:px-8">{children}</main>
       </div>
     </div>
   );
