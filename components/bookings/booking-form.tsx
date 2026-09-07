@@ -659,12 +659,24 @@ export function BookingForm({
       payment_reference: null,
     };
     const supabase = createClient();
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user) {
+      setMessage({
+        title: 'Your session has expired',
+        text: 'Please sign in again before creating a booking.',
+      });
+      setBusy(false);
+      return;
+    }
+    // RLS requires newly-created inventory rows to belong to the authenticated
+    // user. The booking RPC applies its own caller ownership separately.
+    const inventoryOwnerId = authData.user.id;
     for (const item of payload.items) {
       if (!item.product_id && !item.package_id) {
         const { data: inventoryProduct, error: inventoryError } = await supabase
           .from('products')
           .insert({
-            owner_id: ownerId,
+            owner_id: inventoryOwnerId,
             name: item.item_name.trim(),
             sale_price: item.unit_price,
             rental_price: item.unit_price,
@@ -1272,9 +1284,26 @@ export function BookingForm({
                                 >
                                   −
                                 </Button>
-                                <span className="flex h-7 flex-1 items-center justify-center rounded-full border text-sm">
-                                  {catalogQuantities[product.id] ?? 1}
-                                </span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max={product.stock_quantity || undefined}
+                                  value={catalogQuantities[product.id] ?? 1}
+                                  onChange={(event) =>
+                                    setCatalogQuantities((q) => ({
+                                      ...q,
+                                      [product.id]: Math.max(
+                                        1,
+                                        Math.min(
+                                          product.stock_quantity || 999,
+                                          Number(event.target.value) || 1,
+                                        ),
+                                      ),
+                                    }))
+                                  }
+                                  className="h-7 min-w-0 flex-1 rounded-full border px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                                  aria-label={`Quantity for ${product.name}`}
+                                />
                                 <Button
                                   type="button"
                                   variant="outline"
@@ -1471,9 +1500,35 @@ export function BookingForm({
                                     >
                                       −
                                     </Button>
-                                    <span className="flex h-7 flex-1 items-center justify-center rounded-full border text-sm">
-                                      {packageQuantity}
-                                    </span>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={packageQuantity}
+                                      onChange={(event) => {
+                                        const next = Math.max(
+                                          0,
+                                          Number(event.target.value) || 0,
+                                        );
+                                        if (next === 0) {
+                                          adjustRentalPackageQuantity(
+                                            pack,
+                                            -packageQuantity,
+                                          );
+                                        } else {
+                                          setSelectedRentalPackageId(pack.id);
+                                          setItems((current) =>
+                                            current.map((item) =>
+                                              item.package_variant_id ===
+                                              pack.id
+                                                ? { ...item, quantity: next }
+                                                : item,
+                                            ),
+                                          );
+                                        }
+                                      }}
+                                      className="h-7 min-w-0 flex-1 rounded-full border px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                                      aria-label={`Quantity for ${pack.name}`}
+                                    />
                                     <Button
                                       type="button"
                                       variant="outline"
@@ -1597,9 +1652,28 @@ export function BookingForm({
                                       >
                                         −
                                       </Button>
-                                      <span className="flex h-7 flex-1 items-center justify-center rounded-full border text-sm">
-                                        {quantity}
-                                      </span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        max={
+                                          product.stock_quantity || undefined
+                                        }
+                                        value={quantity}
+                                        onChange={(event) =>
+                                          setCatalogQuantities((current) => ({
+                                            ...current,
+                                            [product.id]: Math.max(
+                                              1,
+                                              Math.min(
+                                                product.stock_quantity || 999,
+                                                Number(event.target.value) || 1,
+                                              ),
+                                            ),
+                                          }))
+                                        }
+                                        className="h-7 min-w-0 flex-1 rounded-full border px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                                        aria-label={`Quantity for ${product.name}`}
+                                      />
                                       <Button
                                         type="button"
                                         variant="outline"
@@ -1790,9 +1864,30 @@ export function BookingForm({
                                     >
                                       −
                                     </Button>
-                                    <span className="flex h-7 flex-1 items-center justify-center rounded-full border text-sm">
-                                      {quantity}
-                                    </span>
+                                    <input
+                                      type="number"
+                                      min="1"
+                                      max={product.stock_quantity || undefined}
+                                      value={quantity}
+                                      onChange={(event) => {
+                                        event.stopPropagation();
+                                        setCatalogQuantities((current) => ({
+                                          ...current,
+                                          [product.id]: Math.max(
+                                            1,
+                                            Math.min(
+                                              product.stock_quantity || 999,
+                                              Number(event.target.value) || 1,
+                                            ),
+                                          ),
+                                        }));
+                                      }}
+                                      onClick={(event) =>
+                                        event.stopPropagation()
+                                      }
+                                      className="h-7 min-w-0 flex-1 rounded-full border px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                                      aria-label={`Quantity for ${product.name}`}
+                                    />
                                     <Button
                                       type="button"
                                       variant="outline"
