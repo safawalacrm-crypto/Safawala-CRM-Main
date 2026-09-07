@@ -13,7 +13,12 @@ export const EVENT_JOB_STAGE_KEYS = [
 
 export type EventJobStageKey = (typeof EVENT_JOB_STAGE_KEYS)[number];
 
-export type EventJobStageStatus = 'not_started' | 'open' | 'in_progress' | 'done' | 'blocked';
+export type EventJobStageStatus =
+  | 'not_started'
+  | 'open'
+  | 'in_progress'
+  | 'done'
+  | 'blocked';
 
 // Which staff-portal department owns each stage. 'stylist_opportunity' is where any
 // stylist can express interest; the admin-only approval step comes in a later build
@@ -42,4 +47,21 @@ export const STAGE_LABEL: Record<EventJobStageKey, string> = {
 
 // Stages that open together the moment a Central Event Job is created — everything
 // else starts 'not_started' until its predecessor stage completes.
-export const INITIAL_OPEN_STAGES: EventJobStageKey[] = ['warehouse_pick', 'stylist_opportunity'];
+export const INITIAL_OPEN_STAGES: EventJobStageKey[] = [
+  'warehouse_pick',
+  'stylist_opportunity',
+];
+
+/** Keep every tracker display in the business-defined workflow order. */
+export function orderEventJobStages<T extends { key: EventJobStageKey }>(
+  stages: T[],
+) {
+  const order = new Map<EventJobStageKey, number>(
+    EVENT_JOB_STAGE_KEYS.map((key, index) => [key, index]),
+  );
+  return [...stages].sort(
+    (first, second) =>
+      (order.get(first.key) ?? Number.MAX_SAFE_INTEGER) -
+      (order.get(second.key) ?? Number.MAX_SAFE_INTEGER),
+  );
+}

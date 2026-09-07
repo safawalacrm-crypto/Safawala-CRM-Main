@@ -1073,6 +1073,55 @@ export async function expressStylistInterest(
 
 export type StylistAssignmentResult = { job?: EventJob; error?: string };
 
+export async function withdrawStylistInterest(
+  jobId: string,
+  stylistAccountId: string,
+): Promise<{ job?: EventJob; error?: string }> {
+  const admin = createAdminClient();
+  const jobs = await readAllForStylistWorkflow(jobId);
+  const index = jobs.findIndex((job) => job.id === jobId);
+  if (index === -1) return { error: 'Event was not found.' };
+  const job = jobs[index];
+  const interest = job.stylistInterests.find(
+    (entry) => entry.stylistAccountId === stylistAccountId,
+  );
+  if (!interest)
+    return { error: 'You have not marked interest in this event.' };
+  if (interest.status !== 'interested') {
+    return { error: 'Approved or decided interest cannot be withdrawn.' };
+  }
+  const { data: staff } = await admin
+    .from('staff_members')
+    .select('id')
+    .eq('user_id', stylistAccountId)
+    .maybeSingle();
+  if (!staff?.id) return { error: 'Stylist account was not found.' };
+  const { error: deleteError } = await admin
+    .from('event_job_stylist_interest')
+    .delete()
+    .eq('event_job_id', job.id)
+    .eq('staff_id', staff.id);
+  if (deleteError) return { error: deleteError.message };
+  const updated = {
+    ...job,
+    stylistInterests: job.stylistInterests.filter(
+      (entry) => entry.id !== interest.id,
+    ),
+    activity: [
+      activityEntry(
+        interest.stylistName,
+        'stylist',
+        'stylist_interest_withdrawn',
+        'Withdrew stylist interest.',
+      ),
+      ...job.activity,
+    ],
+    updatedAt: new Date().toISOString(),
+  };
+  await writeAll([updated]);
+  return { job: updated };
+}
+
 export async function assignStylists(
   jobId: string,
   interestIds: string[],

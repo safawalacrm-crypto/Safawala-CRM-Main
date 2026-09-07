@@ -1,0 +1,298 @@
+import Link from 'next/link';
+import { X, CalendarDays, MapPin, UserRound } from 'lucide-react';
+import { requireDepartment } from '@/lib/staff-portal/guard';
+import { Badge } from '@/components/ui/badge';
+import { friendlyDate, friendlyTime } from '@/lib/bookings';
+import { getJob } from '@/lib/event-jobs/store';
+import { JobTracker } from '@/components/staff-portal/job-tracker';
+import { WarehousePrepForm } from '@/components/staff-portal/warehouse-prep-form';
+import { WarehousePickSlipButton } from '@/components/staff-portal/warehouse-pick-slip-button';
+import { ReturnWarehouseForm } from '@/components/staff-portal/return-warehouse-form';
+import { ReturnWarehouseSlipButton } from '@/components/staff-portal/return-slips';
+import { createAdminClient } from '@/lib/supabase/admin';
+
+type BookingContext = {
+  booking_number: string;
+  event_name: string;
+  event_date: string;
+  event_time: string | null;
+  event_location: string | null;
+  contact_name: string | null;
+  alternate_mobile: string | null;
+  customers:
+    | { name: string; phone: string }
+    | { name: string; phone: string }[]
+    | null;
+  booking_items: {
+    item_name: string;
+    quantity: number;
+    products: { barcode: string | null } | { barcode: string | null }[] | null;
+  }[];
+};
+
+function firstRelation<T>(value: T | T[] | null | undefined): T | null {
+  return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
+}
+
+export async function WarehouseJobModal({
+  jobId,
+  view = 'open',
+}: {
+  jobId: string;
+  view?: 'open' | 'closed';
+}) {
+  const [session, job] = await Promise.all([
+    requireDepartment('warehouse'),
+    getJob(jobId),
+  ]);
+  if (!job || job.bookingType !== 'rental') return null;
+
+  const stage = job.stages.find((item) => item.key === 'warehouse_pick');
+  const returnStage = job.stages.find(
+    (item) => item.key === 'return_warehouse',
+  );
+  if (!stage || !returnStage) return null;
+
+  const admin = createAdminClient();
+  const { data: bookingData } = await admin
+    .from('bookings')
+    .select(
+      'booking_number,event_name,event_date,event_time,event_location,contact_name,alternate_mobile,customers(name,phone),booking_items(item_name,quantity,products(barcode))',
+    )
+    .eq('id', job.bookingId)
+    .single();
+  const booking = bookingData as BookingContext | null;
+  const customer = firstRelation(booking?.customers);
+  const items = booking?.booking_items?.length
+    ? booking.booking_items.map((item) => ({
+        itemName: item.item_name,
+        quantity: Number(item.quantity),
+        barcode: firstRelation(item.products)?.barcode ?? null,
+      }))
+    : job.requiredItems.map((item) => ({ ...item, barcode: null }));
+  const details = {
+    jobId: job.id,
+    bookingNumber: job.bookingNumber,
+    customerName: customer?.name ?? booking?.contact_name ?? 'Customer',
+    customerPhone: booking?.alternate_mobile ?? customer?.phone ?? '',
+    eventName: booking?.event_name ?? job.eventSummary.eventName,
+    eventDate: booking?.event_date ?? job.eventSummary.eventDate,
+    eventTime: booking?.event_time ?? job.eventSummary.eventTime,
+    venue: booking?.event_location ?? job.eventSummary.venue,
+  };
+  const isOpen = stage.status === 'open' || stage.status === 'in_progress';
+  const returnIsOpen =
+    returnStage.status === 'open' || returnStage.status === 'in_progress';
+  const returnItems = (job.returnQualityCheck?.items ?? []).map((item) => {
+    const collected = job.collectionCheck?.items.find(
+      (entry) => entry.itemName === item.itemName,
+    );
+    return {
+      itemName: item.itemName,
+      usableQuantity: item.goodQuantity ?? 0,
+      damagedRepairQuantity: item.damagedQuantity ?? 0,
+      missingLostQuantity: collected
+        ? Math.max(
+            collected.sentQuantity - (collected.returnedQuantity ?? 0),
+            0,
+          )
+        : 0,
+    };
+  });
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-3 sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Warehouse job details"
+    >
+      <div className="flex max-h-[92vh] w-full max-w-[720px] flex-col overflow-hidden rounded-2xl border border-[#dfd3c3] bg-[#fcfaf7] shadow-2xl">
+        <div className="flex shrink-0 items-start justify-between border-b border-border bg-white px-5 py-4 sm:px-6">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#70481c]">
+              {job.id} · {job.bookingNumber}
+            </p>
+            <h2 className="mt-1 text-xl font-semibold tracking-tight">
+              {details.customerName}
+            </h2>
+          </div>
+          <Link
+            href={
+              view === 'closed'
+                ? '/staff-portal/warehouse?view=closed'
+                : '/staff-portal/warehouse'
+            }
+            aria-label="Close job details"
+            className="rounded-full p-2 text-muted-foreground transition hover:bg-[#f5ead8] hover:text-[#70481c]"
+          >
+            <X className="size-5" />
+          </Link>
+        </div>
+        <div className="min-h-0 overflow-y-auto p-4 sm:p-6">
+          <section className="rounded-xl border border-[#dfd3c3] bg-white p-4">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className="border-[#e4d2b6] bg-[#f5ead8] text-[#70481c]"
+              >
+                Rental picking
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                {items.length} item{items.length === 1 ? '' : 's'}
+              </span>
+            </div>
+            <div className="mt-4 grid gap-3 border-t pt-4 text-sm sm:grid-cols-2">
+              <p className="flex items-start gap-2">
+                <UserRound className="mt-0.5 size-4 text-[#9a6a2f]" />
+                <span>
+                  <strong className="block font-medium">
+                    {details.eventName}
+                  </strong>
+                  <span className="text-muted-foreground">
+                    {details.customerPhone || 'No alternate number'}
+                  </span>
+                </span>
+              </p>
+              <p className="flex items-start gap-2">
+                <CalendarDays className="mt-0.5 size-4 text-[#9a6a2f]" />
+                <span>
+                  <strong className="block font-medium">
+                    {friendlyDate(details.eventDate)}
+                  </strong>
+                  <span className="text-muted-foreground">
+                    {details.eventTime
+                      ? friendlyTime(details.eventTime)
+                      : 'Time not added'}
+                  </span>
+                </span>
+              </p>
+              {details.venue ? (
+                <p className="flex items-center gap-2 text-muted-foreground sm:col-span-2">
+                  <MapPin className="size-4 text-[#9a6a2f]" /> {details.venue}
+                </p>
+              ) : null}
+            </div>
+          </section>
+
+          <div className="mt-4">
+            <JobTracker stages={job.stages} />
+          </div>
+
+          {job.warehousePrep ? (
+            <section className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-emerald-800">
+                    Picking completed
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Completed by {job.warehousePrep.completedBy} on{' '}
+                    {friendlyDate(job.warehousePrep.completedAt ?? '')}
+                  </p>
+                </div>
+                <WarehousePickSlipButton
+                  details={details}
+                  items={job.warehousePrep.items.map((item) => ({
+                    itemName: item.itemName,
+                    quantity: item.requiredQuantity,
+                    barcode:
+                      items.find((entry) => entry.itemName === item.itemName)
+                        ?.barcode ?? null,
+                    picked: (item.preparedQuantity ?? 0) > 0,
+                  }))}
+                />
+              </div>
+              <ul className="mt-4 divide-y rounded-xl border">
+                {job.warehousePrep.items.map((item) => (
+                  <li
+                    key={item.itemName}
+                    className="flex items-center justify-between gap-3 px-3 py-3 text-sm"
+                  >
+                    <span className="font-medium">{item.itemName}</span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        (item.preparedQuantity ?? 0) > 0
+                          ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                          : 'border-amber-200 bg-amber-50 text-amber-800'
+                      }
+                    >
+                      {(item.preparedQuantity ?? 0) > 0
+                        ? 'Picked'
+                        : 'Not picked'}
+                    </Badge>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ) : isOpen ? (
+            <div className="mt-4">
+              <WarehousePrepForm
+                jobId={job.id}
+                items={items}
+                details={details}
+              />
+            </div>
+          ) : null}
+
+          {job.returnWarehouseCheck ? (
+            <section className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-emerald-800">
+                    Return receiving completed
+                  </h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Received from{' '}
+                    {job.returnWarehouseCheck.receivedFrom ?? 'QC'} by{' '}
+                    {job.returnWarehouseCheck.completedBy} on{' '}
+                    {friendlyDate(job.returnWarehouseCheck.completedAt ?? '')}.
+                  </p>
+                </div>
+                <ReturnWarehouseSlipButton
+                  details={{
+                    ...details,
+                    completedBy:
+                      job.returnWarehouseCheck.completedBy ?? session.name,
+                    completedAt:
+                      job.returnWarehouseCheck.completedAt ?? job.updatedAt,
+                  }}
+                  items={job.returnWarehouseCheck.items.map((item) => ({
+                    ...item,
+                    storageLocation: item.storageLocation ?? '',
+                  }))}
+                />
+              </div>
+              <ul className="mt-4 divide-y rounded-xl border">
+                {job.returnWarehouseCheck.items.map((item) => (
+                  <li
+                    key={item.itemName}
+                    className="flex flex-col gap-1 px-3 py-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+                  >
+                    <span className="font-medium">{item.itemName}</span>
+                    <span className="text-muted-foreground">
+                      {item.usableQuantity} usable ·{' '}
+                      {item.damagedRepairQuantity} repair ·{' '}
+                      {item.missingLostQuantity} missing ·{' '}
+                      {item.storageLocation || 'No location'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {job.returnWarehouseCheck.receivingNotes ? (
+                <p className="mt-3 rounded-lg bg-[#fcfaf7] p-3 text-sm text-muted-foreground">
+                  {job.returnWarehouseCheck.receivingNotes}
+                </p>
+              ) : null}
+            </section>
+          ) : returnIsOpen && job.returnQualityCheck ? (
+            <div className="mt-4">
+              <ReturnWarehouseForm jobId={job.id} items={returnItems} />
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}

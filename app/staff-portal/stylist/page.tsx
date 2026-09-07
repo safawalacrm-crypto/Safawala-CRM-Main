@@ -4,13 +4,17 @@ import { requireStylistSession } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { stylistJobsForAccount } from '@/lib/event-jobs/store';
 import { unreadCountForSession } from '@/lib/notifications/store';
 import type { StylistInterestStatus } from '@/lib/event-jobs/types';
-import { StylistInterestButton } from '@/components/staff-portal/stylist-interest-button';
+import {
+  StylistInterestButton,
+  WithdrawInterestButton,
+} from '@/components/staff-portal/stylist-interest-button';
+import { StylistJobModal } from '@/components/staff-portal/stylist-job-modal';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,56 +32,107 @@ const STATUS_TONE: Record<StylistInterestStatus, string> = {
   backup: 'border-sky-200 bg-sky-50 text-sky-700',
 };
 
-export default async function StaffStylistPage() {
+export default async function StaffStylistPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ job?: string }>;
+}) {
   const session = await requireStylistSession();
   const jobs = await stylistJobsForAccount(session.id);
-  const activeDepartments = session.departments.filter((grant) => grant.active).map((grant) => grant.department);
-  const notificationCount = await unreadCountForSession(session.id, activeDepartments);
+  const params = await searchParams;
+  const activeDepartments = session.departments
+    .filter((grant) => grant.active)
+    .map((grant) => grant.department);
+  const notificationCount = await unreadCountForSession(
+    session.id,
+    activeDepartments,
+  );
 
   return (
-    <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} accessModules={session.accessModules} isMainId={session.isMainId} notificationCount={notificationCount}>
-      <div className="mx-auto max-w-[1440px] space-y-6">
-        <DashboardHeader title="Stylist" subtitle="Available events — mark yourself as interested and available" />
-
-        <div className="flex justify-end">
-          <Link href="/staff-portal/stylist/assigned" className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-            My Assigned Events
-          </Link>
-        </div>
+    <StaffPortalShell
+      name={session.name}
+      departments={session.departments}
+      permissions={session.permissions}
+      accessModules={session.accessModules}
+      isMainId={session.isMainId}
+      notificationCount={notificationCount}
+    >
+      <div className="mx-auto max-w-[1120px] space-y-4">
+        <DashboardHeader
+          title="Stylist"
+          subtitle="Available events — mark yourself as interested and available"
+        />
 
         <Card className="border-border shadow-level-1">
           <CardContent className="p-0">
             {jobs.length ? (
               <ul className="divide-y divide-border">
                 {jobs.map((job) => {
-                  const myInterest = job.stylistInterests.find((interest) => interest.stylistAccountId === session.id);
-                  const interestedCount = job.stylistInterests.filter((interest) => interest.status === 'interested').length;
-                  const rentalQuantity = job.requiredItems.reduce((sum, item) => sum + item.quantity, 0);
+                  const myInterest = job.stylistInterests.find(
+                    (interest) => interest.stylistAccountId === session.id,
+                  );
+                  const interestedCount = job.stylistInterests.filter(
+                    (interest) => interest.status === 'interested',
+                  ).length;
+                  const rentalQuantity = job.requiredItems.reduce(
+                    (sum, item) => sum + item.quantity,
+                    0,
+                  );
                   return (
-                    <li key={job.id} className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <li
+                      key={job.id}
+                      className="flex flex-col gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+                    >
                       <div>
-                        <p className="font-medium">{job.eventSummary.eventName}</p>
+                        <p className="font-medium">
+                          {job.eventSummary.eventName}
+                        </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1.5">
-                            <CalendarClock className="size-3.5" /> {friendlyDate(job.eventSummary.eventDate)} ·{' '}
+                            <CalendarClock className="size-3.5" />{' '}
+                            {friendlyDate(job.eventSummary.eventDate)} ·{' '}
                             {friendlyTime(job.eventSummary.eventTime)}
                           </span>
                           {job.eventSummary.venue ? (
                             <span className="flex items-center gap-1.5">
-                              <MapPin className="size-3.5" /> {job.eventSummary.venue}
+                              <MapPin className="size-3.5" />{' '}
+                              {job.eventSummary.venue}
                             </span>
                           ) : null}
+                          <span>{rentalQuantity} rental items</span>
                           <span>
-                            {rentalQuantity} rental items
-                          </span>
-                          <span>
-                            {job.stylistsRequiredCount} required · {interestedCount} interested
+                            {job.stylistsRequiredCount} required ·{' '}
+                            {interestedCount} interested
                           </span>
                         </p>
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <Button variant="outline" size="sm" render={<Link href={`/staff-portal/stylist/${job.id}`} />}>View details</Button>
-                        {myInterest ? <Badge variant="outline" className={STATUS_TONE[myInterest.status]}>{STATUS_LABEL[myInterest.status]}</Badge> : <StylistInterestButton jobId={job.id} />}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          render={
+                            <Link
+                              href={`/staff-portal/stylist?job=${encodeURIComponent(job.id)}`}
+                            />
+                          }
+                        >
+                          View details
+                        </Button>
+                        {myInterest ? (
+                          <>
+                            {myInterest.status === 'interested' ? (
+                              <WithdrawInterestButton jobId={job.id} />
+                            ) : null}
+                            <Badge
+                              variant="outline"
+                              className={STATUS_TONE[myInterest.status]}
+                            >
+                              {STATUS_LABEL[myInterest.status]}
+                            </Badge>
+                          </>
+                        ) : (
+                          <StylistInterestButton jobId={job.id} />
+                        )}
                       </div>
                     </li>
                   );
@@ -89,7 +144,9 @@ export default async function StaffStylistPage() {
                   <span className="mx-auto grid size-12 place-items-center rounded-full bg-accent text-primary">
                     <Sparkles />
                   </span>
-                  <h3 className="mt-4 font-semibold">No open styling opportunities right now</h3>
+                  <h3 className="mt-4 font-semibold">
+                    No open styling opportunities right now
+                  </h3>
                   <p className="mt-1 text-sm text-muted-foreground">
                     New confirmed bookings that need a stylist will appear here.
                   </p>
@@ -99,6 +156,7 @@ export default async function StaffStylistPage() {
           </CardContent>
         </Card>
       </div>
+      {params.job ? <StylistJobModal jobId={params.job} /> : null}
     </StaffPortalShell>
   );
 }

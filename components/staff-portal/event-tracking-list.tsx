@@ -14,12 +14,12 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { friendlyDate } from '@/lib/bookings';
-import { STAGE_LABEL } from '@/lib/event-jobs/constants';
+import { orderEventJobStages, STAGE_LABEL } from '@/lib/event-jobs/constants';
 import type { EventJob } from '@/lib/event-jobs/types';
 
 function currentStage(job: EventJob) {
   if (job.status === 'closed') return 'Completed';
-  const active = job.stages
+  const active = orderEventJobStages(job.stages)
     .filter(
       (stage) => stage.status === 'open' || stage.status === 'in_progress',
     )
@@ -150,59 +150,61 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
             </header>
 
             <ol className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-              {selected.stages.map((stage, index) => {
-                const done = stage.status === 'done';
-                const current =
-                  stage.status === 'open' || stage.status === 'in_progress';
-                return (
-                  <li
-                    key={stage.key}
-                    className="relative flex gap-3 pb-5 last:pb-0"
-                  >
-                    {index < selected.stages.length - 1 ? (
-                      <span
-                        aria-hidden="true"
-                        className={`absolute left-[10px] top-5 h-full w-px ${done ? 'bg-emerald-300' : 'bg-border'}`}
-                      />
-                    ) : null}
-                    <span
-                      className={`relative z-10 mt-0.5 grid size-[21px] shrink-0 place-items-center rounded-full border ${
-                        done
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
-                          : current
-                            ? 'border-[#a86f2c] bg-[#f5ead8] text-[#70481c]'
-                            : 'border-border bg-[#f8f6f2] text-muted-foreground'
-                      }`}
+              {orderEventJobStages(selected.stages).map(
+                (stage, index, orderedStages) => {
+                  const done = stage.status === 'done';
+                  const current =
+                    stage.status === 'open' || stage.status === 'in_progress';
+                  return (
+                    <li
+                      key={stage.key}
+                      className="relative flex gap-3 pb-5 last:pb-0"
                     >
-                      {done ? (
-                        <Check className="size-3" />
-                      ) : (
-                        <Circle className="size-2 fill-current" />
-                      )}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-sm font-medium">
-                        {STAGE_LABEL[stage.key]}
-                      </p>
-                      <p
-                        className={`mt-0.5 text-xs ${
+                      {index < orderedStages.length - 1 ? (
+                        <span
+                          aria-hidden="true"
+                          className={`absolute left-[10px] top-5 h-full w-px ${done ? 'bg-emerald-300' : 'bg-border'}`}
+                        />
+                      ) : null}
+                      <span
+                        className={`relative z-10 mt-0.5 grid size-[21px] shrink-0 place-items-center rounded-full border ${
                           done
-                            ? 'text-emerald-700'
+                            ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                             : current
-                              ? 'text-[#9a6124]'
-                              : 'text-muted-foreground'
+                              ? 'border-[#a86f2c] bg-[#f5ead8] text-[#70481c]'
+                              : 'border-border bg-[#f8f6f2] text-muted-foreground'
                         }`}
                       >
-                        {done
-                          ? 'Completed'
-                          : current
-                            ? 'In progress'
-                            : 'Waiting'}
-                      </p>
-                    </div>
-                  </li>
-                );
-              })}
+                        {done ? (
+                          <Check className="size-3" />
+                        ) : (
+                          <Circle className="size-2 fill-current" />
+                        )}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium">
+                          {STAGE_LABEL[stage.key]}
+                        </p>
+                        <p
+                          className={`mt-0.5 text-xs ${
+                            done
+                              ? 'text-emerald-700'
+                              : current
+                                ? 'text-[#9a6124]'
+                                : 'text-muted-foreground'
+                          }`}
+                        >
+                          {done
+                            ? 'Completed'
+                            : current
+                              ? 'In progress'
+                              : 'Waiting'}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                },
+              )}
             </ol>
           </dialog>
         </div>

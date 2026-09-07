@@ -1,12 +1,16 @@
 import { ClipboardList } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { STAGE_LABEL } from '@/lib/event-jobs/constants';
+import { orderEventJobStages, STAGE_LABEL } from '@/lib/event-jobs/constants';
 import { jobsForDepartment } from '@/lib/event-jobs/store';
 import type { StaffDepartment } from '@/lib/staff-portal/constants';
 
 // Reads the same Supabase-backed Central Event Jobs used by the admin portal.
-export async function DepartmentJobList({ department }: { department: StaffDepartment }) {
+export async function DepartmentJobList({
+  department,
+}: {
+  department: StaffDepartment;
+}) {
   const entries = await jobsForDepartment(department);
 
   return (
@@ -24,13 +28,21 @@ export async function DepartmentJobList({ department }: { department: StaffDepar
               >
                 <div>
                   <p className="font-medium">
-                    {job.id} <span className="text-xs text-muted-foreground">· {job.bookingNumber}</span>
+                    {job.id}{' '}
+                    <span className="text-xs text-muted-foreground">
+                      · {job.bookingNumber}
+                    </span>
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {stages.map((stage) => STAGE_LABEL[stage.key]).join(', ')}
+                    {orderEventJobStages(stages)
+                      .map((stage) => STAGE_LABEL[stage.key])
+                      .join(', ')}
                   </p>
                 </div>
-                <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+                <Badge
+                  variant="outline"
+                  className="border-amber-200 bg-amber-50 text-amber-800"
+                >
                   {stages[0]?.status.replace('_', ' ')}
                 </Badge>
               </li>
@@ -42,7 +54,9 @@ export async function DepartmentJobList({ department }: { department: StaffDepar
               <span className="mx-auto grid size-10 place-items-center rounded-full bg-accent text-primary">
                 <ClipboardList className="size-5" />
               </span>
-              <p className="mt-3 text-sm text-muted-foreground">No jobs waiting for your department right now.</p>
+              <p className="mt-3 text-sm text-muted-foreground">
+                No jobs waiting for your department right now.
+              </p>
             </div>
           </div>
         )}

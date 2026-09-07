@@ -1,5 +1,11 @@
 import Link from 'next/link';
-import { ArrowRight, CalendarDays, CheckCircle2, ClipboardCheck, Clock3 } from 'lucide-react';
+import {
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock3,
+} from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
@@ -8,39 +14,67 @@ import { Card, CardContent } from '@/components/ui/card';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { listJobs } from '@/lib/event-jobs/store';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { QcJobModal } from '@/components/staff-portal/qc-job-modal';
 
 export const dynamic = 'force-dynamic';
 
 type QueueView = 'open' | 'closed';
 
-export default async function StaffQcPage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function StaffQcPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; job?: string }>;
+}) {
   const [session, params, allJobs] = await Promise.all([
     requireDepartment('qc'),
     searchParams,
     listJobs(),
   ]);
-  const { view: requestedView } = params;
+  const { view: requestedView, job: selectedJobId } = params;
   const view: QueueView = requestedView === 'closed' ? 'closed' : 'open';
   const rentalJobs = allJobs.filter((job) => job.bookingType === 'rental');
   const hasOpenQcStage = (job: (typeof rentalJobs)[number]) =>
-    job.stages.some((stage) =>
-      ['quality_check', 'packing', 'return_quality_check'].includes(stage.key) &&
-      (stage.status === 'open' || stage.status === 'in_progress'),
+    job.stages.some(
+      (stage) =>
+        ['quality_check', 'packing', 'return_quality_check'].includes(
+          stage.key,
+        ) &&
+        (stage.status === 'open' || stage.status === 'in_progress'),
     );
-  const openJobs = rentalJobs.filter((job) => job.status === 'active' && hasOpenQcStage(job));
+  const openJobs = rentalJobs.filter(
+    (job) => job.status === 'active' && hasOpenQcStage(job),
+  );
   const closedJobs = rentalJobs.filter(
-    (job) => !hasOpenQcStage(job) && Boolean(job.qualityCheck || job.packingChecklist || job.returnQualityCheck),
+    (job) =>
+      !hasOpenQcStage(job) &&
+      Boolean(
+        job.qualityCheck || job.packingChecklist || job.returnQualityCheck,
+      ),
   );
   const jobs = view === 'open' ? openJobs : closedJobs;
+  const groupedJobs = Array.from(
+    jobs.reduce((groups, job) => {
+      const key = job.eventSummary.eventDate || 'unscheduled';
+      const group = groups.get(key) ?? [];
+      group.push(job);
+      groups.set(key, group);
+      return groups;
+    }, new Map<string, typeof jobs>()),
+  ).sort(([first], [second]) => second.localeCompare(first));
 
   const bookingIds = rentalJobs.map((job) => job.bookingId);
   const admin = createAdminClient();
   const { data: bookings } = bookingIds.length
-    ? await admin.from('bookings').select('id,customers(name)').in('id', bookingIds)
+    ? await admin
+        .from('bookings')
+        .select('id,customers(name)')
+        .in('id', bookingIds)
     : { data: [] };
   const customerByBookingId = new Map(
     (bookings ?? []).map((booking) => {
-      const customer = Array.isArray(booking.customers) ? booking.customers[0] : booking.customers;
+      const customer = Array.isArray(booking.customers)
+        ? booking.customers[0]
+        : booking.customers;
       return [Number(booking.id), customer?.name ?? 'Customer'] as const;
     }),
   );
@@ -54,15 +88,28 @@ export default async function StaffQcPage({ searchParams }: { searchParams: Prom
       isMainId={session.isMainId}
     >
       <div className="mx-auto max-w-[1180px] space-y-5">
-        <DashboardHeader title="QC & Packing" subtitle="Check and pack rental products prepared by Warehouse" />
+        <DashboardHeader
+          title="QC & Packing"
+          subtitle="Check and pack rental products prepared by Warehouse"
+        />
 
         <div className="grid grid-cols-2 gap-3">
-          <Link href="/staff-portal/qc" className={`rounded-xl border p-4 transition ${view === 'open' ? 'border-[#d6b98d] bg-[#f5ead8] text-[#70481c] shadow-sm' : 'bg-white hover:bg-[#fcfaf7]'}`}>
-            <span className="flex items-center gap-2 text-sm font-medium"><Clock3 className="size-4" /> Open jobs</span>
+          <Link
+            href="/staff-portal/qc"
+            className={`rounded-xl border p-4 transition ${view === 'open' ? 'border-[#d6b98d] bg-[#f5ead8] text-[#70481c] shadow-sm' : 'bg-white hover:bg-[#fcfaf7]'}`}
+          >
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <Clock3 className="size-4" /> Open jobs
+            </span>
             <strong className="mt-1 block text-2xl">{openJobs.length}</strong>
           </Link>
-          <Link href="/staff-portal/qc?view=closed" className={`rounded-xl border p-4 transition ${view === 'closed' ? 'border-[#d6b98d] bg-[#f5ead8] text-[#70481c] shadow-sm' : 'bg-white hover:bg-[#fcfaf7]'}`}>
-            <span className="flex items-center gap-2 text-sm font-medium"><CheckCircle2 className="size-4" /> Closed jobs</span>
+          <Link
+            href="/staff-portal/qc?view=closed"
+            className={`rounded-xl border p-4 transition ${view === 'closed' ? 'border-[#d6b98d] bg-[#f5ead8] text-[#70481c] shadow-sm' : 'bg-white hover:bg-[#fcfaf7]'}`}
+          >
+            <span className="flex items-center gap-2 text-sm font-medium">
+              <CheckCircle2 className="size-4" /> Closed jobs
+            </span>
             <strong className="mt-1 block text-2xl">{closedJobs.length}</strong>
           </Link>
         </div>
@@ -70,41 +117,105 @@ export default async function StaffQcPage({ searchParams }: { searchParams: Prom
         <Card className="overflow-hidden border-border shadow-level-1">
           <CardContent className="p-0">
             {jobs.length ? (
-              <ul className="divide-y divide-border">
-                {jobs.map((job) => {
-                  const returnOpen = job.stages.some((stage) => stage.key === 'return_quality_check' && ['open', 'in_progress'].includes(stage.status));
-                  const packingOpen = job.stages.some((stage) => stage.key === 'packing' && ['open', 'in_progress'].includes(stage.status));
-                  const status = returnOpen ? 'Return QC' : packingOpen ? 'Packing' : view === 'closed' ? 'Completed' : 'Quality check';
-                  return (
-                    <li key={job.id}>
-                      <Link href={`/staff-portal/qc/${job.id}`} className="group flex items-center gap-3 px-4 py-4 transition hover:bg-[#fcfaf7] sm:px-5">
-                        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#f5ead8] text-[#70481c]"><ClipboardCheck className="size-5" /></span>
-                        <span className="min-w-0 flex-1">
-                          <span className="flex flex-wrap items-center gap-2">
-                            <strong className="truncate text-sm">{customerByBookingId.get(job.bookingId) ?? 'Customer'}</strong>
-                            <Badge variant="outline" className="border-[#e4d2b6] bg-white text-[#70481c]">{status}</Badge>
-                          </span>
-                          <span className="mt-1 block truncate text-sm text-muted-foreground">{job.eventSummary.eventName} · {job.bookingNumber}</span>
-                          <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarDays className="size-3.5" /> {friendlyDate(job.eventSummary.eventDate)}{job.eventSummary.eventTime ? ` · ${friendlyTime(job.eventSummary.eventTime)}` : ''}</span>
-                        </span>
-                        <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-[#70481c]" />
-                      </Link>
-                    </li>
-                  );
-                })}
-              </ul>
+              <div>
+                {groupedJobs.map(([date, dateJobs]) => (
+                  <section key={date}>
+                    <div className="flex items-center gap-2 border-b bg-[#fcfaf7] px-4 py-2.5 sm:px-5">
+                      <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-[#70481c]">
+                        {date === 'unscheduled'
+                          ? 'Date not added'
+                          : friendlyDate(date)}
+                      </h3>
+                      <span className="text-xs text-muted-foreground">
+                        {dateJobs.length}{' '}
+                        {dateJobs.length === 1 ? 'job' : 'jobs'}
+                      </span>
+                    </div>
+                    <ul className="divide-y divide-border">
+                      {dateJobs.map((job) => {
+                        const returnOpen = job.stages.some(
+                          (stage) =>
+                            stage.key === 'return_quality_check' &&
+                            ['open', 'in_progress'].includes(stage.status),
+                        );
+                        const packingOpen = job.stages.some(
+                          (stage) =>
+                            stage.key === 'packing' &&
+                            ['open', 'in_progress'].includes(stage.status),
+                        );
+                        const status = returnOpen
+                          ? 'Return QC'
+                          : packingOpen
+                            ? 'Packing'
+                            : view === 'closed'
+                              ? 'Completed'
+                              : 'Quality check';
+                        return (
+                          <li key={job.id}>
+                            <Link
+                              href={`/staff-portal/qc?view=${view}&job=${encodeURIComponent(job.id)}`}
+                              className="group flex items-center gap-3 px-4 py-4 transition hover:bg-[#fcfaf7] sm:px-5"
+                            >
+                              <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#f5ead8] text-[#70481c]">
+                                <ClipboardCheck className="size-5" />
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="flex flex-wrap items-center gap-2">
+                                  <strong className="truncate text-sm">
+                                    {customerByBookingId.get(job.bookingId) ??
+                                      'Customer'}
+                                  </strong>
+                                  <Badge
+                                    variant="outline"
+                                    className="border-[#e4d2b6] bg-white text-[#70481c]"
+                                  >
+                                    {status}
+                                  </Badge>
+                                </span>
+                                <span className="mt-1 block truncate text-sm text-muted-foreground">
+                                  {job.eventSummary.eventName} ·{' '}
+                                  {job.bookingNumber}
+                                </span>
+                                <span className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <CalendarDays className="size-3.5" />{' '}
+                                  {friendlyDate(job.eventSummary.eventDate)}
+                                  {job.eventSummary.eventTime
+                                    ? ` · ${friendlyTime(job.eventSummary.eventTime)}`
+                                    : ''}
+                                </span>
+                              </span>
+                              <ArrowRight className="size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-[#70481c]" />
+                            </Link>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </section>
+                ))}
+              </div>
             ) : (
               <div className="grid min-h-52 place-items-center p-8 text-center">
                 <div>
-                  <span className="mx-auto grid size-11 place-items-center rounded-full bg-[#f5ead8] text-[#70481c]">{view === 'open' ? <ClipboardCheck className="size-5" /> : <CheckCircle2 className="size-5" />}</span>
+                  <span className="mx-auto grid size-11 place-items-center rounded-full bg-[#f5ead8] text-[#70481c]">
+                    {view === 'open' ? (
+                      <ClipboardCheck className="size-5" />
+                    ) : (
+                      <CheckCircle2 className="size-5" />
+                    )}
+                  </span>
                   <h3 className="mt-3 font-semibold">No {view} QC jobs</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{view === 'open' ? 'Rental jobs appear after Warehouse finishes picking.' : 'Completed QC and packing jobs appear here.'}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {view === 'open'
+                      ? 'Rental jobs appear after Warehouse finishes picking.'
+                      : 'Completed QC and packing jobs appear here.'}
+                  </p>
                 </div>
               </div>
             )}
           </CardContent>
         </Card>
       </div>
+      {selectedJobId ? <QcJobModal jobId={selectedJobId} view={view} /> : null}
     </StaffPortalShell>
   );
 }

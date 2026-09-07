@@ -80,7 +80,7 @@ export const friendlyDate = (value: string | null | undefined) => {
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`);
   return new Intl.DateTimeFormat('en-GB', {
     day: '2-digit',
-    month: '2-digit',
+    month: 'short',
     year: 'numeric',
   }).format(date);
 };

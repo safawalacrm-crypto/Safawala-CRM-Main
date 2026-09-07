@@ -29,12 +29,14 @@ import {
   ChevronUp,
   CircleCheckBig,
   CircleGauge,
+  ClipboardCheck,
   IndianRupee,
   ClipboardList,
   LayoutDashboard,
   LogOut,
   PanelLeftOpen,
   PackageCheck,
+  Sparkles,
   Plus,
   ReceiptText,
   UserRound,
@@ -79,6 +81,15 @@ function SidebarNavigation({
   const isWarehouseStaff = departments.some(
     (grant) => grant.active && grant.department === 'warehouse',
   );
+  const isQcStaff = departments.some(
+    (grant) => grant.active && grant.department === 'qc',
+  );
+  const isCollectionStaff = departments.some(
+    (grant) => grant.active && grant.department === 'collection',
+  );
+  const isStylistStaff = departments.some(
+    (grant) => grant.active && grant.department === 'stylist',
+  );
   const seen = new Set<string>();
   const links = isBookingPortal
     ? [
@@ -117,57 +128,98 @@ function SidebarNavigation({
               icon: Boxes,
             },
           ]
-        : [
-            { href: '/staff-portal', label: 'Home', icon: LayoutDashboard },
-            ...modules.flatMap((module) => {
-              const meta = ACCESS_MODULE_META[module];
-              if (!meta.href || seen.has(meta.href)) return [];
-              seen.add(meta.href);
-              return [
+        : isQcStaff
+          ? [
+              {
+                href: '/staff-portal/qc',
+                label: 'QC & Packing',
+                icon: ClipboardCheck,
+              },
+            ]
+          : isCollectionStaff
+            ? [
                 {
-                  href: meta.href,
-                  label: meta.label,
-                  icon: moduleIcons[module] ?? LayoutDashboard,
+                  href: '/staff-portal/collection',
+                  label: 'Collection',
+                  icon: PackageCheck,
                 },
-              ];
-            }),
-            ...permissions.flatMap((permission) => {
-              const meta = STAFF_MODULE_META[permission];
-              if (!meta.href || seen.has(meta.href)) return [];
-              seen.add(meta.href);
-              const permissionIcons: Partial<
-                Record<StaffModule, typeof LayoutDashboard>
-              > = {
-                warehouse_tasks: Boxes,
-                qc_tasks: PackageCheck,
-                event_jobs: ClipboardList,
-                event_tracking: ClipboardList,
-                calendar: CalendarDays,
-                my_tasks: ClipboardList,
-                attendance: CalendarDays,
-                performance: CircleGauge,
-                leave_management: CalendarDays,
-                collection_tasks: PackageCheck,
-                modification_tasks: Wrench,
-              };
-              return [
-                {
-                  href: meta.href,
-                  label: meta.label,
-                  icon: permissionIcons[permission] ?? LayoutDashboard,
-                },
-              ];
-            }),
-          ];
+              ]
+            : isStylistStaff
+              ? [
+                  {
+                    href: '/staff-portal/stylist',
+                    label: 'Stylist opportunities',
+                    icon: Sparkles,
+                  },
+                  {
+                    href: '/staff-portal/stylist/assigned',
+                    label: 'Assigned events',
+                    icon: CalendarDays,
+                  },
+                ]
+              : [
+                  {
+                    href: '/staff-portal',
+                    label: 'Home',
+                    icon: LayoutDashboard,
+                  },
+                  ...modules.flatMap((module) => {
+                    const meta = ACCESS_MODULE_META[module];
+                    if (!meta.href || seen.has(meta.href)) return [];
+                    seen.add(meta.href);
+                    return [
+                      {
+                        href: meta.href,
+                        label: meta.label,
+                        icon: moduleIcons[module] ?? LayoutDashboard,
+                      },
+                    ];
+                  }),
+                  ...permissions.flatMap((permission) => {
+                    const meta = STAFF_MODULE_META[permission];
+                    if (!meta.href || seen.has(meta.href)) return [];
+                    seen.add(meta.href);
+                    const permissionIcons: Partial<
+                      Record<StaffModule, typeof LayoutDashboard>
+                    > = {
+                      warehouse_tasks: Boxes,
+                      qc_tasks: PackageCheck,
+                      event_jobs: ClipboardList,
+                      event_tracking: ClipboardList,
+                      calendar: CalendarDays,
+                      my_tasks: ClipboardList,
+                      attendance: CalendarDays,
+                      performance: CircleGauge,
+                      leave_management: CalendarDays,
+                      collection_tasks: PackageCheck,
+                      modification_tasks: Wrench,
+                    };
+                    return [
+                      {
+                        href: meta.href,
+                        label: meta.label,
+                        icon: permissionIcons[permission] ?? LayoutDashboard,
+                      },
+                    ];
+                  }),
+                ];
   return (
     <nav aria-label="Primary navigation" className="mt-8 space-y-1">
       {links.map(({ href, label, icon: Icon }) => {
-        const isActive =
-          href === '/staff-portal'
-            ? pathname === href
-            : href === '/bookings'
+        const matchesPath = (candidate: string) =>
+          candidate === '/staff-portal'
+            ? pathname === candidate
+            : candidate === '/bookings'
               ? pathname === '/bookings' || /^\/bookings\/\d+/.test(pathname)
-              : pathname.startsWith(href);
+              : pathname === candidate || pathname.startsWith(`${candidate}/`);
+        const isActive =
+          matchesPath(href) &&
+          !links.some(
+            (other) =>
+              other.href !== href &&
+              other.href.length > href.length &&
+              matchesPath(other.href),
+          );
         return (
           <Link
             key={href}

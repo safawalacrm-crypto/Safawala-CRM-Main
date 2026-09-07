@@ -7,8 +7,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { friendlyDate, friendlyTime, statusLabel } from '@/lib/bookings';
-import { STAGE_DEPARTMENT, STAGE_LABEL } from '@/lib/event-jobs/constants';
-import { buildJobOverview, canCloseEventJob, getJob } from '@/lib/event-jobs/store';
+import {
+  orderEventJobStages,
+  STAGE_DEPARTMENT,
+  STAGE_LABEL,
+} from '@/lib/event-jobs/constants';
+import {
+  buildJobOverview,
+  canCloseEventJob,
+  getJob,
+} from '@/lib/event-jobs/store';
 import { addIssueAction, resolveIssueAction } from '@/app/event-jobs/actions';
 import { createClient } from '@/lib/supabase/server';
 import { getStaffSession } from '@/lib/staff-portal/session';
@@ -29,9 +37,11 @@ type JobBookingRow = {
 };
 
 function stageTone(status: string) {
-  if (status === 'done') return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+  if (status === 'done')
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700';
   if (status === 'blocked') return 'border-red-200 bg-red-50 text-red-700';
-  if (status === 'open' || status === 'in_progress') return 'border-amber-200 bg-amber-50 text-amber-800';
+  if (status === 'open' || status === 'in_progress')
+    return 'border-amber-200 bg-amber-50 text-amber-800';
   return 'border-stone-200 bg-stone-50 text-stone-600';
 }
 
@@ -51,7 +61,8 @@ export default async function EventJobDetailPage({
   const isCollectionAccount = staffSession?.departments.some(
     (grant) => grant.active && grant.department === 'collection',
   );
-  if (isCollectionAccount && job.bookingType !== 'rental') redirect('/event-jobs');
+  if (isCollectionAccount && job.bookingType !== 'rental')
+    redirect('/event-jobs');
 
   const { data: bookingRaw } = await supabase
     .from('bookings')
@@ -75,7 +86,11 @@ export default async function EventJobDetailPage({
         </div>
         <DashboardHeader
           title={job.id}
-          subtitle={booking ? `${booking.event_name} · ${booking.booking_number}` : job.bookingNumber}
+          subtitle={
+            booking
+              ? `${booking.event_name} · ${booking.booking_number}`
+              : job.bookingNumber
+          }
         />
 
         <Card className="border-border shadow-level-1">
@@ -125,8 +140,12 @@ export default async function EventJobDetailPage({
             {booking ? (
               <>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Customer</p>
-                  <p className="mt-1 font-medium">{booking.customers?.name ?? 'Walk-in'}</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Customer
+                  </p>
+                  <p className="mt-1 font-medium">
+                    {booking.customers?.name ?? 'Walk-in'}
+                  </p>
                   {booking.customers?.phone ? (
                     <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Phone className="size-3.5" /> {booking.customers.phone}
@@ -134,9 +153,12 @@ export default async function EventJobDetailPage({
                   ) : null}
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Event</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Event
+                  </p>
                   <p className="mt-1 flex items-center gap-1.5 font-medium">
-                    <CalendarClock className="size-4" /> {friendlyDate(booking.event_date)} ·{' '}
+                    <CalendarClock className="size-4" />{' '}
+                    {friendlyDate(booking.event_date)} ·{' '}
                     {friendlyTime(booking.event_time)}
                   </p>
                   {booking.event_location ? (
@@ -158,23 +180,42 @@ export default async function EventJobDetailPage({
                   </ul>
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Booking status</p>
-                  <p className="mt-1 font-medium">{statusLabel(booking.status)}</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Booking status
+                  </p>
+                  <p className="mt-1 font-medium">
+                    {statusLabel(booking.status)}
+                  </p>
                 </div>
               </>
             ) : (
               <>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Event</p>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Event
+                  </p>
                   <p className="mt-1 flex items-center gap-1.5 font-medium">
-                    <CalendarClock className="size-4" /> {friendlyDate(job.eventSummary.eventDate)} ·{' '}
+                    <CalendarClock className="size-4" />{' '}
+                    {friendlyDate(job.eventSummary.eventDate)} ·{' '}
                     {friendlyTime(job.eventSummary.eventTime)}
                   </p>
-                  {job.eventSummary.venue ? <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground"><MapPin className="size-3.5" /> {job.eventSummary.venue}</p> : null}
+                  {job.eventSummary.venue ? (
+                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <MapPin className="size-3.5" /> {job.eventSummary.venue}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="sm:col-span-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Required services / items</p>
-                  <ul className="mt-1 space-y-1 text-sm">{job.requiredItems.map((item, index) => <li key={index} className="text-muted-foreground">{item.quantity}x {item.itemName}</li>)}</ul>
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Required services / items
+                  </p>
+                  <ul className="mt-1 space-y-1 text-sm">
+                    {job.requiredItems.map((item, index) => (
+                      <li key={index} className="text-muted-foreground">
+                        {item.quantity}x {item.itemName}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               </>
             )}
@@ -186,7 +227,7 @@ export default async function EventJobDetailPage({
             <CardTitle>Stages</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {job.stages.map((stage) => (
+            {orderEventJobStages(job.stages).map((stage) => (
               <div
                 key={stage.key}
                 className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
@@ -204,8 +245,9 @@ export default async function EventJobDetailPage({
               </div>
             ))}
             <p className="pt-1 text-xs text-muted-foreground">
-              Stage actions (pick, QC, packing and stylist interest) happen in each department&apos;s work area.
-              This overview keeps progress visible without bypassing department permissions.
+              Stage actions (pick, QC, packing and stylist interest) happen in
+              each department&apos;s work area. This overview keeps progress
+              visible without bypassing department permissions.
             </p>
           </CardContent>
         </Card>
@@ -217,14 +259,19 @@ export default async function EventJobDetailPage({
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Completed by {job.warehousePrep.completedBy} on {friendlyDate(job.warehousePrep.completedAt ?? '')}
+                Completed by {job.warehousePrep.completedBy} on{' '}
+                {friendlyDate(job.warehousePrep.completedAt ?? '')}
               </p>
               <ul className="space-y-1.5 text-sm">
                 {job.warehousePrep.items.map((item, index) => (
-                  <li key={index} className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0">
+                  <li
+                    key={index}
+                    className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0"
+                  >
                     <span>{item.itemName}</span>
                     <span className="text-xs text-muted-foreground">
-                      {item.preparedQuantity ?? 0} / {item.requiredQuantity} prepared
+                      {item.preparedQuantity ?? 0} / {item.requiredQuantity}{' '}
+                      prepared
                       {item.unavailable ? ' · unavailable' : ''}
                       {item.damaged ? ' · damaged' : ''}
                       {item.otherIssue ? ` · ${item.otherIssue}` : ''}
@@ -243,15 +290,22 @@ export default async function EventJobDetailPage({
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Completed by {job.qualityCheck.completedBy} on {friendlyDate(job.qualityCheck.completedAt ?? '')}
+                Completed by {job.qualityCheck.completedBy} on{' '}
+                {friendlyDate(job.qualityCheck.completedAt ?? '')}
               </p>
               <ul className="space-y-1.5 text-sm">
                 {job.qualityCheck.items.map((item, index) => (
-                  <li key={index} className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0">
+                  <li
+                    key={index}
+                    className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0"
+                  >
                     <span>{item.itemName}</span>
                     <span className="text-xs text-muted-foreground">
-                      {item.goodQuantity ?? 0} / {item.checkedQuantity ?? 0} good
-                      {item.issueType !== 'none' ? ` · ${item.issueType.replace('_', ' ')}` : ''}
+                      {item.goodQuantity ?? 0} / {item.checkedQuantity ?? 0}{' '}
+                      good
+                      {item.issueType !== 'none'
+                        ? ` · ${item.issueType.replace('_', ' ')}`
+                        : ''}
                     </span>
                   </li>
                 ))}
@@ -271,7 +325,9 @@ export default async function EventJobDetailPage({
                 {friendlyDate(job.packingChecklist.completedAt ?? '')}
               </p>
               {job.packingChecklist.remarks ? (
-                <p className="mt-1 text-xs text-muted-foreground">{job.packingChecklist.remarks}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {job.packingChecklist.remarks}
+                </p>
               ) : null}
             </CardContent>
           </Card>
@@ -284,9 +340,16 @@ export default async function EventJobDetailPage({
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                {job.stylistInterests.filter((interest) => interest.status === 'approved').length} /{' '}
-                {job.stylistsRequiredCount} approved ·{' '}
-                <Link href="/stylist-approvals" className="text-primary hover:underline">
+                {
+                  job.stylistInterests.filter(
+                    (interest) => interest.status === 'approved',
+                  ).length
+                }{' '}
+                / {job.stylistsRequiredCount} approved ·{' '}
+                <Link
+                  href="/stylist-approvals"
+                  className="text-primary hover:underline"
+                >
                   Review in Stylist Approvals
                 </Link>{' '}
                 ·{' '}
@@ -298,10 +361,14 @@ export default async function EventJobDetailPage({
                 <ul className="space-y-1.5 text-sm">
                   {job.stylistInterests.map((interest) => {
                     const execution = job.stylistExecutions.find(
-                      (entry) => entry.stylistAccountId === interest.stylistAccountId,
+                      (entry) =>
+                        entry.stylistAccountId === interest.stylistAccountId,
                     );
                     return (
-                      <li key={interest.id} className="flex items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0">
+                      <li
+                        key={interest.id}
+                        className="flex items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0"
+                      >
                         <span>{interest.stylistName}</span>
                         <span className="text-xs text-muted-foreground">
                           {interest.status}
@@ -314,7 +381,9 @@ export default async function EventJobDetailPage({
                   })}
                 </ul>
               ) : (
-                <p className="text-sm text-muted-foreground">No stylists have shown interest yet.</p>
+                <p className="text-sm text-muted-foreground">
+                  No stylists have shown interest yet.
+                </p>
               )}
             </CardContent>
           </Card>
@@ -327,14 +396,19 @@ export default async function EventJobDetailPage({
             </CardHeader>
             <CardContent className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Completed by {job.collectionCheck.completedBy} on {friendlyDate(job.collectionCheck.completedAt ?? '')}
+                Completed by {job.collectionCheck.completedBy} on{' '}
+                {friendlyDate(job.collectionCheck.completedAt ?? '')}
               </p>
               <ul className="space-y-1.5 text-sm">
                 {job.collectionCheck.items.map((item, index) => (
-                  <li key={index} className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0">
+                  <li
+                    key={index}
+                    className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0"
+                  >
                     <span>{item.itemName}</span>
                     <span className="text-xs text-muted-foreground">
-                      {item.returnedQuantity ?? 0} / {item.sentQuantity} returned
+                      {item.returnedQuantity ?? 0} / {item.sentQuantity}{' '}
+                      returned
                     </span>
                   </li>
                 ))}
@@ -355,10 +429,14 @@ export default async function EventJobDetailPage({
               </p>
               <ul className="space-y-1.5 text-sm">
                 {job.returnQualityCheck.items.map((item, index) => (
-                  <li key={index} className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0">
+                  <li
+                    key={index}
+                    className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0"
+                  >
                     <span>{item.itemName}</span>
                     <span className="text-xs text-muted-foreground">
-                      {item.goodQuantity ?? 0} good / {item.damagedQuantity ?? 0} damaged
+                      {item.goodQuantity ?? 0} good /{' '}
+                      {item.damagedQuantity ?? 0} damaged
                     </span>
                   </li>
                 ))}
@@ -379,10 +457,14 @@ export default async function EventJobDetailPage({
               </p>
               <ul className="space-y-1.5 text-sm">
                 {job.returnWarehouseCheck.items.map((item, index) => (
-                  <li key={index} className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0">
+                  <li
+                    key={index}
+                    className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-1.5 last:border-0"
+                  >
                     <span>{item.itemName}</span>
                     <span className="text-xs text-muted-foreground">
-                      {item.usableQuantity} usable · {item.damagedRepairQuantity} damaged/repair ·{' '}
+                      {item.usableQuantity} usable ·{' '}
+                      {item.damagedRepairQuantity} damaged/repair ·{' '}
                       {item.missingLostQuantity} missing/lost
                     </span>
                   </li>
@@ -397,18 +479,23 @@ export default async function EventJobDetailPage({
             <CardTitle>Issues</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!staffSession ? <form action={addIssueAction} className="flex flex-col gap-2 sm:flex-row">
-              <input type="hidden" name="jobId" value={job.id} />
-              <input
-                name="description"
-                required
-                placeholder="Describe an issue for this job…"
-                className="h-10 flex-1 rounded-lg border border-input bg-white px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-              />
-              <Button type="submit" size="sm">
-                Add issue
-              </Button>
-            </form> : null}
+            {!staffSession ? (
+              <form
+                action={addIssueAction}
+                className="flex flex-col gap-2 sm:flex-row"
+              >
+                <input type="hidden" name="jobId" value={job.id} />
+                <input
+                  name="description"
+                  required
+                  placeholder="Describe an issue for this job…"
+                  className="h-10 flex-1 rounded-lg border border-input bg-white px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                />
+                <Button type="submit" size="sm">
+                  Add issue
+                </Button>
+              </form>
+            ) : null}
             {job.issues.length ? (
               <ul className="space-y-2">
                 {job.issues.map((issue) => (
@@ -417,11 +504,18 @@ export default async function EventJobDetailPage({
                     className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-sm"
                   >
                     <div>
-                      <p className={issue.resolved ? 'text-muted-foreground line-through' : ''}>
+                      <p
+                        className={
+                          issue.resolved
+                            ? 'text-muted-foreground line-through'
+                            : ''
+                        }
+                      >
                         {issue.description}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Raised by {issue.raisedBy} · {friendlyDate(issue.raisedAt)}
+                        Raised by {issue.raisedBy} ·{' '}
+                        {friendlyDate(issue.raisedAt)}
                       </p>
                     </div>
                     {!issue.resolved && !staffSession ? (
@@ -433,7 +527,10 @@ export default async function EventJobDetailPage({
                         </Button>
                       </form>
                     ) : issue.resolved ? (
-                      <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                      <Badge
+                        variant="outline"
+                        className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                      >
                         Resolved
                       </Badge>
                     ) : null}
@@ -441,7 +538,9 @@ export default async function EventJobDetailPage({
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-muted-foreground">No issues raised for this job.</p>
+              <p className="text-sm text-muted-foreground">
+                No issues raised for this job.
+              </p>
             )}
           </CardContent>
         </Card>
@@ -453,14 +552,26 @@ export default async function EventJobDetailPage({
           <CardContent>
             <ul className="space-y-2 text-sm">
               {job.activity.map((entry) => (
-                <li key={entry.id} className="border-b border-border pb-2 last:border-0">
+                <li
+                  key={entry.id}
+                  className="border-b border-border pb-2 last:border-0"
+                >
                   <p>
                     <span className="font-medium">{entry.actor}</span>
-                    <span className="text-xs text-muted-foreground"> ({entry.department})</span> —{' '}
-                    {entry.action.replace(/_/g, ' ')}
+                    <span className="text-xs text-muted-foreground">
+                      {' '}
+                      ({entry.department})
+                    </span>{' '}
+                    — {entry.action.replace(/_/g, ' ')}
                   </p>
-                  {entry.details ? <p className="text-xs text-muted-foreground">{entry.details}</p> : null}
-                  <p className="text-xs text-muted-foreground">{friendlyDate(entry.at)}</p>
+                  {entry.details ? (
+                    <p className="text-xs text-muted-foreground">
+                      {entry.details}
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    {friendlyDate(entry.at)}
+                  </p>
                 </li>
               ))}
             </ul>

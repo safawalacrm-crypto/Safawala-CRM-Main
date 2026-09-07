@@ -36,6 +36,18 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
     (grant) => grant.department === 'warehouse',
   );
   if (isWarehouseStaff) redirect('/staff-portal/warehouse');
+  const isQcStaff = activeDepartments.some(
+    (grant) => grant.department === 'qc',
+  );
+  if (isQcStaff) redirect('/staff-portal/qc');
+  const isCollectionStaff = activeDepartments.some(
+    (grant) => grant.department === 'collection',
+  );
+  if (isCollectionStaff) redirect('/staff-portal/collection');
+  const isStylistStaff = activeDepartments.some(
+    (grant) => grant.department === 'stylist',
+  );
+  if (isStylistStaff) redirect('/staff-portal/stylist');
   const isBookingStaff =
     !session.isMainId &&
     activeDepartments.some((grant) => grant.department === 'booking');
