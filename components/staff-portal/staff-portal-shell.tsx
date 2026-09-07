@@ -76,11 +76,9 @@ function SidebarNavigation({
   const isBookingStaff =
     !isMainId &&
     departments.some((grant) => grant.active && grant.department === 'booking');
-  const isWarehouseStaff =
-    !isMainId &&
-    departments.some(
-      (grant) => grant.active && grant.department === 'warehouse',
-    );
+  const isWarehouseStaff = departments.some(
+    (grant) => grant.active && grant.department === 'warehouse',
+  );
   const seen = new Set<string>();
   const links = isBookingPortal
     ? [

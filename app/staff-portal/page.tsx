@@ -32,9 +32,9 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
   if (isBookingMainId) redirect('/staff-portal/booking');
   const params = await searchParams;
   const activeDepartments = session.departments.filter((grant) => grant.active);
-  const isWarehouseStaff =
-    !session.isMainId &&
-    activeDepartments.some((grant) => grant.department === 'warehouse');
+  const isWarehouseStaff = activeDepartments.some(
+    (grant) => grant.department === 'warehouse',
+  );
   if (isWarehouseStaff) redirect('/staff-portal/warehouse');
   const isBookingStaff =
     !session.isMainId &&
