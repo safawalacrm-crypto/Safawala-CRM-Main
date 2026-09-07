@@ -45,7 +45,7 @@ export default async function NewBookingPage() {
     supabase
       .from('package_categories')
       .select(
-        'id,name,package_variants(id,name,base_price,inclusions,extra_safa_price,security_deposit,image_url)',
+        'id,name,package_variants(id,name,base_price,inclusions,extra_safa_price,missing_safa_penalty,security_deposit)',
       )
       .eq('is_active', true)
       .order('name'),
@@ -69,8 +69,8 @@ export default async function NewBookingPage() {
             category_name: category.name,
             rental_price: Number(variant.base_price),
             extra_safa_price: Number(variant.extra_safa_price),
+            missing_safa_penalty: Number(variant.missing_safa_penalty),
             security_deposit: Number(variant.security_deposit),
-            image_url: variant.image_url,
             inclusions: variant.inclusions ?? [],
           })),
         )}
