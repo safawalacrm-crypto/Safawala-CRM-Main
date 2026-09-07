@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardContent } from '@/components/ui/card';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
@@ -23,8 +24,18 @@ type Props = {
 
 export default async function StaffPortalHomePage({ searchParams }: Props) {
   const session = await requireStaffSession();
+  const isBookingMainId =
+    session.isMainId &&
+    session.departments.some(
+      (grant) => grant.active && grant.department === 'booking',
+    );
+  if (isBookingMainId) redirect('/staff-portal/booking');
   const params = await searchParams;
   const activeDepartments = session.departments.filter((grant) => grant.active);
+  const isWarehouseStaff =
+    !session.isMainId &&
+    activeDepartments.some((grant) => grant.department === 'warehouse');
+  if (isWarehouseStaff) redirect('/staff-portal/warehouse');
   const isBookingStaff =
     !session.isMainId &&
     activeDepartments.some((grant) => grant.department === 'booking');
