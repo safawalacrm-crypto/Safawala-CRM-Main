@@ -108,6 +108,14 @@ const productFields =
   'id,sku,barcode,name,description,category,subcategory,size,color,material,cost_price,regular_price,sale_price,rental_price,security_deposit,stock_quantity,reorder_level,image_urls,is_active,created_at,updated_at,product_variants(id,name,size,color,material,stock_quantity,barcode)';
 const fieldClass =
   'mt-1.5 h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+const barcodePattern = /^[A-Za-z0-9_-]{1,50}$/;
+const barcodeCharacters = /[^A-Za-z0-9_-]/g;
+const barcodeMaxLength = 50;
+
+function cleanBarcode(value: string) {
+  return value.replace(barcodeCharacters, '').slice(0, barcodeMaxLength);
+}
+
 const steps: { id: Step; label: string; icon: React.ReactNode }[] = [
   { id: 'details', label: 'Product info', icon: <Boxes /> },
   { id: 'photos', label: 'Photos', icon: <ImageIcon /> },
@@ -353,7 +361,7 @@ export function InventoryDirectory({
 
       <DashboardHeader
         title="Inventory"
-        subtitle="Products, pricing, stock & 11-digit barcodes"
+        subtitle="Products, pricing, stock & existing printed barcodes"
         actions={
           <>
             <Button
@@ -509,7 +517,7 @@ export function InventoryDirectory({
         <div className="flex items-center justify-end px-5 py-2.5">
           <Badge variant="outline" className="bg-white">
             <Barcode />
-            11-digit barcode ready
+            Legacy barcode ready
           </Badge>
         </div>
       </div>
@@ -728,7 +736,7 @@ function ProductDialog({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const stepIndex = steps.findIndex((item) => item.id === step);
-  const barcodeValid = /^\d{11}$/.test(draft.barcode);
+  const barcodeValid = barcodePattern.test(draft.barcode);
   const set = (field: keyof Draft, value: string) =>
     setDraft((current) => ({ ...current, [field]: value }));
 
@@ -792,19 +800,21 @@ function ProductDialog({
     }
     if (!barcodeValid) {
       setStep('barcode');
-      setError('The main barcode must contain exactly 11 digits.');
+      setError(
+        'Enter the existing barcode using letters, numbers, hyphens or underscores.',
+      );
       return;
     }
     if (
       variants.some(
         (variant) =>
           variant.name.trim().length < 2 ||
-          (variant.barcode && !/^\d{11}$/.test(variant.barcode)),
+          (variant.barcode && !barcodePattern.test(variant.barcode)),
       )
     ) {
       setStep('variants');
       setError(
-        'Each variant needs a name, and any variant barcode must contain exactly 11 digits.',
+        'Each variant needs a name. Variant barcodes may contain letters, numbers, hyphens or underscores.',
       );
       return;
     }
@@ -1414,17 +1424,12 @@ function VariantsStep({
                   currency={false}
                 />
                 <Field
-                  label="11-digit barcode (optional)"
+                  label="Existing barcode (optional)"
                   value={variant.barcode}
                   onChange={(value) =>
-                    update(
-                      variant.key,
-                      'barcode',
-                      value.replace(/\D/g, '').slice(0, 11),
-                    )
+                    update(variant.key, 'barcode', cleanBarcode(value))
                   }
-                  inputMode="numeric"
-                  placeholder="00000000000"
+                  placeholder="Scan or enter the printed code"
                 />
               </div>
             </div>
@@ -1467,7 +1472,7 @@ function BarcodeStep({
       <StepHeading
         icon={<Barcode />}
         title="Stock & main barcode"
-        note="This 11-digit number is the permanent key for scanning, search and future bulk imports."
+        note="Use the barcode already printed and attached to this product. Its value will be preserved exactly."
       />
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_1.25fr]">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
@@ -1490,31 +1495,30 @@ function BarcodeStep({
           <label className="block">
             <span className="flex items-center justify-between text-sm font-semibold">
               <span>
-                Main 11-digit barcode <span className="text-red-600">*</span>
+                Main printed barcode <span className="text-red-600">*</span>
               </span>
               <span
                 className={valid ? 'text-emerald-700' : 'text-muted-foreground'}
               >
-                {draft.barcode.length}/11
+                {draft.barcode.length}/{barcodeMaxLength}
               </span>
             </span>
             <div className="relative mt-3">
               <Barcode className="absolute left-4 top-3.5 size-5 text-primary" />
               <input
                 required
-                inputMode="numeric"
-                pattern="[0-9]{11}"
-                minLength={11}
-                maxLength={11}
+                inputMode="text"
+                pattern="[A-Za-z0-9_-]{1,50}"
+                minLength={1}
+                maxLength={barcodeMaxLength}
+                autoComplete="off"
+                spellCheck={false}
                 value={draft.barcode}
                 onChange={(event) =>
-                  set(
-                    'barcode',
-                    event.target.value.replace(/\D/g, '').slice(0, 11),
-                  )
+                  set('barcode', cleanBarcode(event.target.value))
                 }
-                placeholder="00000000000"
-                className="h-12 w-full rounded-xl border border-input bg-white pl-12 pr-4 font-mono text-lg tracking-[0.16em] outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                placeholder="Scan or enter the printed code"
+                className="h-12 w-full rounded-xl border border-input bg-white pl-12 pr-4 font-mono text-lg tracking-[0.08em] outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
               />
             </div>
           </label>
@@ -1530,8 +1534,8 @@ function BarcodeStep({
             </span>
             <p className={valid ? 'text-emerald-800' : 'text-muted-foreground'}>
               {valid
-                ? 'Valid barcode. It will be unique inside your Safawala inventory.'
-                : 'Enter exactly 11 numbers. Letters, spaces and duplicate codes are not accepted.'}
+                ? 'Valid barcode. The printed value will be saved without being regenerated.'
+                : 'Use 1–50 letters, numbers, hyphens or underscores. Spaces and duplicate codes are not accepted.'}
             </p>
           </div>
         </div>
@@ -1539,10 +1543,9 @@ function BarcodeStep({
       <div className="mt-5 flex items-start gap-3 rounded-xl border border-[#e4d2b6] bg-accent/50 p-4">
         <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
         <p className="text-xs leading-5 text-muted-foreground">
-          <strong className="text-foreground">Future import ready.</strong> Your
-          inventory spreadsheet can use this same barcode as its primary
-          matching field, so thousands of existing products can be validated and
-          added consistently.
+          <strong className="text-foreground">Legacy import ready.</strong> The
+          migration will match each existing barcode to its original product,
+          variation, images and individually tracked physical units.
         </p>
       </div>
     </section>

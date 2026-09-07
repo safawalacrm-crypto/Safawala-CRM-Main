@@ -41,4 +41,5 @@ next-env.d.ts
 /tmp/
 /work/
 /supabase/.temp/
+/migration/legacy-inventory/images/
 *.tsbuildinfo

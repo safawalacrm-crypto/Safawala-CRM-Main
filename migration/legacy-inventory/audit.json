@@ -1,0 +1,13 @@
+{
+  "sourceProducts": 2303,
+  "duplicateProductGroupsMerged": 76,
+  "preparedLegacyProducts": 2227,
+  "retailProducts": 89,
+  "totalDestinationProducts": 2316,
+  "productsWithoutMainBarcode": 387,
+  "variants": 27,
+  "individuallyBarcodedUnits": 949,
+  "categories": 25,
+  "archivedRecordsPreserved": 52,
+  "uniqueImagesToDownload": 1992
+}

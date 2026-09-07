@@ -17,7 +17,10 @@ import { staffLogoutAction } from '@/lib/staff-portal/logout-action';
 import { DEPARTMENT_META } from '@/lib/staff-portal/constants';
 import type { StaffDepartmentGrant } from '@/lib/staff-portal/types';
 import type { StaffModule } from '@/lib/staff-portal/modules';
-import { ACCESS_MODULE_META, type AccessModule } from '@/lib/staff-portal/access-modules';
+import {
+  ACCESS_MODULE_META,
+  type AccessModule,
+} from '@/lib/staff-portal/access-modules';
 import { STAFF_MODULE_META } from '@/lib/staff-portal/modules';
 import {
   Bell,
@@ -38,7 +41,17 @@ import {
   Wrench,
 } from 'lucide-react';
 
-function SidebarNavigation({ modules, permissions }: { modules: AccessModule[]; permissions: StaffModule[] }) {
+function SidebarNavigation({
+  modules,
+  permissions,
+  departments,
+  isMainId,
+}: {
+  modules: AccessModule[];
+  permissions: StaffModule[];
+  departments: StaffDepartmentGrant[];
+  isMainId: boolean;
+}) {
   const pathname = usePathname();
   const moduleIcons: Partial<Record<AccessModule, typeof LayoutDashboard>> = {
     dashboard: LayoutDashboard,
@@ -56,35 +69,71 @@ function SidebarNavigation({ modules, permissions }: { modules: AccessModule[]; 
     packages: PackageCheck,
     ledger: IndianRupee,
   };
+  const isBookingPortal =
+    isMainId &&
+    departments.some((grant) => grant.active && grant.department === 'booking');
   const seen = new Set<string>();
-  const links = [
-    { href: '/staff-portal', label: 'Home', icon: LayoutDashboard },
-    ...modules.flatMap((module) => {
-      const meta = ACCESS_MODULE_META[module];
-      if (!meta.href || seen.has(meta.href)) return [];
-      seen.add(meta.href);
-      return [{ href: meta.href, label: meta.label, icon: moduleIcons[module] ?? LayoutDashboard }];
-    }),
-    ...permissions.flatMap((permission) => {
-      const meta = STAFF_MODULE_META[permission];
-      if (!meta.href || seen.has(meta.href)) return [];
-      seen.add(meta.href);
-      const permissionIcons: Partial<Record<StaffModule, typeof LayoutDashboard>> = {
-        warehouse_tasks: Boxes,
-        qc_tasks: PackageCheck,
-        event_jobs: ClipboardList,
-        event_tracking: ClipboardList,
-        calendar: CalendarDays,
-        my_tasks: ClipboardList,
-        attendance: CalendarDays,
-        performance: CircleGauge,
-        leave_management: CalendarDays,
-        collection_tasks: PackageCheck,
-        modification_tasks: Wrench,
-      };
-      return [{ href: meta.href, label: meta.label, icon: permissionIcons[permission] ?? LayoutDashboard }];
-    }),
-  ];
+  const links = isBookingPortal
+    ? [
+        {
+          href: '/staff-portal/booking',
+          label: 'Dashboard',
+          icon: LayoutDashboard,
+        },
+        { href: '/bookings', label: 'All Bookings', icon: ReceiptText },
+        { href: '/customers', label: 'Customers', icon: UsersRound },
+        { href: '/event-jobs', label: 'Event Jobs', icon: ClipboardList },
+        {
+          href: '/staff-portal/event-tracking',
+          label: 'Event Tracking',
+          icon: ClipboardList,
+        },
+        { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
+        { href: '/quotes', label: 'Quotes', icon: ClipboardList },
+        { href: '/modifications', label: 'Modifications', icon: Wrench },
+      ]
+    : [
+        { href: '/staff-portal', label: 'Home', icon: LayoutDashboard },
+        ...modules.flatMap((module) => {
+          const meta = ACCESS_MODULE_META[module];
+          if (!meta.href || seen.has(meta.href)) return [];
+          seen.add(meta.href);
+          return [
+            {
+              href: meta.href,
+              label: meta.label,
+              icon: moduleIcons[module] ?? LayoutDashboard,
+            },
+          ];
+        }),
+        ...permissions.flatMap((permission) => {
+          const meta = STAFF_MODULE_META[permission];
+          if (!meta.href || seen.has(meta.href)) return [];
+          seen.add(meta.href);
+          const permissionIcons: Partial<
+            Record<StaffModule, typeof LayoutDashboard>
+          > = {
+            warehouse_tasks: Boxes,
+            qc_tasks: PackageCheck,
+            event_jobs: ClipboardList,
+            event_tracking: ClipboardList,
+            calendar: CalendarDays,
+            my_tasks: ClipboardList,
+            attendance: CalendarDays,
+            performance: CircleGauge,
+            leave_management: CalendarDays,
+            collection_tasks: PackageCheck,
+            modification_tasks: Wrench,
+          };
+          return [
+            {
+              href: meta.href,
+              label: meta.label,
+              icon: permissionIcons[permission] ?? LayoutDashboard,
+            },
+          ];
+        }),
+      ];
   return (
     <nav aria-label="Primary navigation" className="mt-8 space-y-1">
       {links.map(({ href, label, icon: Icon }) => {
@@ -114,7 +163,13 @@ function SidebarNavigation({ modules, permissions }: { modules: AccessModule[]; 
   );
 }
 
-function AccountPanel({ name, departments }: { name: string; departments: StaffDepartmentGrant[] }) {
+function AccountPanel({
+  name,
+  departments,
+}: {
+  name: string;
+  departments: StaffDepartmentGrant[];
+}) {
   const [open, setOpen] = useState(false);
   const initials = name.slice(0, 2).toUpperCase();
   const activeLabels = departments
@@ -136,9 +191,13 @@ function AccountPanel({ name, departments }: { name: string; departments: StaffD
           {initials}
         </span>
         <span className="min-w-0 flex-1">
-          <strong className="block truncate text-xs font-semibold">{name}</strong>
+          <strong className="block truncate text-xs font-semibold">
+            {name}
+          </strong>
           <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">
-            {activeLabels.length ? activeLabels.join(', ') : 'No department access'}
+            {activeLabels.length
+              ? activeLabels.join(', ')
+              : 'No department access'}
           </span>
         </span>
         <ChevronUp
@@ -174,6 +233,7 @@ export function StaffPortalShell({
   notificationCount = 0,
   accessModules,
   permissions = [],
+  isMainId = false,
 }: {
   name: string;
   departments: StaffDepartmentGrant[];
@@ -190,11 +250,18 @@ export function StaffPortalShell({
         <BrandMark className="px-2" />
         <BrandDivider />
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <SidebarNavigation modules={effectiveModules} permissions={permissions} />
+          <SidebarNavigation
+            modules={effectiveModules}
+            permissions={permissions}
+            departments={departments}
+            isMainId={isMainId}
+          />
         </div>
         <div className="mt-4">
           <AccountPanel name={name} departments={departments} />
-          <p className="mt-3 text-center text-[10px] text-muted-foreground">Safawala Staff Portal</p>
+          <p className="mt-3 text-center text-[10px] text-muted-foreground">
+            Safawala Staff Portal
+          </p>
         </div>
       </aside>
 
@@ -208,15 +275,25 @@ export function StaffPortalShell({
               >
                 <PanelLeftOpen aria-hidden="true" className="size-5" />
               </SheetTrigger>
-              <SheetContent side="left" className="flex w-72 flex-col border-border bg-white px-4 py-6">
+              <SheetContent
+                side="left"
+                className="flex w-72 flex-col border-border bg-white px-4 py-6"
+              >
                 <SheetHeader className="sr-only">
                   <SheetTitle>Navigation</SheetTitle>
-                  <SheetDescription>Safawala Staff Portal navigation</SheetDescription>
+                  <SheetDescription>
+                    Safawala Staff Portal navigation
+                  </SheetDescription>
                 </SheetHeader>
                 <BrandMark className="px-2" />
                 <BrandDivider />
                 <div className="min-h-0 flex-1 overflow-y-auto">
-                  <SidebarNavigation modules={effectiveModules} permissions={permissions} />
+                  <SidebarNavigation
+                    modules={effectiveModules}
+                    permissions={permissions}
+                    departments={departments}
+                    isMainId={isMainId}
+                  />
                 </div>
                 <div className="mt-4">
                   <AccountPanel name={name} departments={departments} />
@@ -241,7 +318,9 @@ export function StaffPortalShell({
             </Link>
           </div>
         </header>
-        <main className="min-w-0 bg-surface px-4 py-5 sm:px-6 sm:py-7 lg:px-8">{children}</main>
+        <main className="min-w-0 bg-surface px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
+          {children}
+        </main>
       </div>
     </div>
   );
