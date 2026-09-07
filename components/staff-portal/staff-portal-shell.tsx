@@ -27,6 +27,7 @@ import {
   Boxes,
   CalendarDays,
   ChevronUp,
+  CircleCheckBig,
   CircleGauge,
   IndianRupee,
   ClipboardList,
@@ -72,6 +73,9 @@ function SidebarNavigation({
   const isBookingPortal =
     isMainId &&
     departments.some((grant) => grant.active && grant.department === 'booking');
+  const isBookingStaff =
+    !isMainId &&
+    departments.some((grant) => grant.active && grant.department === 'booking');
   const seen = new Set<string>();
   const links = isBookingPortal
     ? [
@@ -81,59 +85,69 @@ function SidebarNavigation({
           icon: LayoutDashboard,
         },
         { href: '/bookings', label: 'All Bookings', icon: ReceiptText },
-        { href: '/customers', label: 'Customers', icon: UsersRound },
-        { href: '/event-jobs', label: 'Event Jobs', icon: ClipboardList },
+        { href: '/quotes', label: 'Quotes', icon: ClipboardList },
+        { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
         {
           href: '/staff-portal/event-tracking',
           label: 'Event Tracking',
           icon: ClipboardList,
         },
-        { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
-        { href: '/quotes', label: 'Quotes', icon: ClipboardList },
+        {
+          href: '/staff-portal/booking/close-jobs',
+          label: 'Close Jobs',
+          icon: CircleCheckBig,
+        },
         { href: '/modifications', label: 'Modifications', icon: Wrench },
+        { href: '/customers', label: 'Customers', icon: UsersRound },
       ]
-    : [
-        { href: '/staff-portal', label: 'Home', icon: LayoutDashboard },
-        ...modules.flatMap((module) => {
-          const meta = ACCESS_MODULE_META[module];
-          if (!meta.href || seen.has(meta.href)) return [];
-          seen.add(meta.href);
-          return [
-            {
-              href: meta.href,
-              label: meta.label,
-              icon: moduleIcons[module] ?? LayoutDashboard,
-            },
-          ];
-        }),
-        ...permissions.flatMap((permission) => {
-          const meta = STAFF_MODULE_META[permission];
-          if (!meta.href || seen.has(meta.href)) return [];
-          seen.add(meta.href);
-          const permissionIcons: Partial<
-            Record<StaffModule, typeof LayoutDashboard>
-          > = {
-            warehouse_tasks: Boxes,
-            qc_tasks: PackageCheck,
-            event_jobs: ClipboardList,
-            event_tracking: ClipboardList,
-            calendar: CalendarDays,
-            my_tasks: ClipboardList,
-            attendance: CalendarDays,
-            performance: CircleGauge,
-            leave_management: CalendarDays,
-            collection_tasks: PackageCheck,
-            modification_tasks: Wrench,
-          };
-          return [
-            {
-              href: meta.href,
-              label: meta.label,
-              icon: permissionIcons[permission] ?? LayoutDashboard,
-            },
-          ];
-        }),
-      ];
+    : isBookingStaff
+      ? [
+          { href: '/staff-portal', label: 'Dashboard', icon: LayoutDashboard },
+          { href: '/bookings/new', label: 'Create booking', icon: Plus },
+          { href: '/quotes', label: 'Quotes', icon: ClipboardList },
+        ]
+      : [
+          { href: '/staff-portal', label: 'Home', icon: LayoutDashboard },
+          ...modules.flatMap((module) => {
+            const meta = ACCESS_MODULE_META[module];
+            if (!meta.href || seen.has(meta.href)) return [];
+            seen.add(meta.href);
+            return [
+              {
+                href: meta.href,
+                label: meta.label,
+                icon: moduleIcons[module] ?? LayoutDashboard,
+              },
+            ];
+          }),
+          ...permissions.flatMap((permission) => {
+            const meta = STAFF_MODULE_META[permission];
+            if (!meta.href || seen.has(meta.href)) return [];
+            seen.add(meta.href);
+            const permissionIcons: Partial<
+              Record<StaffModule, typeof LayoutDashboard>
+            > = {
+              warehouse_tasks: Boxes,
+              qc_tasks: PackageCheck,
+              event_jobs: ClipboardList,
+              event_tracking: ClipboardList,
+              calendar: CalendarDays,
+              my_tasks: ClipboardList,
+              attendance: CalendarDays,
+              performance: CircleGauge,
+              leave_management: CalendarDays,
+              collection_tasks: PackageCheck,
+              modification_tasks: Wrench,
+            };
+            return [
+              {
+                href: meta.href,
+                label: meta.label,
+                icon: permissionIcons[permission] ?? LayoutDashboard,
+              },
+            ];
+          }),
+        ];
   return (
     <nav aria-label="Primary navigation" className="mt-8 space-y-1">
       {links.map(({ href, label, icon: Icon }) => {

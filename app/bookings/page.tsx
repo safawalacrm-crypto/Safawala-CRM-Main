@@ -178,18 +178,15 @@ export default async function BookingsPage({ searchParams }: Props) {
               />
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1260px] text-left text-sm">
+                <table className="w-full min-w-[1040px] text-left text-sm">
                   <thead className="border-b bg-white text-xs text-muted-foreground">
                     <tr>
                       {[
                         'Booking',
                         'Customer',
                         'Event',
-                        'Type',
                         'Status',
                         'Payment',
-                        'Total',
-                        'Balance',
                         'Actions',
                       ].map((h) => (
                         <th key={h} className="px-5 py-3 font-medium">
@@ -212,6 +209,10 @@ export default async function BookingsPage({ searchParams }: Props) {
                             {booking.booking_number}
                           </Link>
                           <p className="mt-1 text-xs text-muted-foreground">
+                            <span className="capitalize">
+                              {booking.booking_type}
+                            </span>
+                            {' · '}
                             {friendlyDate(booking.created_at.slice(0, 10))}
                           </p>
                         </td>
@@ -228,9 +229,6 @@ export default async function BookingsPage({ searchParams }: Props) {
                             {friendlyDate(booking.event_date)}
                           </p>
                         </td>
-                        <td className="px-5 py-4 capitalize">
-                          {booking.booking_type}
-                        </td>
                         <td className="px-5 py-4">
                           <Badge
                             variant="outline"
@@ -246,12 +244,12 @@ export default async function BookingsPage({ searchParams }: Props) {
                           >
                             {statusLabel(booking.payment_status)}
                           </Badge>
-                        </td>
-                        <td className="px-5 py-4 font-semibold">
-                          {money(booking.total)}
-                        </td>
-                        <td className="px-5 py-4 text-muted-foreground">
-                          {money(booking.balance_amount)}
+                          <p className="mt-1 text-xs font-medium text-foreground">
+                            Total {money(booking.total)}
+                          </p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            Balance {money(booking.balance_amount)}
+                          </p>
                         </td>
                         <td className="px-5 py-4">
                           <div className="flex justify-end gap-2">
@@ -267,7 +265,7 @@ export default async function BookingsPage({ searchParams }: Props) {
                               title="Preview booking"
                             >
                               <Eye />
-                              <span className="hidden 2xl:inline">Preview</span>
+                              <span>Open</span>
                             </Button>
                             <Button
                               variant="outline"
@@ -281,7 +279,7 @@ export default async function BookingsPage({ searchParams }: Props) {
                               title="Edit booking"
                             >
                               <Pencil />
-                              <span className="hidden 2xl:inline">Edit</span>
+                              <span>Edit</span>
                             </Button>
                             <BookingPdfButton booking={booking} />
                           </div>

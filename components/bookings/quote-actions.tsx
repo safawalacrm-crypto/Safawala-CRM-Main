@@ -7,6 +7,7 @@ import { ArrowRight, CircleCheck, CircleX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { createClient } from '@/lib/supabase/client';
 import type { QuoteState } from '@/lib/bookings';
+import { convertQuoteToBookingAction } from '@/app/bookings/event-job-actions';
 
 function StatusIcon({
   icon: Icon,
@@ -62,16 +63,13 @@ export function QuoteActions({
     if (busy) return;
     setBusy('accept');
     setError('');
-    const { data, error: rpcError } = await createClient().rpc(
-      'convert_quote_to_booking',
-      { quote_key: bookingId },
-    );
+    const result = await convertQuoteToBookingAction(bookingId);
     setBusy(null);
-    if (rpcError) {
-      setError(rpcError.message);
+    if (result.error) {
+      setError(result.error);
       return;
     }
-    const convertedId = Number((data as { id?: number } | null)?.id);
+    const convertedId = Number(result.id);
     if (Number.isFinite(convertedId)) router.push(`/bookings/${convertedId}`);
     else router.refresh();
   }

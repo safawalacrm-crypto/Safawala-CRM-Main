@@ -221,7 +221,8 @@ export function BookingEditForm({
           booking.booking_type === 'rental' ? text('contact_name') : '',
         alternate_mobile:
           booking.booking_type === 'rental' ? text('alternate_mobile') : '',
-        pickup_date: booking.booking_type === 'rental' ? text('pickup_date') : '',
+        pickup_date:
+          booking.booking_type === 'rental' ? text('pickup_date') : '',
         due_date: booking.booking_type === 'rental' ? text('due_date') : '',
         notes: text('notes'),
         items: items.map(({ key: _key, ...item }) => item),
@@ -277,7 +278,6 @@ export function BookingEditForm({
     router.push(
       isQuote ? `/quotes?updated=${documentNumber}` : `/bookings/${booking.id}`,
     );
-    router.refresh();
   }
 
   return (
@@ -470,7 +470,9 @@ export function BookingEditForm({
                           </span>
                         </span>
                         <strong className="shrink-0 text-sm text-foreground">
-                          {money(isSale ? product.sale_price : product.rental_price)}
+                          {money(
+                            isSale ? product.sale_price : product.rental_price,
+                          )}
                         </strong>
                       </button>
                     ))}
@@ -600,7 +602,9 @@ export function BookingEditForm({
                                 size="icon"
                                 onClick={() =>
                                   setItems((current) =>
-                                    current.filter((row) => row.key !== item.key),
+                                    current.filter(
+                                      (row) => row.key !== item.key,
+                                    ),
                                   )
                                 }
                                 aria-label={`Remove ${item.item_name || 'item'}`}
@@ -698,7 +702,11 @@ export function BookingEditForm({
           </Alert>
         ) : null}
         <div className="flex justify-end gap-2 rounded-xl border bg-white p-4 shadow-level-1">
-          <Button type="button" variant="outline" render={<Link href={backHref} />}>
+          <Button
+            type="button"
+            variant="outline"
+            render={<Link href={backHref} />}
+          >
             Cancel
           </Button>
           <Button type="submit" disabled={busy}>

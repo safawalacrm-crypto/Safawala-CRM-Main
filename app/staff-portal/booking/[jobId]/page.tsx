@@ -46,10 +46,10 @@ export default async function BookingJobDetailPage({ params }: { params: Promise
       <div className="mx-auto max-w-[900px] space-y-6">
         <div>
           <Link
-            href="/staff-portal/booking"
+            href="/staff-portal/booking/close-jobs"
             className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeft className="size-4" /> Back to Booking
+            <ArrowLeft className="size-4" /> Back to Close Jobs
           </Link>
         </div>
         <DashboardHeader title={job.id} subtitle={`${job.eventSummary.eventName} · ${job.bookingNumber}`} />

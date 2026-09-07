@@ -35,17 +35,26 @@ import type {
 } from './types';
 
 function normalizeJob(job: EventJob): EventJob {
-  const bookingType = job.bookingType ?? (job.bookingNumber.includes('-S-') ? 'sale' : 'rental');
+  const bookingType =
+    job.bookingType ?? (job.bookingNumber.includes('-S-') ? 'sale' : 'rental');
   return {
     ...job,
     bookingType,
     stylistsRequired: bookingType === 'rental' ? job.stylistsRequired : false,
-    stylistsRequiredCount: bookingType === 'rental' ? job.stylistsRequiredCount : 0,
-    stages: bookingType === 'sale'
-      ? job.stages.map((stage) => stage.key === 'stylist_opportunity' && stage.status !== 'done'
-        ? { ...stage, status: 'done', completedBy: 'Not applicable — sale booking' }
-        : stage)
-      : job.stages,
+    stylistsRequiredCount:
+      bookingType === 'rental' ? job.stylistsRequiredCount : 0,
+    stages:
+      bookingType === 'sale'
+        ? job.stages.map((stage) =>
+            stage.key === 'stylist_opportunity' && stage.status !== 'done'
+              ? {
+                  ...stage,
+                  status: 'done',
+                  completedBy: 'Not applicable — sale booking',
+                }
+              : stage,
+          )
+        : job.stages,
     travelPlans: (job.travelPlans ?? []).map((plan) => ({
       ...plan,
       ticketConfirmedAt: plan.ticketConfirmedAt ?? null,
@@ -56,12 +65,18 @@ function normalizeJob(job: EventJob): EventJob {
     returnQualityCheck: job.returnQualityCheck ?? null,
     returnWarehouseCheck: job.returnWarehouseCheck ?? null,
     packingChecklist: job.packingChecklist
-      ? { ...job.packingChecklist, proofPhotoPaths: job.packingChecklist.proofPhotoPaths ?? [] }
+      ? {
+          ...job.packingChecklist,
+          proofPhotoPaths: job.packingChecklist.proofPhotoPaths ?? [],
+        }
       : null,
     paymentSummary: job.paymentSummary ?? null,
     bookingFinalCheck: job.bookingFinalCheck ?? null,
     performanceCredited: job.performanceCredited ?? false,
-    activity: (job.activity ?? []).map((entry) => ({ ...entry, department: entry.department ?? 'system' })),
+    activity: (job.activity ?? []).map((entry) => ({
+      ...entry,
+      department: entry.department ?? 'system',
+    })),
   };
 }
 
@@ -84,20 +99,34 @@ async function readAllForStylistWorkflow(jobId?: string): Promise<EventJob[]> {
   const jobQuery = admin.from('event_jobs').select('state');
   const interestQuery = admin
     .from('event_job_stylist_interest')
-    .select('id,event_job_id,staff_id,status,expressed_at,decided_at,decided_by');
-  const [{ data: jobRows, error: jobError }, { data: interestRows, error: interestError }] = await Promise.all([
-    jobId ? jobQuery.eq('id', jobId) : jobQuery.order('created_at', { ascending: false }),
+    .select(
+      'id,event_job_id,staff_id,status,expressed_at,decided_at,decided_by',
+    );
+  const [
+    { data: jobRows, error: jobError },
+    { data: interestRows, error: interestError },
+  ] = await Promise.all([
+    jobId
+      ? jobQuery.eq('id', jobId)
+      : jobQuery.order('created_at', { ascending: false }),
     jobId ? interestQuery.eq('event_job_id', jobId) : interestQuery,
   ]);
   if (jobError) throw new Error(jobError.message);
   if (interestError) throw new Error(interestError.message);
 
-  const staffIds = [...new Set((interestRows ?? []).map((row) => Number(row.staff_id)))];
+  const staffIds = [
+    ...new Set((interestRows ?? []).map((row) => Number(row.staff_id))),
+  ];
   const { data: staffRows, error: staffError } = staffIds.length
-    ? await admin.from('staff_members').select('id,user_id,name').in('id', staffIds)
+    ? await admin
+        .from('staff_members')
+        .select('id,user_id,name')
+        .in('id', staffIds)
     : { data: [], error: null };
   if (staffError) throw new Error(staffError.message);
-  const staffById = new Map((staffRows ?? []).map((row) => [Number(row.id), row]));
+  const staffById = new Map(
+    (staffRows ?? []).map((row) => [Number(row.id), row]),
+  );
   const interestsByJob = new Map<string, StylistInterest[]>();
   for (const row of interestRows ?? []) {
     const staff = staffById.get(Number(row.staff_id));
@@ -118,140 +147,191 @@ async function readAllForStylistWorkflow(jobId?: string): Promise<EventJob[]> {
   return (jobRows ?? [])
     .map((row) => row.state as EventJob)
     .filter((job) => Boolean(job?.id && Array.isArray(job.stages)))
-    .map((job) => normalizeJob({ ...job, stylistInterests: interestsByJob.get(job.id) ?? job.stylistInterests ?? [] }));
+    .map((job) =>
+      normalizeJob({
+        ...job,
+        stylistInterests:
+          interestsByJob.get(job.id) ?? job.stylistInterests ?? [],
+      }),
+    );
 }
 
 async function writeAll(jobs: EventJob[]) {
   if (!jobs.length) return;
   const admin = createAdminClient();
   const bookingIds = [...new Set(jobs.map((job) => job.bookingId))];
-  const { data: bookings, error: bookingError } = await admin.from('bookings').select('id,owner_id').in('id', bookingIds);
+  const { data: bookings, error: bookingError } = await admin
+    .from('bookings')
+    .select('id,owner_id')
+    .in('id', bookingIds);
   if (bookingError) throw new Error(bookingError.message);
-  const owners = new Map((bookings ?? []).map((booking) => [Number(booking.id), String(booking.owner_id)]));
+  const owners = new Map(
+    (bookings ?? []).map((booking) => [
+      Number(booking.id),
+      String(booking.owner_id),
+    ]),
+  );
   const rows = jobs.flatMap((job) => {
     const ownerId = owners.get(job.bookingId);
     if (!ownerId) return [];
-    return [{
-      id: job.id,
-      booking_id: job.bookingId,
-      owner_id: ownerId,
-      job_number: job.id,
-      status: job.status,
-      stylists_required_count: job.stylistsRequiredCount,
-      payment_summary: job.paymentSummary,
-      booking_final_check: job.bookingFinalCheck,
-      performance_credited: job.performanceCredited,
-      state: job,
-      created_at: job.createdAt,
-      updated_at: job.updatedAt,
-      closed_at: job.closedAt,
-    }];
+    return [
+      {
+        id: job.id,
+        booking_id: job.bookingId,
+        owner_id: ownerId,
+        job_number: job.id,
+        status: job.status,
+        stylists_required_count: job.stylistsRequiredCount,
+        payment_summary: job.paymentSummary,
+        booking_final_check: job.bookingFinalCheck,
+        performance_credited: job.performanceCredited,
+        state: job,
+        created_at: job.createdAt,
+        updated_at: job.updatedAt,
+        closed_at: job.closedAt,
+      },
+    ];
   });
-  const { error } = await admin.from('event_jobs').upsert(rows, { onConflict: 'booking_id' });
+  const { error } = await admin
+    .from('event_jobs')
+    .upsert(rows, { onConflict: 'booking_id' });
   if (error) throw new Error(error.message);
 
-  const stageRows = jobs.flatMap((job) => job.stages.map((stage) => ({
-    event_job_id: job.id,
-    stage: stage.key,
-    status: stage.status,
-    assigned_staff_id: stage.assignedStaffId ? Number(stage.assignedStaffId) || null : null,
-    opened_at: stage.openedAt,
-    completed_at: stage.completedAt,
-    notes: { text: stage.notes, completed_by_name: stage.completedBy },
-  })));
-  const { error: stageError } = await admin.from('event_job_stages').upsert(stageRows, { onConflict: 'event_job_id,stage' });
+  const stageRows = jobs.flatMap((job) =>
+    job.stages.map((stage) => ({
+      event_job_id: job.id,
+      stage: stage.key,
+      status: stage.status,
+      assigned_staff_id: stage.assignedStaffId
+        ? Number(stage.assignedStaffId) || null
+        : null,
+      opened_at: stage.openedAt,
+      completed_at: stage.completedAt,
+      notes: { text: stage.notes, completed_by_name: stage.completedBy },
+    })),
+  );
+  const { error: stageError } = await admin
+    .from('event_job_stages')
+    .upsert(stageRows, { onConflict: 'event_job_id,stage' });
   if (stageError) throw new Error(stageError.message);
 
   const { data: persistedStages, error: persistedStageError } = await admin
     .from('event_job_stages')
     .select('id,event_job_id,stage')
-    .in('event_job_id', jobs.map((job) => job.id));
+    .in(
+      'event_job_id',
+      jobs.map((job) => job.id),
+    );
   if (persistedStageError) throw new Error(persistedStageError.message);
   const stageIds = new Map(
-    (persistedStages ?? []).map((stage) => [`${stage.event_job_id}:${stage.stage}`, String(stage.id)]),
+    (persistedStages ?? []).map((stage) => [
+      `${stage.event_job_id}:${stage.stage}`,
+      String(stage.id),
+    ]),
   );
 
   const qcRows = jobs.flatMap((job) => {
     const qualityStageId = stageIds.get(`${job.id}:quality_check`);
     const returnStageId = stageIds.get(`${job.id}:return_quality_check`);
-    const outbound = qualityStageId && job.qualityCheck
-      ? job.qualityCheck.items.map((item) => ({
-          event_job_stage_id: qualityStageId,
-          item_name: item.itemName,
-          checked_quantity: item.checkedQuantity,
-          good_quantity: item.goodQuantity,
-          issue_type: item.issueType,
-          remarks: item.remarks,
-          evidence_photo_url: item.evidenceNote || null,
-        }))
-      : [];
-    const returned = returnStageId && job.returnQualityCheck
-      ? job.returnQualityCheck.items.map((item) => ({
-          event_job_stage_id: returnStageId,
-          item_name: item.itemName,
-          checked_quantity: item.returnedQuantity,
-          good_quantity: item.goodQuantity,
-          damaged_quantity: item.damagedQuantity,
-          repair_required_quantity: item.repairRequired ? item.damagedQuantity : 0,
-          unusable_quantity: item.unusable ? item.damagedQuantity : 0,
-          remarks: item.remarks,
-          evidence_photo_url: item.evidenceNote || null,
-        }))
-      : [];
+    const outbound =
+      qualityStageId && job.qualityCheck
+        ? job.qualityCheck.items.map((item) => ({
+            event_job_stage_id: qualityStageId,
+            item_name: item.itemName,
+            checked_quantity: item.checkedQuantity,
+            good_quantity: item.goodQuantity,
+            issue_type: item.issueType,
+            remarks: item.remarks,
+            evidence_photo_url: item.evidenceNote || null,
+          }))
+        : [];
+    const returned =
+      returnStageId && job.returnQualityCheck
+        ? job.returnQualityCheck.items.map((item) => ({
+            event_job_stage_id: returnStageId,
+            item_name: item.itemName,
+            checked_quantity: item.returnedQuantity,
+            good_quantity: item.goodQuantity,
+            damaged_quantity: item.damagedQuantity,
+            repair_required_quantity: item.repairRequired
+              ? item.damagedQuantity
+              : 0,
+            unusable_quantity: item.unusable ? item.damagedQuantity : 0,
+            remarks: item.remarks,
+            evidence_photo_url: item.evidenceNote || null,
+          }))
+        : [];
     return [...outbound, ...returned];
   });
   const packingRows = jobs.flatMap((job) => {
     const packingStageId = stageIds.get(`${job.id}:packing`);
     if (!packingStageId || !job.packingChecklist) return [];
     const checklist = job.packingChecklist;
-    return [{
-      event_job_stage_id: packingStageId,
-      correct_quantity_packed: checklist.correctQuantityPacked,
-      correct_boxes: checklist.correctBoxes,
-      proper_labels: checklist.properLabels,
-      accessories_included: checklist.accessoriesIncluded,
-      items_secured: checklist.itemsSecured,
-      correct_event_identification: checklist.correctEventIdentification,
-      remarks: checklist.remarks,
-      proof_photo_url: checklist.proofPhotoPaths[0] ?? null,
-    }];
+    return [
+      {
+        event_job_stage_id: packingStageId,
+        correct_quantity_packed: checklist.correctQuantityPacked,
+        correct_boxes: checklist.correctBoxes,
+        proper_labels: checklist.properLabels,
+        accessories_included: checklist.accessoriesIncluded,
+        items_secured: checklist.itemsSecured,
+        correct_event_identification: checklist.correctEventIdentification,
+        remarks: checklist.remarks,
+        proof_photo_url: checklist.proofPhotoPaths[0] ?? null,
+      },
+    ];
   });
-  const activityRows = jobs.flatMap((job) => job.activity.map((entry) => ({
-    id: entry.id,
-    event_job_id: job.id,
-    actor: entry.actor,
-    department: entry.department,
-    action: entry.action,
-    details: entry.details ?? null,
-    created_at: entry.at,
-  })));
-  const issueRows = jobs.flatMap((job) => job.issues.map((issue) => ({
-    id: issue.id,
-    event_job_id: job.id,
-    stage: issue.stage,
-    description: issue.description,
-    raised_by_name: issue.raisedBy,
-    raised_at: issue.raisedAt,
-    resolved_at: issue.resolvedAt,
-  })));
+  const activityRows = jobs.flatMap((job) =>
+    job.activity.map((entry) => ({
+      id: entry.id,
+      event_job_id: job.id,
+      actor: entry.actor,
+      department: entry.department,
+      action: entry.action,
+      details: entry.details ?? null,
+      created_at: entry.at,
+    })),
+  );
+  const issueRows = jobs.flatMap((job) =>
+    job.issues.map((issue) => ({
+      id: issue.id,
+      event_job_id: job.id,
+      stage: issue.stage,
+      description: issue.description,
+      raised_by_name: issue.raisedBy,
+      raised_at: issue.raisedAt,
+      resolved_at: issue.resolvedAt,
+    })),
+  );
   // These normalized child tables are independent after their stage IDs exist.
   // Persist them together so a workflow click pays for one database round-trip
   // window instead of waiting for each historical projection sequentially.
-  const [qcResult, packingResult, activityResult, issueResult] = await Promise.all([
-    qcRows.length
-      ? admin.from('event_job_qc_items').upsert(qcRows, { onConflict: 'event_job_stage_id,item_name' })
-      : Promise.resolve({ error: null }),
-    packingRows.length
-      ? admin.from('event_job_packing_checklist').upsert(packingRows, { onConflict: 'event_job_stage_id' })
-      : Promise.resolve({ error: null }),
-    activityRows.length
-      ? admin.from('event_job_activity').upsert(activityRows, { onConflict: 'id' })
-      : Promise.resolve({ error: null }),
-    issueRows.length
-      ? admin.from('event_job_issues').upsert(issueRows, { onConflict: 'id' })
-      : Promise.resolve({ error: null }),
-  ]);
-  const projectionError = qcResult.error ?? packingResult.error ?? activityResult.error ?? issueResult.error;
+  const [qcResult, packingResult, activityResult, issueResult] =
+    await Promise.all([
+      qcRows.length
+        ? admin
+            .from('event_job_qc_items')
+            .upsert(qcRows, { onConflict: 'event_job_stage_id,item_name' })
+        : Promise.resolve({ error: null }),
+      packingRows.length
+        ? admin
+            .from('event_job_packing_checklist')
+            .upsert(packingRows, { onConflict: 'event_job_stage_id' })
+        : Promise.resolve({ error: null }),
+      activityRows.length
+        ? admin
+            .from('event_job_activity')
+            .upsert(activityRows, { onConflict: 'id' })
+        : Promise.resolve({ error: null }),
+      issueRows.length
+        ? admin.from('event_job_issues').upsert(issueRows, { onConflict: 'id' })
+        : Promise.resolve({ error: null }),
+    ]);
+  const projectionError =
+    qcResult.error ??
+    packingResult.error ??
+    activityResult.error ??
+    issueResult.error;
   if (projectionError) throw new Error(projectionError.message);
 
   // Stylist participation is intentionally rental-only. Older event JSON can
@@ -259,24 +339,48 @@ async function writeAll(jobs: EventJob[]) {
   // jobs; attempting to recreate those normalized rows is correctly rejected
   // by the database trigger and must not break unrelated workflow saves.
   const stylistJobs = jobs.filter(
-    (job) => job.status === 'active' && job.bookingType === 'rental' && job.stylistsRequired,
+    (job) =>
+      job.status === 'active' &&
+      job.bookingType === 'rental' &&
+      job.stylistsRequired,
   );
-  const stylistUserIds = [...new Set(stylistJobs.flatMap((job) =>
-    job.stylistInterests.map((interest) => interest.stylistAccountId),
-  ))];
+  const stylistUserIds = [
+    ...new Set(
+      stylistJobs.flatMap((job) =>
+        job.stylistInterests.map((interest) => interest.stylistAccountId),
+      ),
+    ),
+  ];
   if (stylistUserIds.length) {
-    const { data: staffRows, error: staffError } = await admin.from('staff_members').select('id,user_id').in('user_id', stylistUserIds);
+    const { data: staffRows, error: staffError } = await admin
+      .from('staff_members')
+      .select('id,user_id')
+      .in('user_id', stylistUserIds);
     if (staffError) throw new Error(staffError.message);
-    const staffByUser = new Map((staffRows ?? []).map((row) => [String(row.user_id), Number(row.id)]));
-    const interestRows = stylistJobs.flatMap((job) => job.stylistInterests.flatMap((interest) => {
-      const staffId = staffByUser.get(interest.stylistAccountId);
-      return staffId ? [{
-        id: interest.id, event_job_id: job.id, staff_id: staffId, status: interest.status,
-        expressed_at: interest.expressedAt, decided_at: interest.decidedAt,
-      }] : [];
-    }));
+    const staffByUser = new Map(
+      (staffRows ?? []).map((row) => [String(row.user_id), Number(row.id)]),
+    );
+    const interestRows = stylistJobs.flatMap((job) =>
+      job.stylistInterests.flatMap((interest) => {
+        const staffId = staffByUser.get(interest.stylistAccountId);
+        return staffId
+          ? [
+              {
+                id: interest.id,
+                event_job_id: job.id,
+                staff_id: staffId,
+                status: interest.status,
+                expressed_at: interest.expressedAt,
+                decided_at: interest.decidedAt,
+              },
+            ]
+          : [];
+      }),
+    );
     if (interestRows.length) {
-      const { error: interestError } = await admin.from('event_job_stylist_interest').upsert(interestRows, { onConflict: 'id' });
+      const { error: interestError } = await admin
+        .from('event_job_stylist_interest')
+        .upsert(interestRows, { onConflict: 'id' });
       if (interestError) throw new Error(interestError.message);
     }
   }
@@ -293,7 +397,11 @@ export function deriveJobId(bookingNumber: string, bookingId: number): string {
   return `JOB-B${bookingId}`;
 }
 
-function newStage(key: EventJobStageKey, open: boolean, now: string): EventJobStage {
+function newStage(
+  key: EventJobStageKey,
+  open: boolean,
+  now: string,
+): EventJobStage {
   return {
     key,
     status: open ? 'open' : 'not_started',
@@ -311,17 +419,33 @@ function activityEntry(
   action: string,
   details?: string,
 ): EventJobActivityEntry {
-  return { id: randomUUID(), at: new Date().toISOString(), actor, department, action, details };
+  return {
+    id: randomUUID(),
+    at: new Date().toISOString(),
+    actor,
+    department,
+    action,
+    details,
+  };
 }
 
-function findStage(job: EventJob, key: EventJobStageKey): EventJobStage | undefined {
+function findStage(
+  job: EventJob,
+  key: EventJobStageKey,
+): EventJobStage | undefined {
   return job.stages.find((stage) => stage.key === key);
 }
 
-function setStage(job: EventJob, key: EventJobStageKey, changes: Partial<EventJobStage>): EventJob {
+function setStage(
+  job: EventJob,
+  key: EventJobStageKey,
+  changes: Partial<EventJobStage>,
+): EventJob {
   return {
     ...job,
-    stages: job.stages.map((stage) => (stage.key === key ? { ...stage, ...changes } : stage)),
+    stages: job.stages.map((stage) =>
+      stage.key === key ? { ...stage, ...changes } : stage,
+    ),
   };
 }
 
@@ -329,21 +453,45 @@ export const listJobs = cache(async (): Promise<EventJob[]> => {
   return readAll();
 });
 
+export const listActiveJobs = cache(async (): Promise<EventJob[]> => {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('event_jobs')
+    .select('state')
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .map((row) => row.state as EventJob)
+    .filter((job) => Boolean(job?.id && Array.isArray(job.stages)))
+    .map(normalizeJob);
+});
+
 export const getJob = cache(async (id: string): Promise<EventJob | null> => {
   const supabase = await createClient();
-  const { data, error } = await supabase.from('event_jobs').select('state').eq('id', id).maybeSingle();
+  const { data, error } = await supabase
+    .from('event_jobs')
+    .select('state')
+    .eq('id', id)
+    .maybeSingle();
   if (error) throw new Error(error.message);
   const job = data?.state as EventJob | undefined;
   return job?.id && Array.isArray(job.stages) ? normalizeJob(job) : null;
 });
 
-export const getJobByBookingId = cache(async (bookingId: number): Promise<EventJob | null> => {
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('event_jobs').select('state').eq('booking_id', bookingId).maybeSingle();
-  if (error) throw new Error(error.message);
-  const job = data?.state as EventJob | undefined;
-  return job?.id && Array.isArray(job.stages) ? normalizeJob(job) : null;
-});
+export const getJobByBookingId = cache(
+  async (bookingId: number): Promise<EventJob | null> => {
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from('event_jobs')
+      .select('state')
+      .eq('booking_id', bookingId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    const job = data?.state as EventJob | undefined;
+    return job?.id && Array.isArray(job.stages) ? normalizeJob(job) : null;
+  },
+);
 
 // Reads a list of CONFIRMED bookings (is_quote = false and status not in
 // draft/cancelled — the caller is responsible for that filter, since only a page with
@@ -353,7 +501,9 @@ export const getJobByBookingId = cache(async (bookingId: number): Promise<EventJ
 //   2. refreshes the event/item snapshot on existing ACTIVE jobs so it doesn't go stale,
 //      WITHOUT ever touching warehousePrep/qualityCheck/packingChecklist/stylistInterests
 //      (those belong to the department that recorded them, never overwritten by a sync).
-export async function syncEventJobs(bookings: ConfirmedBookingSummary[]): Promise<EventJob[]> {
+export async function syncEventJobs(
+  bookings: ConfirmedBookingSummary[],
+): Promise<EventJob[]> {
   const jobs = await readAll();
   const byBookingId = new Map(jobs.map((job) => [job.bookingId, job] as const));
   const now = new Date().toISOString();
@@ -374,21 +524,33 @@ export async function syncEventJobs(bookings: ConfirmedBookingSummary[]): Promis
       const snapshotChanged =
         existing.bookingType !== bookingType ||
         existing.stylistsRequired !== stylistsRequired ||
-        JSON.stringify(existing.eventSummary) !== JSON.stringify(eventSummary) ||
-        JSON.stringify(existing.requiredItems) !== JSON.stringify(booking.items) ||
-        JSON.stringify(existing.paymentSummary) !== JSON.stringify(booking.payment);
+        JSON.stringify(existing.eventSummary) !==
+          JSON.stringify(eventSummary) ||
+        JSON.stringify(existing.requiredItems) !==
+          JSON.stringify(booking.items) ||
+        JSON.stringify(existing.paymentSummary) !==
+          JSON.stringify(booking.payment);
       if (existing.status === 'active' && snapshotChanged) {
         const index = jobs.findIndex((job) => job.id === existing.id);
         jobs[index] = {
           ...jobs[index],
           bookingType,
           stylistsRequired,
-          stylistsRequiredCount: stylistsRequired ? Math.max(existing.stylistsRequiredCount, 1) : 0,
+          stylistsRequiredCount: stylistsRequired
+            ? Math.max(existing.stylistsRequiredCount, 1)
+            : 0,
           stages: stylistsRequired
             ? jobs[index].stages
-            : jobs[index].stages.map((stage) => stage.key === 'stylist_opportunity'
-              ? { ...stage, status: 'done', completedAt: stage.completedAt ?? now, completedBy: 'Not applicable — sale booking' }
-              : stage),
+            : jobs[index].stages.map((stage) =>
+                stage.key === 'stylist_opportunity'
+                  ? {
+                      ...stage,
+                      status: 'done',
+                      completedAt: stage.completedAt ?? now,
+                      completedBy: 'Not applicable — sale booking',
+                    }
+                  : stage,
+              ),
           eventSummary,
           requiredItems: booking.items,
           paymentSummary: booking.payment,
@@ -404,8 +566,14 @@ export async function syncEventJobs(bookings: ConfirmedBookingSummary[]): Promis
       (key) => stylistsRequired || key !== 'stylist_opportunity',
     ).map((key) => {
       const stage = newStage(key, INITIAL_OPEN_STAGES.includes(key), now);
-      return booking.bookingType === 'sale' && ['collection', 'return_quality_check', 'return_warehouse'].includes(key)
-        ? { ...stage, status: 'done' as const, completedAt: now, completedBy: 'Not applicable — sale booking' }
+      return booking.bookingType === 'sale' &&
+        ['collection', 'return_quality_check', 'return_warehouse'].includes(key)
+        ? {
+            ...stage,
+            status: 'done' as const,
+            completedAt: now,
+            completedBy: 'Not applicable — sale booking',
+          }
         : stage;
     });
 
@@ -449,7 +617,11 @@ export async function syncEventJobs(bookings: ConfirmedBookingSummary[]): Promis
     byBookingId.set(booking.bookingId, job);
     changedJobs.push(job);
     if (stylistsRequired) {
-      await notifyDepartment(job.id, 'stylist', `${job.eventSummary.eventName} (${job.id}) is open for stylist interest.`);
+      await notifyDepartment(
+        job.id,
+        'stylist',
+        `${job.eventSummary.eventName} (${job.id}) is open for stylist interest.`,
+      );
     }
   }
 
@@ -459,7 +631,9 @@ export async function syncEventJobs(bookings: ConfirmedBookingSummary[]): Promis
 
 export function currentStageSummary(job: EventJob): string {
   if (job.status === 'closed') return 'Event closed';
-  const open = job.stages.filter((stage) => stage.status === 'open' || stage.status === 'in_progress');
+  const open = job.stages.filter(
+    (stage) => stage.status === 'open' || stage.status === 'in_progress',
+  );
   if (open.length === 0) {
     const packing = findStage(job, 'packing');
     if (packing?.status === 'done') return 'Ready for event';
@@ -469,8 +643,10 @@ export function currentStageSummary(job: EventJob): string {
 }
 
 export async function jobsForDepartment(department: StaffDepartment) {
-  const jobs = (await readAll()).filter((job) =>
-    job.status === 'active' && (department !== 'stylist' || job.bookingType === 'rental'),
+  const jobs = (await readAll()).filter(
+    (job) =>
+      job.status === 'active' &&
+      (department !== 'stylist' || job.bookingType === 'rental'),
   );
   return jobs
     .map((job) => ({
@@ -484,7 +660,12 @@ export async function jobsForDepartment(department: StaffDepartment) {
     .filter((entry) => entry.stages.length > 0);
 }
 
-export async function addIssue(jobId: string, description: string, raisedBy: string, stage: EventJobStageKey | null) {
+export async function addIssue(
+  jobId: string,
+  description: string,
+  raisedBy: string,
+  stage: EventJobStageKey | null,
+) {
   const jobs = await readAll(jobId);
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return null;
@@ -500,24 +681,36 @@ export async function addIssue(jobId: string, description: string, raisedBy: str
   jobs[index] = {
     ...jobs[index],
     issues: [issue, ...jobs[index].issues],
-    activity: [activityEntry(raisedBy, 'admin', 'issue_raised', description), ...jobs[index].activity],
+    activity: [
+      activityEntry(raisedBy, 'admin', 'issue_raised', description),
+      ...jobs[index].activity,
+    ],
     updatedAt: new Date().toISOString(),
   };
   await writeAll([jobs[index]]);
   return jobs[index];
 }
 
-export async function resolveIssue(jobId: string, issueId: string, resolvedBy: string) {
+export async function resolveIssue(
+  jobId: string,
+  issueId: string,
+  resolvedBy: string,
+) {
   const jobs = await readAll(jobId);
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return null;
   const issues = jobs[index].issues.map((issue) =>
-    issue.id === issueId ? { ...issue, resolved: true, resolvedAt: new Date().toISOString() } : issue,
+    issue.id === issueId
+      ? { ...issue, resolved: true, resolvedAt: new Date().toISOString() }
+      : issue,
   );
   jobs[index] = {
     ...jobs[index],
     issues,
-    activity: [activityEntry(resolvedBy, 'admin', 'issue_resolved'), ...jobs[index].activity],
+    activity: [
+      activityEntry(resolvedBy, 'admin', 'issue_resolved'),
+      ...jobs[index].activity,
+    ],
     updatedAt: new Date().toISOString(),
   };
   await writeAll([jobs[index]]);
@@ -538,14 +731,23 @@ export async function submitWarehousePreparation(
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
   if (job.bookingType !== 'rental') {
-    return { error: 'Warehouse picking is available only for rental bookings.' };
+    return {
+      error: 'Warehouse picking is available only for rental bookings.',
+    };
   }
   const stage = findStage(job, 'warehouse_pick');
   if (!stage || (stage.status !== 'open' && stage.status !== 'in_progress')) {
     return { error: 'Warehouse preparation is not open for this job.' };
   }
-  if (items.some((item) => item.preparedQuantity === null || item.preparedQuantity < 0)) {
-    return { error: 'Enter a prepared quantity (0 or more) for every item before completing.' };
+  if (
+    items.some(
+      (item) => item.preparedQuantity === null || item.preparedQuantity < 0,
+    )
+  ) {
+    return {
+      error:
+        'Enter a prepared quantity (0 or more) for every item before completing.',
+    };
   }
 
   const now = new Date().toISOString();
@@ -562,9 +764,16 @@ export async function submitWarehousePreparation(
     status: 'open',
     openedAt: now,
   });
-  await notifyDepartment(job.id, 'qc', `${job.id} — Warehouse preparation complete, ready for Quality Check.`);
+  await notifyDepartment(
+    job.id,
+    'qc',
+    `${job.id} — Warehouse preparation complete, ready for Quality Check.`,
+  );
   const shortages = items.filter(
-    (item) => item.unavailable || item.damaged || (item.preparedQuantity ?? 0) < item.requiredQuantity,
+    (item) =>
+      item.unavailable ||
+      item.damaged ||
+      (item.preparedQuantity ?? 0) < item.requiredQuantity,
   );
   updated = {
     ...updated,
@@ -591,7 +800,11 @@ export async function submitWarehousePreparation(
 
 export type QcResult = { job?: EventJob; error?: string };
 
-export async function submitQualityCheck(jobId: string, items: QcItemCheck[], staffName: string): Promise<QcResult> {
+export async function submitQualityCheck(
+  jobId: string,
+  items: QcItemCheck[],
+  staffName: string,
+): Promise<QcResult> {
   const jobs = await readAll(jobId);
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Job not found.' };
@@ -603,28 +816,62 @@ export async function submitQualityCheck(jobId: string, items: QcItemCheck[], st
   if (!stage || (stage.status !== 'open' && stage.status !== 'in_progress')) {
     return { error: 'Quality check is not open for this job yet.' };
   }
-  if (items.some((item) => item.checkedQuantity === null || item.goodQuantity === null)) {
-    return { error: 'Enter a checked quantity and a good quantity for every item.' };
+  if (
+    items.some(
+      (item) => item.checkedQuantity === null || item.goodQuantity === null,
+    )
+  ) {
+    return {
+      error: 'Enter a checked quantity and a good quantity for every item.',
+    };
   }
-  if (items.some((item) => !Number.isFinite(item.checkedQuantity) || !Number.isFinite(item.goodQuantity) || (item.checkedQuantity ?? 0) < 0 || (item.goodQuantity ?? 0) < 0)) {
-    return { error: 'Quality Check quantities must be valid positive numbers.' };
+  if (
+    items.some(
+      (item) =>
+        !Number.isFinite(item.checkedQuantity) ||
+        !Number.isFinite(item.goodQuantity) ||
+        (item.checkedQuantity ?? 0) < 0 ||
+        (item.goodQuantity ?? 0) < 0,
+    )
+  ) {
+    return {
+      error: 'Quality Check quantities must be valid positive numbers.',
+    };
   }
-  if (items.some((item) => (item.goodQuantity ?? 0) > (item.checkedQuantity ?? 0))) {
+  if (
+    items.some((item) => (item.goodQuantity ?? 0) > (item.checkedQuantity ?? 0))
+  ) {
     return { error: 'Good quantity cannot be more than checked quantity.' };
   }
-  if (items.some((item) => (item.goodQuantity ?? 0) < (item.checkedQuantity ?? 0) && item.issueType === 'none')) {
+  if (
+    items.some(
+      (item) =>
+        (item.goodQuantity ?? 0) < (item.checkedQuantity ?? 0) &&
+        item.issueType === 'none',
+    )
+  ) {
     return { error: 'Select an issue for every product that does not pass.' };
   }
   if (!items.some((item) => (item.goodQuantity ?? 0) > 0)) {
-    return { error: 'At least one product must pass QC before packing can begin.' };
+    return {
+      error: 'At least one product must pass QC before packing can begin.',
+    };
   }
 
   const now = new Date().toISOString();
-  let updated: EventJob = { ...job, qualityCheck: { items, completedAt: now, completedBy: staffName } };
-  updated = setStage(updated, 'quality_check', { status: 'done', completedAt: now, completedBy: staffName });
+  let updated: EventJob = {
+    ...job,
+    qualityCheck: { items, completedAt: now, completedBy: staffName },
+  };
+  updated = setStage(updated, 'quality_check', {
+    status: 'done',
+    completedAt: now,
+    completedBy: staffName,
+  });
   updated = setStage(updated, 'packing', { status: 'open', openedAt: now });
   const problems = items.reduce(
-    (sum, item) => sum + Math.max((item.checkedQuantity ?? 0) - (item.goodQuantity ?? 0), 0),
+    (sum, item) =>
+      sum + Math.max((item.checkedQuantity ?? 0) - (item.goodQuantity ?? 0), 0),
     0,
   );
   updated = {
@@ -635,7 +882,9 @@ export async function submitQualityCheck(jobId: string, items: QcItemCheck[], st
         staffName,
         'qc',
         'quality_check_completed',
-        problems ? `${problems} item(s) flagged with a problem.` : 'All checked items passed.',
+        problems
+          ? `${problems} item(s) flagged with a problem.`
+          : 'All checked items passed.',
       ),
       ...updated.activity,
     ],
@@ -663,7 +912,10 @@ export async function submitPackingChecklist(
     return { error: 'Complete the quality check before packing.' };
   }
   const packingStage = findStage(job, 'packing');
-  if (!packingStage || (packingStage.status !== 'open' && packingStage.status !== 'in_progress')) {
+  if (
+    !packingStage ||
+    (packingStage.status !== 'open' && packingStage.status !== 'in_progress')
+  ) {
     return { error: 'Packing is not open for this job yet.' };
   }
   const allChecked =
@@ -674,28 +926,48 @@ export async function submitPackingChecklist(
     checklist.itemsSecured &&
     checklist.correctEventIdentification;
   if (!allChecked) {
-    return { error: 'All six packing checks must be confirmed before completing packing.' };
+    return {
+      error:
+        'All six packing checks must be confirmed before completing packing.',
+    };
   }
 
   const now = new Date().toISOString();
   let updated: EventJob = {
     ...job,
-    packingChecklist: { ...checklist, completedAt: now, completedBy: staffName },
+    packingChecklist: {
+      ...checklist,
+      completedAt: now,
+      completedBy: staffName,
+    },
   };
-  updated = setStage(updated, 'packing', { status: 'done', completedAt: now, completedBy: staffName });
+  updated = setStage(updated, 'packing', {
+    status: 'done',
+    completedAt: now,
+    completedBy: staffName,
+  });
   // Packing complete means products are ready for the event — Collection (post-event
   // check-in) opens now too so it's waiting for the Collection department the moment
   // the event happens. This does NOT mean the event has occurred; Collection staff are
   // simply able to see the job on their list rather than it appearing out of nowhere.
-  updated = setStage(updated, job.bookingType === 'rental' ? 'collection' : 'booking_final_check', {
-    status: 'open',
-    openedAt: now,
-  });
+  updated = setStage(
+    updated,
+    job.bookingType === 'rental' ? 'collection' : 'booking_final_check',
+    {
+      status: 'open',
+      openedAt: now,
+    },
+  );
   updated = {
     ...updated,
     updatedAt: now,
     activity: [
-      activityEntry(staffName, 'qc', 'packing_completed', 'Products packed and ready for the event.'),
+      activityEntry(
+        staffName,
+        'qc',
+        'packing_completed',
+        'Products packed and ready for the event.',
+      ),
       ...updated.activity,
     ],
   };
@@ -706,16 +978,30 @@ export async function submitPackingChecklist(
 
 // ---- Step 6: Stylist opportunity + interest ------------------------------------
 
-export async function expressStylistInterest(jobId: string, stylistAccountId: string, stylistName: string) {
+export async function expressStylistInterest(
+  jobId: string,
+  stylistAccountId: string,
+  stylistName: string,
+) {
   const admin = createAdminClient();
   const { data: stylist, error: stylistError } = await admin
     .from('staff_members')
-    .select('id,name,staff_type,portal_active,is_active,staff_departments(department)')
+    .select(
+      'id,name,staff_type,portal_active,is_active,staff_departments(department)',
+    )
     .eq('user_id', stylistAccountId)
     .maybeSingle();
-  if (stylistError || !stylist) return { error: 'Stylist account was not found.' };
-  const hasStylistDepartment = (stylist.staff_departments ?? []).some((row) => row.department === 'stylist');
-  if (stylist.staff_type !== 'stylist' || !stylist.portal_active || !stylist.is_active || !hasStylistDepartment) {
+  if (stylistError || !stylist)
+    return { error: 'Stylist account was not found.' };
+  const hasStylistDepartment = (stylist.staff_departments ?? []).some(
+    (row) => row.department === 'stylist',
+  );
+  if (
+    stylist.staff_type !== 'stylist' ||
+    !stylist.portal_active ||
+    !stylist.is_active ||
+    !hasStylistDepartment
+  ) {
     return { error: 'This stylist account is not active.' };
   }
 
@@ -724,10 +1010,20 @@ export async function expressStylistInterest(jobId: string, stylistAccountId: st
   if (index === -1) return { error: 'Event was not found.' };
   const job = jobs[index];
   const stage = findStage(job, 'stylist_opportunity');
-  if (job.status !== 'active' || job.bookingType !== 'rental' || !job.stylistsRequired || !stage || !['open', 'in_progress'].includes(stage.status)) {
+  if (
+    job.status !== 'active' ||
+    job.bookingType !== 'rental' ||
+    !job.stylistsRequired ||
+    !stage ||
+    !['open', 'in_progress'].includes(stage.status)
+  ) {
     return { error: 'Stylist applications are closed for this event.' };
   }
-  if (job.stylistInterests.some((interest) => interest.stylistAccountId === stylistAccountId)) {
+  if (
+    job.stylistInterests.some(
+      (interest) => interest.stylistAccountId === stylistAccountId,
+    )
+  ) {
     return { job }; // idempotent: the database unique constraint is the second guard.
   }
   const interest: StylistInterest = {
@@ -739,22 +1035,31 @@ export async function expressStylistInterest(jobId: string, stylistAccountId: st
     decidedAt: null,
     decidedBy: null,
   };
-  const { error: insertError } = await admin.from('event_job_stylist_interest').insert({
-    id: interest.id,
-    event_job_id: job.id,
-    staff_id: stylist.id,
-    status: 'interested',
-    expressed_at: interest.expressedAt,
-  });
-  if (insertError && insertError.code !== '23505') return { error: insertError.message };
+  const { error: insertError } = await admin
+    .from('event_job_stylist_interest')
+    .insert({
+      id: interest.id,
+      event_job_id: job.id,
+      staff_id: stylist.id,
+      status: 'interested',
+      expressed_at: interest.expressedAt,
+    });
+  if (insertError && insertError.code !== '23505')
+    return { error: insertError.message };
 
   const refreshedJobs = await readAllForStylistWorkflow(jobId);
   const refreshedIndex = refreshedJobs.findIndex((entry) => entry.id === jobId);
-  if (refreshedIndex === -1) return { error: 'Event was not found after saving interest.' };
+  if (refreshedIndex === -1)
+    return { error: 'Event was not found after saving interest.' };
   refreshedJobs[refreshedIndex] = {
     ...refreshedJobs[refreshedIndex],
     activity: [
-      activityEntry(stylistName || stylist.name, 'stylist', 'stylist_interest_expressed', 'Marked as interested and available.'),
+      activityEntry(
+        stylistName || stylist.name,
+        'stylist',
+        'stylist_interest_expressed',
+        'Marked as interested and available.',
+      ),
       ...refreshedJobs[refreshedIndex].activity,
     ],
     updatedAt: new Date().toISOString(),
@@ -777,19 +1082,32 @@ export async function assignStylists(
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Event was not found.' };
   const job = jobs[index];
-  if (job.status !== 'active' || job.bookingType !== 'rental' || !job.stylistsRequired) {
-    return { error: 'Stylist assignment is available only for an active rental event.' };
+  if (
+    job.status !== 'active' ||
+    job.bookingType !== 'rental' ||
+    !job.stylistsRequired
+  ) {
+    return {
+      error: 'Stylist assignment is available only for an active rental event.',
+    };
   }
 
   const selected = [...new Set(interestIds)];
-  const approvedCount = job.stylistInterests.filter((interest) => interest.status === 'approved').length;
+  const approvedCount = job.stylistInterests.filter(
+    (interest) => interest.status === 'approved',
+  ).length;
   const remaining = Math.max(0, job.stylistsRequiredCount - approvedCount);
-  if (remaining === 0) return { error: 'The required stylist count is already filled.' };
+  if (remaining === 0)
+    return { error: 'The required stylist count is already filled.' };
   if (selected.length !== remaining) {
-    return { error: `Select exactly ${remaining} stylist${remaining === 1 ? '' : 's'} to complete this assignment.` };
+    return {
+      error: `Select exactly ${remaining} stylist${remaining === 1 ? '' : 's'} to complete this assignment.`,
+    };
   }
   const selectableIds = new Set(
-    job.stylistInterests.filter((interest) => interest.status === 'interested').map((interest) => interest.id),
+    job.stylistInterests
+      .filter((interest) => interest.status === 'interested')
+      .map((interest) => interest.id),
   );
   if (selected.some((id) => !selectableIds.has(id))) {
     return { error: 'One or more selected stylists are no longer available.' };
@@ -799,7 +1117,12 @@ export async function assignStylists(
   const selectedSet = new Set(selected);
   const interests = job.stylistInterests.map((interest) => {
     if (selectedSet.has(interest.id)) {
-      return { ...interest, status: 'approved' as const, decidedAt: now, decidedBy };
+      return {
+        ...interest,
+        status: 'approved' as const,
+        decidedAt: now,
+        decidedBy,
+      };
     }
     return interest.status === 'interested'
       ? { ...interest, status: 'rejected' as const, decidedAt: now, decidedBy }
@@ -810,7 +1133,12 @@ export async function assignStylists(
     stylistInterests: interests,
     updatedAt: now,
     activity: [
-      activityEntry(decidedBy, 'admin', 'stylists_assigned', `${selected.length} stylist(s) assigned; requirement filled.`),
+      activityEntry(
+        decidedBy,
+        'admin',
+        'stylists_assigned',
+        `${selected.length} stylist(s) assigned; requirement filled.`,
+      ),
       ...job.activity,
     ],
   };
@@ -822,12 +1150,18 @@ export async function assignStylists(
   jobs[index] = updated;
   await writeAll([updated]);
 
-  const selectedInterests = interests.filter((interest) => selectedSet.has(interest.id));
-  await Promise.all(selectedInterests.map((interest) => notifyAccount(
-    job.id,
-    interest.stylistAccountId,
-    `You have been assigned to ${job.eventSummary.eventName} on ${job.eventSummary.eventDate}. Open My Assigned Events for details.`,
-  )));
+  const selectedInterests = interests.filter((interest) =>
+    selectedSet.has(interest.id),
+  );
+  await Promise.all(
+    selectedInterests.map((interest) =>
+      notifyAccount(
+        job.id,
+        interest.stylistAccountId,
+        `You have been assigned to ${job.eventSummary.eventName} on ${job.eventSummary.eventDate}. Open My Assigned Events for details.`,
+      ),
+    ),
+  );
   return { job: updated };
 }
 
@@ -845,25 +1179,42 @@ export async function decideStylistInterest(
   if (index === -1) return null;
   const job = jobs[index];
   if (job.bookingType !== 'rental' || !job.stylistsRequired) return null;
-  const currentApprovedCount = job.stylistInterests.filter((interest) => interest.status === 'approved').length;
-  const currentInterest = job.stylistInterests.find((interest) => interest.id === interestId);
-  if (decision === 'approved' && currentInterest?.status !== 'approved' && currentApprovedCount >= job.stylistsRequiredCount) {
+  const currentApprovedCount = job.stylistInterests.filter(
+    (interest) => interest.status === 'approved',
+  ).length;
+  const currentInterest = job.stylistInterests.find(
+    (interest) => interest.id === interestId,
+  );
+  if (
+    decision === 'approved' &&
+    currentInterest?.status !== 'approved' &&
+    currentApprovedCount >= job.stylistsRequiredCount
+  ) {
     return null;
   }
   const now = new Date().toISOString();
   const interests = job.stylistInterests.map((interest) =>
-    interest.id === interestId ? { ...interest, status: decision, decidedAt: now, decidedBy } : interest,
+    interest.id === interestId
+      ? { ...interest, status: decision, decidedAt: now, decidedBy }
+      : interest,
   );
   let updated: EventJob = {
     ...job,
     stylistInterests: interests,
     activity: [
-      activityEntry(decidedBy, 'admin', 'stylist_interest_decided', `${decision} for interest ${interestId}.`),
+      activityEntry(
+        decidedBy,
+        'admin',
+        'stylist_interest_decided',
+        `${decision} for interest ${interestId}.`,
+      ),
       ...job.activity,
     ],
     updatedAt: now,
   };
-  const decidedInterest = interests.find((interest) => interest.id === interestId);
+  const decidedInterest = interests.find(
+    (interest) => interest.id === interestId,
+  );
   if (decision === 'approved' && decidedInterest) {
     await notifyAccount(
       job.id,
@@ -875,23 +1226,44 @@ export async function decideStylistInterest(
   // Once enough stylists are approved, the Stylist opportunity stage closes on its own
   // (it is a parallel track — it never blocks Warehouse/QC/Collection/Booking stages).
   // Admins can still approve/reject/backup afterwards; this only marks the stage done.
-  const approvedCount = interests.filter((interest) => interest.status === 'approved').length;
+  const approvedCount = interests.filter(
+    (interest) => interest.status === 'approved',
+  ).length;
   const requiredCount = Math.max(updated.stylistsRequiredCount, 1);
   const stage = findStage(updated, 'stylist_opportunity');
-  if (decision === 'approved' && stage && stage.status !== 'done' && approvedCount >= requiredCount) {
+  if (
+    decision === 'approved' &&
+    stage &&
+    stage.status !== 'done' &&
+    approvedCount >= requiredCount
+  ) {
     updated = {
       ...updated,
       stylistInterests: updated.stylistInterests.map((interest) =>
         interest.status === 'interested'
-          ? { ...interest, status: 'rejected' as const, decidedAt: now, decidedBy }
+          ? {
+              ...interest,
+              status: 'rejected' as const,
+              decidedAt: now,
+              decidedBy,
+            }
           : interest,
       ),
     };
-    updated = setStage(updated, 'stylist_opportunity', { status: 'done', completedAt: now, completedBy: decidedBy });
+    updated = setStage(updated, 'stylist_opportunity', {
+      status: 'done',
+      completedAt: now,
+      completedBy: decidedBy,
+    });
     updated = {
       ...updated,
       activity: [
-        activityEntry(decidedBy, 'admin', 'stylist_opportunity_filled', `${approvedCount} stylist(s) approved.`),
+        activityEntry(
+          decidedBy,
+          'admin',
+          'stylist_opportunity_filled',
+          `${approvedCount} stylist(s) approved.`,
+        ),
         ...updated.activity,
       ],
     };
@@ -926,9 +1298,15 @@ export async function setStylistsRequiredCount(jobId: string, count: number) {
   if (index === -1) return null;
   if (jobs[index].bookingType !== 'rental') return null;
   if (!Number.isInteger(count) || count < 0) return null;
-  const approvedCount = jobs[index].stylistInterests.filter((interest) => interest.status === 'approved').length;
+  const approvedCount = jobs[index].stylistInterests.filter(
+    (interest) => interest.status === 'approved',
+  ).length;
   if (count < approvedCount) return null;
-  jobs[index] = { ...jobs[index], stylistsRequiredCount: count, updatedAt: new Date().toISOString() };
+  jobs[index] = {
+    ...jobs[index],
+    stylistsRequiredCount: count,
+    updatedAt: new Date().toISOString(),
+  };
   await writeAll([jobs[index]]);
   return jobs[index];
 }
@@ -939,29 +1317,56 @@ export async function setStylistsRequiredCount(jobId: string, count: number) {
 // is the "My Assigned Events" list — separate from the "available opportunities" list
 // in jobsForDepartment('stylist'), which only shows OPEN opportunities to express
 // interest in.
-export async function assignedJobsForStylist(stylistAccountId: string): Promise<EventJob[]> {
-  return (await readAllForStylistWorkflow()).filter((job) =>
-    job.bookingType === 'rental' && job.stylistInterests.some(
-      (interest) => interest.stylistAccountId === stylistAccountId && interest.status === 'approved',
-    ),
+export async function assignedJobsForStylist(
+  stylistAccountId: string,
+): Promise<EventJob[]> {
+  return (await readAllForStylistWorkflow()).filter(
+    (job) =>
+      job.bookingType === 'rental' &&
+      job.stylistInterests.some(
+        (interest) =>
+          interest.stylistAccountId === stylistAccountId &&
+          interest.status === 'approved',
+      ),
   );
 }
 
-export async function stylistJobsForAccount(stylistAccountId: string): Promise<EventJob[]> {
+export async function stylistJobsForAccount(
+  stylistAccountId: string,
+): Promise<EventJob[]> {
   return (await readAllForStylistWorkflow()).filter((job) => {
-    if (job.bookingType !== 'rental' || !job.stylistsRequired || job.status !== 'active') return false;
+    if (
+      job.bookingType !== 'rental' ||
+      !job.stylistsRequired ||
+      job.status !== 'active'
+    )
+      return false;
     const stage = findStage(job, 'stylist_opportunity');
-    const hasOwnInterest = job.stylistInterests.some((interest) => interest.stylistAccountId === stylistAccountId);
-    return hasOwnInterest || Boolean(stage && ['open', 'in_progress'].includes(stage.status));
+    const hasOwnInterest = job.stylistInterests.some(
+      (interest) => interest.stylistAccountId === stylistAccountId,
+    );
+    return (
+      hasOwnInterest ||
+      Boolean(stage && ['open', 'in_progress'].includes(stage.status))
+    );
   });
 }
 
-export async function stylistJobForAccount(jobId: string, stylistAccountId: string): Promise<EventJob | null> {
-  return (await stylistJobsForAccount(stylistAccountId)).find((job) => job.id === jobId) ?? null;
+export async function stylistJobForAccount(
+  jobId: string,
+  stylistAccountId: string,
+): Promise<EventJob | null> {
+  return (
+    (await stylistJobsForAccount(stylistAccountId)).find(
+      (job) => job.id === jobId,
+    ) ?? null
+  );
 }
 
 export async function stylistJobsForAdmin(): Promise<EventJob[]> {
-  return (await readAllForStylistWorkflow()).filter((job) => job.bookingType === 'rental' && job.stylistsRequired);
+  return (await readAllForStylistWorkflow()).filter(
+    (job) => job.bookingType === 'rental' && job.stylistsRequired,
+  );
 }
 
 // ---- Step 8: Travel Manager (admin/franchise-admin only) -----------------------
@@ -975,22 +1380,32 @@ export type TravelPlanResult = { job?: EventJob; error?: string };
 export async function upsertTravelPlan(
   jobId: string,
   interestId: string,
-  data: { travelLegs: StylistTravelLeg[]; accommodation: StylistAccommodation | null },
+  data: {
+    travelLegs: StylistTravelLeg[];
+    accommodation: StylistAccommodation | null;
+  },
   updatedBy: string,
 ): Promise<TravelPlanResult> {
   const jobs = await readAll(jobId);
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
-  if (job.bookingType !== 'rental') return { error: 'Travel is available only for rental bookings.' };
-  const interest = job.stylistInterests.find((entry) => entry.id === interestId);
+  if (job.bookingType !== 'rental')
+    return { error: 'Travel is available only for rental bookings.' };
+  const interest = job.stylistInterests.find(
+    (entry) => entry.id === interestId,
+  );
   if (!interest) return { error: 'Stylist assignment not found on this job.' };
   if (interest.status !== 'approved') {
-    return { error: 'Travel & accommodation can only be set for an approved stylist.' };
+    return {
+      error: 'Travel & accommodation can only be set for an approved stylist.',
+    };
   }
 
   const now = new Date().toISOString();
-  const existingPlan = job.travelPlans.find((plan) => plan.interestId === interestId);
+  const existingPlan = job.travelPlans.find(
+    (plan) => plan.interestId === interestId,
+  );
   const plan = {
     interestId,
     stylistAccountId: interest.stylistAccountId,
@@ -1001,7 +1416,9 @@ export async function upsertTravelPlan(
     updatedBy,
   };
   const travelPlans = existingPlan
-    ? job.travelPlans.map((entry) => (entry.interestId === interestId ? plan : entry))
+    ? job.travelPlans.map((entry) =>
+        entry.interestId === interestId ? plan : entry,
+      )
     : [...job.travelPlans, plan];
 
   const updated: EventJob = {
@@ -1009,7 +1426,12 @@ export async function upsertTravelPlan(
     travelPlans,
     updatedAt: now,
     activity: [
-      activityEntry(updatedBy, 'admin', 'stylist_travel_updated', `Travel/accommodation updated for ${interest.stylistName}.`),
+      activityEntry(
+        updatedBy,
+        'admin',
+        'stylist_travel_updated',
+        `Travel/accommodation updated for ${interest.stylistName}.`,
+      ),
       ...job.activity,
     ],
   };
@@ -1027,13 +1449,21 @@ export async function confirmStylistTicketSent(
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
-  if (job.bookingType !== 'rental') return { error: 'Tickets are available only for rental bookings.' };
-  const interest = job.stylistInterests.find((entry) => entry.id === interestId);
+  if (job.bookingType !== 'rental')
+    return { error: 'Tickets are available only for rental bookings.' };
+  const interest = job.stylistInterests.find(
+    (entry) => entry.id === interestId,
+  );
   if (!interest || interest.status !== 'approved') {
-    return { error: 'Only an approved staff assignment can receive a ticket confirmation.' };
+    return {
+      error:
+        'Only an approved staff assignment can receive a ticket confirmation.',
+    };
   }
 
-  const existingPlan = job.travelPlans.find((plan) => plan.interestId === interestId);
+  const existingPlan = job.travelPlans.find(
+    (plan) => plan.interestId === interestId,
+  );
   if (existingPlan?.ticketConfirmedAt) return { job };
 
   const now = new Date().toISOString();
@@ -1049,14 +1479,21 @@ export async function confirmStylistTicketSent(
     updatedBy: confirmedBy,
   };
   const travelPlans = existingPlan
-    ? job.travelPlans.map((entry) => (entry.interestId === interestId ? plan : entry))
+    ? job.travelPlans.map((entry) =>
+        entry.interestId === interestId ? plan : entry,
+      )
     : [...job.travelPlans, plan];
   const updated: EventJob = {
     ...job,
     travelPlans,
     updatedAt: now,
     activity: [
-      activityEntry(confirmedBy, 'admin', 'stylist_ticket_confirmed', `Ticket confirmed and sent on WhatsApp to ${interest.stylistName}.`),
+      activityEntry(
+        confirmedBy,
+        'admin',
+        'stylist_ticket_confirmed',
+        `Ticket confirmed and sent on WhatsApp to ${interest.stylistName}.`,
+      ),
       ...job.activity,
     ],
   };
@@ -1096,13 +1533,19 @@ export async function recordStylistExecution(
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
   const isApproved = job.stylistInterests.some(
-    (interest) => interest.stylistAccountId === stylistAccountId && interest.status === 'approved',
+    (interest) =>
+      interest.stylistAccountId === stylistAccountId &&
+      interest.status === 'approved',
   );
-  if (!isApproved) return { error: 'You are not an approved stylist on this job.' };
+  if (!isApproved)
+    return { error: 'You are not an approved stylist on this job.' };
 
   const now = new Date().toISOString();
-  const existing = job.stylistExecutions.find((entry) => entry.stylistAccountId === stylistAccountId);
-  const currentStatus: StylistExecutionStatus = existing?.status ?? 'not_started';
+  const existing = job.stylistExecutions.find(
+    (entry) => entry.stylistAccountId === stylistAccountId,
+  );
+  const currentStatus: StylistExecutionStatus =
+    existing?.status ?? 'not_started';
 
   const nextAllowed: Record<StylistExecutionStatus, ExecutionAction | null> = {
     not_started: 'reached_venue',
@@ -1116,17 +1559,23 @@ export async function recordStylistExecution(
 
   const nextStatus = EXECUTION_ORDER[action];
   const entry = {
-    interestId: job.stylistInterests.find((interest) => interest.stylistAccountId === stylistAccountId)?.id ?? '',
+    interestId:
+      job.stylistInterests.find(
+        (interest) => interest.stylistAccountId === stylistAccountId,
+      )?.id ?? '',
     stylistAccountId,
     stylistName,
     status: nextStatus,
     reachedAt: action === 'reached_venue' ? now : (existing?.reachedAt ?? null),
     startedAt: action === 'start_work' ? now : (existing?.startedAt ?? null),
-    completedAt: action === 'complete_work' ? now : (existing?.completedAt ?? null),
+    completedAt:
+      action === 'complete_work' ? now : (existing?.completedAt ?? null),
     remarks: remarks || existing?.remarks || '',
   };
   const stylistExecutions = existing
-    ? job.stylistExecutions.map((item) => (item.stylistAccountId === stylistAccountId ? entry : item))
+    ? job.stylistExecutions.map((item) =>
+        item.stylistAccountId === stylistAccountId ? entry : item,
+      )
     : [...job.stylistExecutions, entry];
 
   const updated: EventJob = {
@@ -1134,7 +1583,12 @@ export async function recordStylistExecution(
     stylistExecutions,
     updatedAt: now,
     activity: [
-      activityEntry(stylistName, 'stylist', `stylist_${action}`, remarks || undefined),
+      activityEntry(
+        stylistName,
+        'stylist',
+        `stylist_${action}`,
+        remarks || undefined,
+      ),
       ...job.activity,
     ],
   };
@@ -1151,7 +1605,11 @@ export async function submitCollectionCheck(
   jobId: string,
   items: CollectionItemCheck[],
   staffName: string,
-  handover: { collectedFrom: string; handedOverTo: string; handoverNotes: string },
+  handover: {
+    collectedFrom: string;
+    handedOverTo: string;
+    handoverNotes: string;
+  },
 ): Promise<CollectionResult> {
   const jobs = await readAll(jobId);
   const index = jobs.findIndex((job) => job.id === jobId);
@@ -1164,27 +1622,45 @@ export async function submitCollectionCheck(
   if (!stage || (stage.status !== 'open' && stage.status !== 'in_progress')) {
     return { error: 'Collection is not open for this job yet.' };
   }
-  if (items.some((item) =>
-    item.returnedQuantity === null ||
-    !Number.isInteger(item.returnedQuantity) ||
-    item.returnedQuantity < 0 ||
-    item.returnedQuantity > item.sentQuantity
-  )) {
-    return { error: 'Collected quantities must be whole numbers between 0 and the sent quantity.' };
+  if (
+    items.some(
+      (item) =>
+        item.returnedQuantity === null ||
+        !Number.isInteger(item.returnedQuantity) ||
+        item.returnedQuantity < 0 ||
+        item.returnedQuantity > item.sentQuantity,
+    )
+  ) {
+    return {
+      error:
+        'Collected quantities must be whole numbers between 0 and the sent quantity.',
+    };
   }
   if (!handover.collectedFrom.trim() || !handover.handedOverTo.trim()) {
-    return { error: 'Enter who handed over the products and who received them.' };
+    return {
+      error: 'Enter who handed over the products and who received them.',
+    };
   }
   const normalizedItems = items.map((item) => ({
     ...item,
-    shortQuantity: item.shortQuantity || (item.returnedQuantity ?? 0) < item.sentQuantity,
+    shortQuantity:
+      item.shortQuantity || (item.returnedQuantity ?? 0) < item.sentQuantity,
   }));
-  if (normalizedItems.some((item) =>
-    (item.visibleDamage || item.wrongProduct || item.clientHoldingItem || item.shortQuantity) &&
-    !item.remarks.trim() &&
-    !item.evidenceNote.trim()
-  )) {
-    return { error: 'Add a short remark for every missing, damaged, held, or incorrect product.' };
+  if (
+    normalizedItems.some(
+      (item) =>
+        (item.visibleDamage ||
+          item.wrongProduct ||
+          item.clientHoldingItem ||
+          item.shortQuantity) &&
+        !item.remarks.trim() &&
+        !item.evidenceNote.trim(),
+    )
+  ) {
+    return {
+      error:
+        'Add a short remark for every missing, damaged, held, or incorrect product.',
+    };
   }
 
   const now = new Date().toISOString();
@@ -1203,11 +1679,23 @@ export async function submitCollectionCheck(
       completedBy: staffName,
     },
   };
-  updated = setStage(updated, 'collection', { status: 'done', completedAt: now, completedBy: staffName });
-  updated = setStage(updated, 'return_quality_check', { status: 'open', openedAt: now });
-  await notifyDepartment(job.id, 'qc', `${job.id} — Collection complete, Return QC is ready.`);
+  updated = setStage(updated, 'collection', {
+    status: 'done',
+    completedAt: now,
+    completedBy: staffName,
+  });
+  updated = setStage(updated, 'return_quality_check', {
+    status: 'open',
+    openedAt: now,
+  });
+  await notifyDepartment(
+    job.id,
+    'qc',
+    `${job.id} — Collection complete, Return QC is ready.`,
+  );
   const missing = normalizedItems.reduce(
-    (sum, item) => sum + Math.max(item.sentQuantity - (item.returnedQuantity ?? 0), 0),
+    (sum, item) =>
+      sum + Math.max(item.sentQuantity - (item.returnedQuantity ?? 0), 0),
     0,
   );
   updated = {
@@ -1218,7 +1706,9 @@ export async function submitCollectionCheck(
         staffName,
         'collection',
         'collection_completed',
-        missing ? `${missing} item(s) not returned.` : 'Everything sent was returned.',
+        missing
+          ? `${missing} item(s) not returned.`
+          : 'Everything sent was returned.',
       ),
       ...updated.activity,
     ],
@@ -1243,36 +1733,62 @@ export async function submitReturnQualityCheck(
   if (index === -1) return { error: 'Job not found.' };
   const job = jobs[index];
   if (job.bookingType !== 'rental') {
-    return { error: 'Return Quality Check is available only for rental bookings.' };
+    return {
+      error: 'Return Quality Check is available only for rental bookings.',
+    };
   }
   const stage = findStage(job, 'return_quality_check');
   if (!stage || (stage.status !== 'open' && stage.status !== 'in_progress')) {
     return { error: 'Return QC is not open for this job yet.' };
   }
-  if (items.some((item) => item.goodQuantity === null || item.damagedQuantity === null)) {
-    return { error: 'Enter a good quantity and a damaged quantity for every item.' };
+  if (
+    items.some(
+      (item) => item.goodQuantity === null || item.damagedQuantity === null,
+    )
+  ) {
+    return {
+      error: 'Enter a good quantity and a damaged quantity for every item.',
+    };
   }
-  if (items.some((item) =>
-    !Number.isInteger(item.goodQuantity) ||
-    !Number.isInteger(item.damagedQuantity) ||
-    (item.goodQuantity ?? 0) < 0 ||
-    (item.damagedQuantity ?? 0) < 0 ||
-    (item.goodQuantity ?? 0) + (item.damagedQuantity ?? 0) !== item.returnedQuantity
-  )) {
-    return { error: 'Good + damaged quantity must exactly match the collected quantity for every product.' };
+  if (
+    items.some(
+      (item) =>
+        !Number.isInteger(item.goodQuantity) ||
+        !Number.isInteger(item.damagedQuantity) ||
+        (item.goodQuantity ?? 0) < 0 ||
+        (item.damagedQuantity ?? 0) < 0 ||
+        (item.goodQuantity ?? 0) + (item.damagedQuantity ?? 0) !==
+          item.returnedQuantity,
+    )
+  ) {
+    return {
+      error:
+        'Good + damaged quantity must exactly match the collected quantity for every product.',
+    };
   }
-  const hasIssue = items.some((item) =>
-    (item.damagedQuantity ?? 0) > 0 || item.repairRequired || item.unusable,
+  const hasIssue = items.some(
+    (item) =>
+      (item.damagedQuantity ?? 0) > 0 || item.repairRequired || item.unusable,
   );
   if (hasIssue && proofPhotoPaths.length === 0) {
-    return { error: 'Add at least one proof photo when a returned product has an issue.' };
+    return {
+      error:
+        'Add at least one proof photo when a returned product has an issue.',
+    };
   }
-  if (items.some((item) =>
-    ((item.damagedQuantity ?? 0) > 0 || item.repairRequired || item.unusable) &&
-    !item.remarks.trim() &&
-    !item.evidenceNote.trim()
-  )) {
-    return { error: 'Add a remark for every damaged, repair, or unusable product.' };
+  if (
+    items.some(
+      (item) =>
+        ((item.damagedQuantity ?? 0) > 0 ||
+          item.repairRequired ||
+          item.unusable) &&
+        !item.remarks.trim() &&
+        !item.evidenceNote.trim(),
+    )
+  ) {
+    return {
+      error: 'Add a remark for every damaged, repair, or unusable product.',
+    };
   }
 
   const now = new Date().toISOString();
@@ -1281,12 +1797,31 @@ export async function submitReturnQualityCheck(
   // record, which is kept as separate history.
   let updated: EventJob = {
     ...job,
-    returnQualityCheck: { items, proofPhotoPaths, completedAt: now, completedBy: staffName },
+    returnQualityCheck: {
+      items,
+      proofPhotoPaths,
+      completedAt: now,
+      completedBy: staffName,
+    },
   };
-  updated = setStage(updated, 'return_quality_check', { status: 'done', completedAt: now, completedBy: staffName });
-  updated = setStage(updated, 'return_warehouse', { status: 'open', openedAt: now });
-  await notifyDepartment(job.id, 'warehouse', `${job.id} — Return QC complete, Return Warehouse is ready.`);
-  const damaged = items.reduce((sum, item) => sum + (item.damagedQuantity ?? 0), 0);
+  updated = setStage(updated, 'return_quality_check', {
+    status: 'done',
+    completedAt: now,
+    completedBy: staffName,
+  });
+  updated = setStage(updated, 'return_warehouse', {
+    status: 'open',
+    openedAt: now,
+  });
+  await notifyDepartment(
+    job.id,
+    'warehouse',
+    `${job.id} — Return QC complete, Return Warehouse is ready.`,
+  );
+  const damaged = items.reduce(
+    (sum, item) => sum + (item.damagedQuantity ?? 0),
+    0,
+  );
   updated = {
     ...updated,
     updatedAt: now,
@@ -1295,7 +1830,9 @@ export async function submitReturnQualityCheck(
         staffName,
         'qc',
         'return_quality_check_completed',
-        damaged ? `${damaged} item(s) came back damaged.` : 'Everything returned came back in good condition.',
+        damaged
+          ? `${damaged} item(s) came back damaged.`
+          : 'Everything returned came back in good condition.',
       ),
       ...updated.activity,
     ],
@@ -1313,7 +1850,11 @@ export async function submitReturnWarehouseCheck(
   jobId: string,
   items: ReturnWarehouseItemResult[],
   staffName: string,
-  receiving: { receivedFrom: string; receivingNotes: string; handoverConfirmed: boolean },
+  receiving: {
+    receivedFrom: string;
+    receivingNotes: string;
+    handoverConfirmed: boolean;
+  },
 ): Promise<ReturnWarehouseResult> {
   const jobs = await readAll(jobId);
   const index = jobs.findIndex((job) => job.id === jobId);
@@ -1330,33 +1871,61 @@ export async function submitReturnWarehouseCheck(
     return { error: 'Return QC must be completed before Warehouse receiving.' };
   }
   if (!receiving.handoverConfirmed || !receiving.receivedFrom.trim()) {
-    return { error: 'Enter who handed over the products and confirm physical receiving.' };
+    return {
+      error:
+        'Enter who handed over the products and confirm physical receiving.',
+    };
   }
-  if (items.some((item) =>
-    !Number.isInteger(item.usableQuantity) ||
-    !Number.isInteger(item.damagedRepairQuantity) ||
-    !Number.isInteger(item.missingLostQuantity) ||
-    item.usableQuantity < 0 ||
-    item.damagedRepairQuantity < 0 ||
-    item.missingLostQuantity < 0
-  )) {
-    return { error: 'Return Warehouse quantities must be non-negative whole numbers.' };
+  if (
+    items.some(
+      (item) =>
+        !Number.isInteger(item.usableQuantity) ||
+        !Number.isInteger(item.damagedRepairQuantity) ||
+        !Number.isInteger(item.missingLostQuantity) ||
+        item.usableQuantity < 0 ||
+        item.damagedRepairQuantity < 0 ||
+        item.missingLostQuantity < 0,
+    )
+  ) {
+    return {
+      error: 'Return Warehouse quantities must be non-negative whole numbers.',
+    };
   }
   for (const item of items) {
-    const qcItem = job.returnQualityCheck.items.find((entry) => entry.itemName === item.itemName);
-    const collectedItem = job.collectionCheck?.items.find((entry) => entry.itemName === item.itemName);
-    const receivedQuantity = (qcItem?.goodQuantity ?? 0) + (qcItem?.damagedQuantity ?? 0);
+    const qcItem = job.returnQualityCheck.items.find(
+      (entry) => entry.itemName === item.itemName,
+    );
+    const collectedItem = job.collectionCheck?.items.find(
+      (entry) => entry.itemName === item.itemName,
+    );
+    const receivedQuantity =
+      (qcItem?.goodQuantity ?? 0) + (qcItem?.damagedQuantity ?? 0);
     const missingQuantity = collectedItem
-      ? Math.max(collectedItem.sentQuantity - (collectedItem.returnedQuantity ?? 0), 0)
+      ? Math.max(
+          collectedItem.sentQuantity - (collectedItem.returnedQuantity ?? 0),
+          0,
+        )
       : 0;
-    if (item.usableQuantity + item.damagedRepairQuantity !== receivedQuantity || item.missingLostQuantity !== missingQuantity) {
-      return { error: `Confirm the Return QC quantities for ${item.itemName} without changing the totals.` };
+    if (
+      item.usableQuantity + item.damagedRepairQuantity !== receivedQuantity ||
+      item.missingLostQuantity !== missingQuantity
+    ) {
+      return {
+        error: `Confirm the Return QC quantities for ${item.itemName} without changing the totals.`,
+      };
     }
     if (item.usableQuantity > 0 && !item.storageLocation?.trim()) {
-      return { error: `Enter the storage or rack location for ${item.itemName}.` };
+      return {
+        error: `Enter the storage or rack location for ${item.itemName}.`,
+      };
     }
-    if ((item.damagedRepairQuantity > 0 || item.missingLostQuantity > 0) && !item.remarks.trim()) {
-      return { error: `Add a remark for the damaged or missing quantity of ${item.itemName}.` };
+    if (
+      (item.damagedRepairQuantity > 0 || item.missingLostQuantity > 0) &&
+      !item.remarks.trim()
+    ) {
+      return {
+        error: `Add a remark for the damaged or missing quantity of ${item.itemName}.`,
+      };
     }
   }
 
@@ -1378,14 +1947,30 @@ export async function submitReturnWarehouseCheck(
       completedBy: staffName,
     },
   };
-  updated = setStage(updated, 'return_warehouse', { status: 'done', completedAt: now, completedBy: staffName });
-  updated = setStage(updated, 'booking_final_check', { status: 'open', openedAt: now });
-  await notifyDepartment(job.id, 'booking', `${job.id} — Return Warehouse complete. Ready for Final Closure.`);
+  updated = setStage(updated, 'return_warehouse', {
+    status: 'done',
+    completedAt: now,
+    completedBy: staffName,
+  });
+  updated = setStage(updated, 'booking_final_check', {
+    status: 'open',
+    openedAt: now,
+  });
+  await notifyDepartment(
+    job.id,
+    'booking',
+    `${job.id} — Return Warehouse complete. Ready for Final Closure.`,
+  );
   updated = {
     ...updated,
     updatedAt: now,
     activity: [
-      activityEntry(staffName, 'warehouse', 'return_warehouse_completed', 'Returned stock sorted into usable/damaged/missing.'),
+      activityEntry(
+        staffName,
+        'warehouse',
+        'return_warehouse_completed',
+        'Returned stock sorted into usable/damaged/missing.',
+      ),
       ...updated.activity,
     ],
   };
@@ -1412,7 +1997,11 @@ export type CloseEventResult = { job?: EventJob; error?: string };
 // and never from the admin app/event-jobs/actions.ts. This is the ONLY function in the
 // whole mock layer allowed to set `status: 'closed'` — every other stage-completion
 // function above stops at marking its own stage `done`.
-export async function closeEventJob(jobId: string, input: CloseEventInput, closedBy: string): Promise<CloseEventResult> {
+export async function closeEventJob(
+  jobId: string,
+  input: CloseEventInput,
+  closedBy: string,
+): Promise<CloseEventResult> {
   const jobs = await readAll(jobId);
   const index = jobs.findIndex((job) => job.id === jobId);
   if (index === -1) return { error: 'Job not found.' };
@@ -1428,30 +2017,54 @@ export async function closeEventJob(jobId: string, input: CloseEventInput, close
     'quality_check',
     'packing',
     ...(job.bookingType === 'rental'
-      ? (['collection', 'return_quality_check', 'return_warehouse'] as EventJobStageKey[])
+      ? ([
+          'collection',
+          'return_quality_check',
+          'return_warehouse',
+        ] as EventJobStageKey[])
       : []),
   ];
-  const incompleteStage = requiredDoneStages.find((key) => findStage(job, key)?.status !== 'done');
+  const incompleteStage = requiredDoneStages.find(
+    (key) => findStage(job, key)?.status !== 'done',
+  );
   if (incompleteStage) {
-    return { error: `${STAGE_LABEL[incompleteStage]} must be completed before the event can be closed.` };
+    return {
+      error: `${STAGE_LABEL[incompleteStage]} must be completed before the event can be closed.`,
+    };
   }
   if (job.stylistsRequired) {
     const stylistStage = findStage(job, 'stylist_opportunity');
-    const approvedCount = job.stylistInterests.filter((interest) => interest.status === 'approved').length;
-    if (stylistStage?.status !== 'done' && approvedCount < job.stylistsRequiredCount) {
+    const approvedCount = job.stylistInterests.filter(
+      (interest) => interest.status === 'approved',
+    ).length;
+    if (
+      stylistStage?.status !== 'done' &&
+      approvedCount < job.stylistsRequiredCount
+    ) {
       return { error: 'Stylist assignment is not complete for this job yet.' };
     }
   }
   const bookingFinalCheckStage = findStage(job, 'booking_final_check');
-  if (!bookingFinalCheckStage || (bookingFinalCheckStage.status !== 'open' && bookingFinalCheckStage.status !== 'in_progress')) {
+  if (
+    !bookingFinalCheckStage ||
+    (bookingFinalCheckStage.status !== 'open' &&
+      bookingFinalCheckStage.status !== 'in_progress')
+  ) {
     return { error: 'Booking Final Check is not open for this job yet.' };
   }
   const unresolvedIssue = job.issues.some((issue) => !issue.resolved);
   if (unresolvedIssue) {
     return { error: 'Resolve all open issues before closing the event.' };
   }
-  if (!input.paymentComplete || !input.depositSettled || !input.damageLossAcknowledged) {
-    return { error: 'Confirm payment, deposit and damage/loss acknowledgement before closing the event.' };
+  if (
+    !input.paymentComplete ||
+    !input.depositSettled ||
+    !input.damageLossAcknowledged
+  ) {
+    return {
+      error:
+        'Confirm payment, deposit and damage/loss acknowledgement before closing the event.',
+    };
   }
   if (
     !Number.isFinite(input.refundAmount) ||
@@ -1459,15 +2072,21 @@ export async function closeEventJob(jobId: string, input: CloseEventInput, close
     input.refundAmount < 0 ||
     input.additionalPaymentAmount < 0
   ) {
-    return { error: 'Payment and refund amounts must be valid positive values.' };
+    return {
+      error: 'Payment and refund amounts must be valid positive values.',
+    };
   }
   const pendingBalance = Math.max(job.paymentSummary?.pendingBalance ?? 0, 0);
   if (input.additionalPaymentAmount < pendingBalance) {
-    return { error: `₹${pendingBalance.toLocaleString('en-IN')} is still pending. Record the full amount before closing.` };
+    return {
+      error: `₹${pendingBalance.toLocaleString('en-IN')} is still pending. Record the full amount before closing.`,
+    };
   }
   const depositAmount = Math.max(job.paymentSummary?.depositAmount ?? 0, 0);
   if (input.refundAmount > depositAmount) {
-    return { error: 'Refund cannot be higher than the recorded security deposit.' };
+    return {
+      error: 'Refund cannot be higher than the recorded security deposit.',
+    };
   }
 
   const now = new Date().toISOString();
@@ -1488,12 +2107,21 @@ export async function closeEventJob(jobId: string, input: CloseEventInput, close
     closedAt: now,
     bookingFinalCheck,
   };
-  updated = setStage(updated, 'booking_final_check', { status: 'done', completedAt: now, completedBy: closedBy });
+  updated = setStage(updated, 'booking_final_check', {
+    status: 'done',
+    completedAt: now,
+    completedBy: closedBy,
+  });
   updated = {
     ...updated,
     updatedAt: now,
     activity: [
-      activityEntry(closedBy, 'booking', 'event_job_closed', 'Event Job closed — all departments notified.'),
+      activityEntry(
+        closedBy,
+        'booking',
+        'event_job_closed',
+        'Event Job closed — all departments notified.',
+      ),
       ...updated.activity,
     ],
   };
@@ -1502,13 +2130,26 @@ export async function closeEventJob(jobId: string, input: CloseEventInput, close
   // individually (they're identified by account id; other roles are only identified by
   // a free-text name in this mock layer, so those go to their whole department instead
   // of a single person — still role/permission-appropriate, just coarser).
-  const touchedDepartments = new Set<StaffDepartment>(['warehouse', 'qc', 'collection', 'booking']);
+  const touchedDepartments = new Set<StaffDepartment>([
+    'warehouse',
+    'qc',
+    'collection',
+    'booking',
+  ]);
   for (const department of touchedDepartments) {
-    await notifyDepartment(updated.id, department, `${updated.eventSummary.eventName} (${updated.id}) is now closed.`);
+    await notifyDepartment(
+      updated.id,
+      department,
+      `${updated.eventSummary.eventName} (${updated.id}) is now closed.`,
+    );
   }
   for (const interest of updated.stylistInterests) {
     if (interest.status === 'approved') {
-      await notifyAccount(updated.id, interest.stylistAccountId, `${updated.eventSummary.eventName} (${updated.id}) is now closed. Thank you!`);
+      await notifyAccount(
+        updated.id,
+        interest.stylistAccountId,
+        `${updated.eventSummary.eventName} (${updated.id}) is now closed. Thank you!`,
+      );
     }
   }
 
@@ -1517,7 +2158,12 @@ export async function closeEventJob(jobId: string, input: CloseEventInput, close
   // counted more than once for the same participant.
   if (!updated.performanceCredited) {
     if (updated.warehousePrep?.completedBy) {
-      await creditPerformance(`warehouse:${updated.warehousePrep.completedBy}`, updated.warehousePrep.completedBy, 'warehouse', updated.id);
+      await creditPerformance(
+        `warehouse:${updated.warehousePrep.completedBy}`,
+        updated.warehousePrep.completedBy,
+        'warehouse',
+        updated.id,
+      );
     }
     if (updated.returnWarehouseCheck?.completedBy) {
       await creditPerformance(
@@ -1528,23 +2174,53 @@ export async function closeEventJob(jobId: string, input: CloseEventInput, close
       );
     }
     if (updated.qualityCheck?.completedBy) {
-      await creditPerformance(`qc:${updated.qualityCheck.completedBy}`, updated.qualityCheck.completedBy, 'qc', updated.id);
+      await creditPerformance(
+        `qc:${updated.qualityCheck.completedBy}`,
+        updated.qualityCheck.completedBy,
+        'qc',
+        updated.id,
+      );
     }
     if (updated.packingChecklist?.completedBy) {
-      await creditPerformance(`qc:${updated.packingChecklist.completedBy}`, updated.packingChecklist.completedBy, 'qc', updated.id);
+      await creditPerformance(
+        `qc:${updated.packingChecklist.completedBy}`,
+        updated.packingChecklist.completedBy,
+        'qc',
+        updated.id,
+      );
     }
     if (updated.returnQualityCheck?.completedBy) {
-      await creditPerformance(`qc:${updated.returnQualityCheck.completedBy}`, updated.returnQualityCheck.completedBy, 'qc', updated.id);
+      await creditPerformance(
+        `qc:${updated.returnQualityCheck.completedBy}`,
+        updated.returnQualityCheck.completedBy,
+        'qc',
+        updated.id,
+      );
     }
     if (updated.collectionCheck?.completedBy) {
-      await creditPerformance(`collection:${updated.collectionCheck.completedBy}`, updated.collectionCheck.completedBy, 'collection', updated.id);
+      await creditPerformance(
+        `collection:${updated.collectionCheck.completedBy}`,
+        updated.collectionCheck.completedBy,
+        'collection',
+        updated.id,
+      );
     }
     for (const interest of updated.stylistInterests) {
       if (interest.status === 'approved') {
-        await creditPerformance(`stylist:${interest.stylistAccountId}`, interest.stylistName, 'stylist', updated.id);
+        await creditPerformance(
+          `stylist:${interest.stylistAccountId}`,
+          interest.stylistName,
+          'stylist',
+          updated.id,
+        );
       }
     }
-    await creditPerformance(`booking:${closedBy}`, closedBy, 'booking', updated.id);
+    await creditPerformance(
+      `booking:${closedBy}`,
+      closedBy,
+      'booking',
+      updated.id,
+    );
     updated = { ...updated, performanceCredited: true };
   }
 
@@ -1557,32 +2233,55 @@ export async function closeEventJob(jobId: string, input: CloseEventInput, close
     .select('owner_id,total,paid_amount')
     .eq('id', updated.bookingId)
     .single();
-  if (bookingError || !booking) throw new Error(bookingError?.message ?? 'Booking not found.');
+  if (bookingError || !booking)
+    throw new Error(bookingError?.message ?? 'Booking not found.');
   if (input.additionalPaymentAmount > 0) {
-    const { error: paymentError } = await admin.from('booking_payments').insert({
-      owner_id: booking.owner_id,
-      booking_id: updated.bookingId,
-      amount: input.additionalPaymentAmount,
-      payment_method: 'other',
-      reference_number: `Final settlement ${updated.id}`,
-      notes: input.notes || 'Recorded during Event Job closure',
-    });
+    const { error: paymentError } = await admin
+      .from('booking_payments')
+      .insert({
+        owner_id: booking.owner_id,
+        booking_id: updated.bookingId,
+        amount: input.additionalPaymentAmount,
+        payment_method: 'other',
+        reference_number: `Final settlement ${updated.id}`,
+        notes: input.notes || 'Recorded during Event Job closure',
+      });
     if (paymentError) throw new Error(paymentError.message);
   }
-  const adjustedPaid = Math.max(Number(booking.paid_amount) + input.additionalPaymentAmount - input.refundAmount, 0);
+  const adjustedPaid = Math.max(
+    Number(booking.paid_amount) +
+      input.additionalPaymentAmount -
+      input.refundAmount,
+    0,
+  );
   const adjustedBalance = Math.max(Number(booking.total) - adjustedPaid, 0);
-  const { error: statusError } = await admin.from('bookings').update({
-    status: 'completed',
-    paid_amount: adjustedPaid,
-    balance_amount: adjustedBalance,
-    payment_status: input.refundAmount > 0 && adjustedPaid === 0 ? 'refunded' : adjustedBalance === 0 ? 'paid' : adjustedPaid > 0 ? 'partial' : 'unpaid',
-  }).eq('id', updated.bookingId);
+  const { error: statusError } = await admin
+    .from('bookings')
+    .update({
+      status: 'completed',
+      paid_amount: adjustedPaid,
+      balance_amount: adjustedBalance,
+      payment_status:
+        input.refundAmount > 0 && adjustedPaid === 0
+          ? 'refunded'
+          : adjustedBalance === 0
+            ? 'paid'
+            : adjustedPaid > 0
+              ? 'partial'
+              : 'unpaid',
+    })
+    .eq('id', updated.bookingId);
   if (statusError) throw new Error(statusError.message);
   const { error: activityError } = await admin.from('booking_activity').insert({
     owner_id: booking.owner_id,
     booking_id: updated.bookingId,
     action: 'event_job_closed',
-    details: { event_job_id: updated.id, additional_payment: input.additionalPaymentAmount, refund: input.refundAmount, closed_by: closedBy },
+    details: {
+      event_job_id: updated.id,
+      additional_payment: input.additionalPaymentAmount,
+      refund: input.refundAmount,
+      closed_by: closedBy,
+    },
   });
   if (activityError) throw new Error(activityError.message);
   return { job: updated };
@@ -1590,9 +2289,15 @@ export async function closeEventJob(jobId: string, input: CloseEventInput, close
 
 // ---- Step 14: Admin Master Event Job overview -----------------------------------
 
-export type JobOverviewRow = { label: string; value: string; tone: 'done' | 'pending' | 'attention' | 'neutral' };
+export type JobOverviewRow = {
+  label: string;
+  value: string;
+  tone: 'done' | 'pending' | 'attention' | 'neutral';
+};
 
-function stageTone(status: EventJob['stages'][number]['status']): JobOverviewRow['tone'] {
+function stageTone(
+  status: EventJob['stages'][number]['status'],
+): JobOverviewRow['tone'] {
   if (status === 'done') return 'done';
   if (status === 'blocked') return 'attention';
   if (status === 'open' || status === 'in_progress') return 'pending';
@@ -1611,7 +2316,8 @@ function stageValue(status: EventJob['stages'][number]['status']): string {
 // row answers one of the questions in the Step 14 brief (where's the job, what's
 // pending, are stylists assigned, is travel ready, can it close, etc).
 export function buildJobOverview(job: EventJob): JobOverviewRow[] {
-  const get = (key: EventJobStageKey) => findStage(job, key)?.status ?? 'not_started';
+  const get = (key: EventJobStageKey) =>
+    findStage(job, key)?.status ?? 'not_started';
   const qcPackingStatus =
     get('quality_check') === 'done' && get('packing') === 'done'
       ? 'done'
@@ -1621,26 +2327,50 @@ export function buildJobOverview(job: EventJob): JobOverviewRow[] {
 
   const rows: JobOverviewRow[] = [
     { label: 'Booking', value: 'Confirmed', tone: 'done' },
-    { label: 'Warehouse', value: stageValue(get('warehouse_pick')), tone: stageTone(get('warehouse_pick')) },
+    {
+      label: 'Warehouse',
+      value: stageValue(get('warehouse_pick')),
+      tone: stageTone(get('warehouse_pick')),
+    },
     {
       label: 'QC & Packing',
-      value: qcPackingStatus === 'done' ? 'Completed' : qcPackingStatus === 'not_started' ? 'Not started' : 'In progress',
-      tone: qcPackingStatus === 'done' ? 'done' : qcPackingStatus === 'not_started' ? 'neutral' : 'pending',
+      value:
+        qcPackingStatus === 'done'
+          ? 'Completed'
+          : qcPackingStatus === 'not_started'
+            ? 'Not started'
+            : 'In progress',
+      tone:
+        qcPackingStatus === 'done'
+          ? 'done'
+          : qcPackingStatus === 'not_started'
+            ? 'neutral'
+            : 'pending',
     },
   ];
 
   if (job.stylistsRequired) {
-    const approvedCount = job.stylistInterests.filter((interest) => interest.status === 'approved').length;
+    const approvedCount = job.stylistInterests.filter(
+      (interest) => interest.status === 'approved',
+    ).length;
     rows.push({
       label: 'Stylist',
       value: `${approvedCount}/${job.stylistsRequiredCount} Assigned`,
       tone: approvedCount >= job.stylistsRequiredCount ? 'done' : 'pending',
     });
-    const travelReady = job.travelPlans.some((plan) => plan.travelLegs.length > 0 || plan.accommodation);
+    const travelReady = job.travelPlans.some(
+      (plan) => plan.travelLegs.length > 0 || plan.accommodation,
+    );
     rows.push({
       label: 'Travel',
-      value: approvedCount === 0 ? 'Not applicable yet' : travelReady ? 'Ready' : 'Pending',
-      tone: approvedCount === 0 ? 'neutral' : travelReady ? 'done' : 'attention',
+      value:
+        approvedCount === 0
+          ? 'Not applicable yet'
+          : travelReady
+            ? 'Ready'
+            : 'Pending',
+      tone:
+        approvedCount === 0 ? 'neutral' : travelReady ? 'done' : 'attention',
     });
   } else {
     rows.push({ label: 'Stylist', value: 'Not required', tone: 'neutral' });
@@ -1651,8 +2381,16 @@ export function buildJobOverview(job: EventJob): JobOverviewRow[] {
     value: get('collection') === 'not_started' ? 'Upcoming' : 'Completed',
     tone: get('collection') === 'not_started' ? 'pending' : 'done',
   });
-  rows.push({ label: 'Collection', value: stageValue(get('collection')), tone: stageTone(get('collection')) });
-  rows.push({ label: 'Return QC', value: stageValue(get('return_quality_check')), tone: stageTone(get('return_quality_check')) });
+  rows.push({
+    label: 'Collection',
+    value: stageValue(get('collection')),
+    tone: stageTone(get('collection')),
+  });
+  rows.push({
+    label: 'Return QC',
+    value: stageValue(get('return_quality_check')),
+    tone: stageTone(get('return_quality_check')),
+  });
   rows.push({
     label: 'Return Warehouse',
     value: stageValue(get('return_warehouse')),
@@ -1665,7 +2403,12 @@ export function buildJobOverview(job: EventJob): JobOverviewRow[] {
   });
   rows.push({
     label: 'Final Closure',
-    value: job.status === 'closed' ? 'Completed' : get('booking_final_check') === 'not_started' ? 'Not yet' : 'Pending',
+    value:
+      job.status === 'closed'
+        ? 'Completed'
+        : get('booking_final_check') === 'not_started'
+          ? 'Not yet'
+          : 'Pending',
     tone: job.status === 'closed' ? 'done' : 'pending',
   });
 
@@ -1681,17 +2424,32 @@ export function canCloseEventJob(job: EventJob): boolean {
     'quality_check',
     'packing',
     ...(job.bookingType === 'rental'
-      ? (['collection', 'return_quality_check', 'return_warehouse'] as EventJobStageKey[])
+      ? ([
+          'collection',
+          'return_quality_check',
+          'return_warehouse',
+        ] as EventJobStageKey[])
       : []),
   ];
-  if (requiredDoneStages.some((key) => findStage(job, key)?.status !== 'done')) return false;
+  if (requiredDoneStages.some((key) => findStage(job, key)?.status !== 'done'))
+    return false;
   if (job.stylistsRequired) {
-    const approvedCount = job.stylistInterests.filter((interest) => interest.status === 'approved').length;
+    const approvedCount = job.stylistInterests.filter(
+      (interest) => interest.status === 'approved',
+    ).length;
     const stylistStage = findStage(job, 'stylist_opportunity');
-    if (stylistStage?.status !== 'done' && approvedCount < job.stylistsRequiredCount) return false;
+    if (
+      stylistStage?.status !== 'done' &&
+      approvedCount < job.stylistsRequiredCount
+    )
+      return false;
   }
   const bookingFinalCheckStage = findStage(job, 'booking_final_check');
-  if (!bookingFinalCheckStage || (bookingFinalCheckStage.status !== 'open' && bookingFinalCheckStage.status !== 'in_progress')) {
+  if (
+    !bookingFinalCheckStage ||
+    (bookingFinalCheckStage.status !== 'open' &&
+      bookingFinalCheckStage.status !== 'in_progress')
+  ) {
     return false;
   }
   if (job.issues.some((issue) => !issue.resolved)) return false;

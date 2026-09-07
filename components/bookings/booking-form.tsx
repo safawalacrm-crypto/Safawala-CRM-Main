@@ -36,6 +36,7 @@ import {
   sameInventoryValue,
 } from '@/lib/inventory-catalog';
 import { createClient } from '@/lib/supabase/client';
+import { initializeBookingEventJobAction } from '@/app/bookings/event-job-actions';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 
 type Customer = {
@@ -224,22 +225,27 @@ export function BookingForm({
     .filter((item) => item.additional_safa)
     .reduce((total, item) => total + item.quantity, 0);
   const additionalSafaPackages = [
-    ...new Set([
-      ...BARATI_SAFA_SUBCATEGORIES,
-      products
-        .filter((product) => sameInventoryValue(product.category, 'BARATI SAFA'))
-        .map((product) => product.subcategory)
-        .filter(Boolean) as string[],
-    ].flat()),
+    ...new Set(
+      [
+        ...BARATI_SAFA_SUBCATEGORIES,
+        products
+          .filter((product) =>
+            sameInventoryValue(product.category, 'BARATI SAFA'),
+          )
+          .map((product) => product.subcategory)
+          .filter(Boolean) as string[],
+      ].flat(),
+    ),
   ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   const additionalSafaProducts = products.filter((product) => {
     const inBaratiSafa = sameInventoryValue(product.category, 'BARATI SAFA');
     const matchesPackage =
       additionalSafaPackage === 'all' ||
       sameInventoryValue(product.subcategory, additionalSafaPackage);
-    const matchesSearch = `${product.name} ${product.barcode ?? ''} ${product.sku ?? ''}`
-      .toLowerCase()
-      .includes(additionalSafaSearch.trim().toLowerCase());
+    const matchesSearch =
+      `${product.name} ${product.barcode ?? ''} ${product.sku ?? ''}`
+        .toLowerCase()
+        .includes(additionalSafaSearch.trim().toLowerCase());
     return inBaratiSafa && matchesPackage && matchesSearch;
   });
   const selectedAdditionalSafaProduct =
@@ -491,7 +497,7 @@ export function BookingForm({
       pickup_date: type === 'rental' ? form.get('pickup_date') : null,
       due_date: type === 'rental' ? form.get('due_date') : null,
       assigned_staff_id: quoteOnly
-        ? quoteCreatorStaffId ?? null
+        ? (quoteCreatorStaffId ?? null)
         : form.get('assigned_staff_id'),
       notes:
         [plainNotes, modificationNotes].filter(Boolean).join('\n\n') || null,
@@ -533,10 +539,20 @@ export function BookingForm({
         return;
       }
     }
+    if (!quote) {
+      const eventJobResult = await initializeBookingEventJobAction(Number(data.id));
+      if (eventJobResult.error) {
+        setMessage({
+          title: 'Booking saved, but department workflow needs attention',
+          text: eventJobResult.error,
+        });
+        setBusy(false);
+        return;
+      }
+    }
     router.push(
       `${quote ? '/quotes' : '/bookings'}?created=${encodeURIComponent(data.booking_number ?? String(data.id))}`,
     );
-    router.refresh();
   }
 
   return (
@@ -562,7 +578,11 @@ export function BookingForm({
       <form ref={formRef} onSubmit={submit} className="space-y-5">
         <DashboardHeader
           title={`New ${isSale ? 'Sale' : 'Rental'} Booking`}
-          subtitle={quoteOnly ? 'Prepare a customer quotation for Main ID review' : 'Complete the details below to create a live booking'}
+          subtitle={
+            quoteOnly
+              ? 'Prepare a customer quotation for Main ID review'
+              : 'Complete the details below to create a live booking'
+          }
           actions={
             <>
               <Button
@@ -1056,7 +1076,9 @@ export function BookingForm({
                         <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
                         <input
                           value={packageSearch}
-                          onChange={(event) => setPackageSearch(event.target.value)}
+                          onChange={(event) =>
+                            setPackageSearch(event.target.value)
+                          }
                           placeholder="Search packages or inclusions…"
                           inputMode="search"
                           className={`${inputClass} pl-9`}
@@ -1073,13 +1095,16 @@ export function BookingForm({
                         </div>
                         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                           {rentalPackageCategories.map((category) => {
-                            const selected = category === selectedRentalCategory;
+                            const selected =
+                              category === selectedRentalCategory;
                             return (
                               <button
                                 key={category}
                                 type="button"
                                 aria-pressed={selected}
-                                onClick={() => setSelectedRentalCategory(category)}
+                                onClick={() =>
+                                  setSelectedRentalCategory(category)
+                                }
                                 className={`h-10 rounded-xl border px-4 text-left text-sm font-medium transition ${selected ? 'border-primary bg-primary text-white shadow-sm' : 'border-border bg-white text-foreground hover:border-primary/40 hover:bg-[#fcfaf7]'}`}
                               >
                                 {category}
@@ -1109,7 +1134,9 @@ export function BookingForm({
                               <button
                                 key={pack.id}
                                 type="button"
-                                aria-pressed={pack.id === selectedRentalPackageId}
+                                aria-pressed={
+                                  pack.id === selectedRentalPackageId
+                                }
                                 onClick={() => addRentalPackage(pack)}
                                 className={`group overflow-hidden rounded-xl border bg-white p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 ${pack.id === selectedRentalPackageId ? 'border-primary ring-2 ring-primary/20' : ''}`}
                               >
@@ -1184,7 +1211,8 @@ export function BookingForm({
                           </div>
                           <div className="flex items-center gap-3 rounded-lg border bg-white px-3 py-2 text-xs">
                             <span className="font-medium tabular-nums">
-                              {additionalSafaCount} / {packageSafaLimit || '—'} used
+                              {additionalSafaCount} / {packageSafaLimit || '—'}{' '}
+                              used
                             </span>
                             <span className="h-4 w-px bg-border" />
                             <button
@@ -1240,14 +1268,17 @@ export function BookingForm({
                         {additionalSafaProducts.length ? (
                           <div className="mt-3 grid max-h-[420px] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-4">
                             {additionalSafaProducts.map((product) => {
-                              const selected = product.id === Number(additionalSafaProductId);
+                              const selected =
+                                product.id === Number(additionalSafaProductId);
                               return (
                                 <button
                                   key={product.id}
                                   type="button"
                                   aria-pressed={selected}
                                   onClick={() =>
-                                    setAdditionalSafaProductId(String(product.id))
+                                    setAdditionalSafaProductId(
+                                      String(product.id),
+                                    )
                                   }
                                   className={`group overflow-hidden rounded-xl border bg-white p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 ${selected ? 'border-primary ring-2 ring-primary/20' : ''}`}
                                 >
@@ -1303,14 +1334,19 @@ export function BookingForm({
                           ) : null}
                           <div className="flex items-center gap-2 sm:ml-auto">
                             <label>
-                              <span className="sr-only">Additional Safa quantity</span>
+                              <span className="sr-only">
+                                Additional Safa quantity
+                              </span>
                               <input
                                 type="number"
                                 min="1"
                                 value={additionalSafaQuantity}
                                 onChange={(event) =>
                                   setAdditionalSafaQuantity(
-                                    Math.max(1, Number(event.target.value) || 1),
+                                    Math.max(
+                                      1,
+                                      Number(event.target.value) || 1,
+                                    ),
                                   )
                                 }
                                 className={`${inputClass} w-24`}
@@ -1321,7 +1357,8 @@ export function BookingForm({
                               type="button"
                               onClick={addAdditionalSafa}
                               disabled={
-                                !selectedRentalPackage || !additionalSafaProductId
+                                !selectedRentalPackage ||
+                                !additionalSafaProductId
                               }
                             >
                               <Plus /> Add Safa
@@ -1339,7 +1376,9 @@ export function BookingForm({
                             name="notes"
                             rows={4}
                             value={rentalNotes}
-                            onChange={(event) => setRentalNotes(event.target.value)}
+                            onChange={(event) =>
+                              setRentalNotes(event.target.value)
+                            }
                             placeholder="Any additional notes…"
                             className="w-full resize-y rounded-xl border border-input bg-white p-3 text-sm leading-6 outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                           />
@@ -1682,7 +1721,9 @@ export function BookingForm({
                 <Card className="gap-0 border-border py-0 shadow-none ring-0">
                   <CardHeader className="border-b px-4 py-4">
                     <CardTitle className="text-sm font-semibold">
-                      {quoteOnly ? 'Payment details · Main ID only' : 'Payment method & discounts'}
+                      {quoteOnly
+                        ? 'Payment details · Main ID only'
+                        : 'Payment method & discounts'}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3 p-4">
@@ -1690,7 +1731,11 @@ export function BookingForm({
                       <span className="mb-1.5 block text-muted-foreground">
                         Payment method
                       </span>
-                      <select name="payment_method" className={inputClass} disabled={quoteOnly}>
+                      <select
+                        name="payment_method"
+                        className={inputClass}
+                        disabled={quoteOnly}
+                      >
                         <option value="cash">Cash / offline payment</option>
                         <option value="upi">UPI</option>
                         <option value="card">Card</option>
@@ -1714,7 +1759,11 @@ export function BookingForm({
                       <span className="mb-1.5 block text-muted-foreground">
                         Sales staff
                       </span>
-                      <select name="assigned_staff_id" className={inputClass} disabled={quoteOnly}>
+                      <select
+                        name="assigned_staff_id"
+                        className={inputClass}
+                        disabled={quoteOnly}
+                      >
                         <option value="">Unassigned</option>
                         {staff.map((member) => (
                           <option key={member.id} value={member.id}>
@@ -1784,7 +1833,11 @@ export function BookingForm({
                       variant="outline"
                       onClick={() => window.print()}
                       disabled={quoteOnly}
-                      title={quoteOnly ? 'PDF and printing are available to Main IDs only' : 'Print or save as PDF'}
+                      title={
+                        quoteOnly
+                          ? 'PDF and printing are available to Main IDs only'
+                          : 'Print or save as PDF'
+                      }
                     >
                       <Printer />
                       Print / PDF
@@ -1804,7 +1857,11 @@ export function BookingForm({
                       name="intent"
                       value="order"
                       disabled={busy || quoteOnly}
-                      title={quoteOnly ? 'A Main ID must convert the saved quote into a booking' : undefined}
+                      title={
+                        quoteOnly
+                          ? 'A Main ID must convert the saved quote into a booking'
+                          : undefined
+                      }
                     >
                       <Check />
                       {busy ? 'Creating…' : 'Create order'}

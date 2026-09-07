@@ -8,6 +8,7 @@ import {
   Pencil,
   Printer,
   Search,
+  Sparkles,
   Wrench,
   X,
 } from 'lucide-react';
@@ -20,6 +21,7 @@ import {
 } from '@/components/bookings/booking-pdf-button';
 import { friendlyDate, friendlyTime, money, statusTone } from '@/lib/bookings';
 import { modificationDetails } from '@/lib/modifications';
+import { importantWeddingDaysForMonth } from '@/lib/important-wedding-dates';
 
 export type CalendarBooking = PdfBooking & {
   id: number;
@@ -108,6 +110,10 @@ export function CalendarDayGrid({
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [tab, setTab] = useState<'events' | 'mod'>('events');
   const [search, setSearch] = useState('');
+  const importantDays = useMemo(
+    () => importantWeddingDaysForMonth(year, month),
+    [year, month],
+  );
 
   const eventsByDay = useMemo(() => {
     const map = new Map<number, CalendarBooking[]>();
@@ -158,6 +164,27 @@ export function CalendarDayGrid({
 
   return (
     <>
+      <div className="flex flex-col gap-3 rounded-xl border border-[#e4d2b6] bg-[#fffaf1] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#a86f2d] text-white">
+            <Sparkles className="size-4" />
+          </span>
+          <div>
+            <p className="font-semibold text-[#6f481f]">
+              Important wedding dates
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Highlighted for planning across every portal calendar.
+            </p>
+          </div>
+        </div>
+        <Badge
+          variant="outline"
+          className="w-fit border-[#d9b77f] bg-white text-[#7c5225]"
+        >
+          {importantDays.length} this month
+        </Badge>
+      </div>
       <Card className="gap-0 overflow-x-auto border-border py-0 shadow-level-1 ring-0">
         <div className="grid min-w-[840px] grid-cols-7 border-b bg-[#fcfaf7]">
           {WEEKDAYS.map((day) => (
@@ -173,18 +200,28 @@ export function CalendarDayGrid({
           {cells.map((day, index) => {
             const events = day ? (eventsByDay.get(day) ?? []) : [];
             const mods = day ? (modsByDay.get(day) ?? []) : [];
-            const hasDetail = day !== null && (events.length > 0 || mods.length > 0);
+            const isImportant = day !== null && importantDays.includes(day);
+            const hasDetail =
+              day !== null &&
+              (events.length > 0 || mods.length > 0 || isImportant);
             return (
-              <div key={index} className="min-h-32 border-b border-r p-2">
+              <div
+                key={index}
+                className={`min-h-32 border-b border-r p-2 ${
+                  isImportant ? 'bg-[#fff8eb]' : ''
+                }`}
+              >
                 {hasDetail ? (
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedDay(day);
-                      setTab(events.length ? 'events' : 'mod');
+                      setTab(events.length || !mods.length ? 'events' : 'mod');
                       setSearch('');
                     }}
-                    className="rounded px-1 text-xs font-semibold text-primary hover:underline"
+                    className={`rounded px-1 text-xs font-semibold hover:underline ${
+                      isImportant ? 'text-[#9a6124]' : 'text-primary'
+                    }`}
                   >
                     {day}
                   </button>
@@ -193,6 +230,20 @@ export function CalendarDayGrid({
                     {day}
                   </p>
                 )}
+                {isImportant ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDay(day);
+                      setTab('events');
+                      setSearch('');
+                    }}
+                    className="mt-2 flex w-fit items-center gap-1 rounded-full bg-[#f4e3c7] px-2 py-1 text-left text-[10px] font-semibold text-[#7a4c1d] transition hover:bg-[#ead1aa]"
+                  >
+                    <Sparkles className="size-3" />
+                    Important
+                  </button>
+                ) : null}
                 {events.map((b) => (
                   <button
                     key={b.id}
@@ -225,16 +276,18 @@ export function CalendarDayGrid({
       </Card>
 
       {selectedDay !== null ? (
-        <div
-          className="fixed inset-0 z-[70] grid place-items-center bg-[#211d18]/70 p-4 backdrop-blur-sm print:hidden"
-          onClick={() => setSelectedDay(null)}
-        >
-          <div
-            role="dialog"
+        <div className="fixed inset-0 z-[70] grid place-items-center p-4 print:hidden">
+          <button
+            type="button"
+            aria-label="Close day details"
+            onClick={() => setSelectedDay(null)}
+            className="absolute inset-0 bg-[#211d18]/70 backdrop-blur-sm"
+          />
+          <dialog
+            open
             aria-modal="true"
             aria-labelledby="calendar-day-title"
-            onClick={(event) => event.stopPropagation()}
-            className="m-0 flex max-h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[22px] border border-white/40 bg-[#fffdf9] shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
+            className="relative z-10 m-0 flex max-h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
           >
             <div className="flex items-start justify-between border-b bg-[#fcfaf7] p-5">
               <div className="flex items-center gap-3">
@@ -242,10 +295,7 @@ export function CalendarDayGrid({
                   <Calendar className="size-5" />
                 </span>
                 <div>
-                  <h2
-                    id="calendar-day-title"
-                    className="text-lg font-semibold"
-                  >
+                  <h2 id="calendar-day-title" className="text-lg font-semibold">
                     {dateLabel}
                   </h2>
                   <p className="text-sm text-muted-foreground">
@@ -293,6 +343,22 @@ export function CalendarDayGrid({
                 </span>
               </button>
             </div>
+
+            {importantDays.includes(selectedDay) ? (
+              <div className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-[#e5c58f] bg-[#fff8eb] px-4 py-3 text-[#71481e]">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#a86f2d] text-white">
+                  <Sparkles className="size-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">
+                    Important wedding date
+                  </p>
+                  <p className="text-xs text-[#8a6a48]">
+                    Plan staffing, stock and customer follow-ups early.
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
               <label className="relative flex-1 sm:max-w-xs">
@@ -422,7 +488,7 @@ export function CalendarDayGrid({
                 </div>
               )}
             </div>
-          </div>
+          </dialog>
         </div>
       ) : null}
     </>

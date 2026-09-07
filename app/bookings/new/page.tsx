@@ -10,13 +10,15 @@ export default async function NewBookingPage() {
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
-  const { data: staffAccount } = await supabase
-    .from('staff_members')
-    .select('owner_id')
-    .eq('user_id', auth.user.id)
-    .maybeSingle();
+  const [{ data: staffAccount }, staffSession] = await Promise.all([
+    supabase
+      .from('staff_members')
+      .select('owner_id')
+      .eq('user_id', auth.user.id)
+      .maybeSingle(),
+    getStaffSession(),
+  ]);
   const bookingOwnerId = staffAccount?.owner_id ?? auth.user.id;
-  const staffSession = await getStaffSession();
   const [
     { data: customers },
     { data: products },
@@ -74,7 +76,11 @@ export default async function NewBookingPage() {
         )}
         staff={staff ?? []}
         quoteOnly={staffSession?.accessType === 'staff'}
-        quoteCreatorStaffId={staffSession?.accessType === 'staff' ? staffSession.staffMemberId : undefined}
+        quoteCreatorStaffId={
+          staffSession?.accessType === 'staff'
+            ? staffSession.staffMemberId
+            : undefined
+        }
       />
     </BookingPortalShell>
   );
