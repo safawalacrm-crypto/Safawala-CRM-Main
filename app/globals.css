@@ -2,6 +2,8 @@
 @import 'tw-animate-css';
 @import 'shadcn/tailwind.css';
 
+@custom-variant dark (&:is(.dark *));
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -63,12 +65,57 @@
   --radius: 8px;
 }
 
+.dark {
+  --background: #16120e;
+  --foreground: #ede6da;
+  --card: #211b15;
+  --card-foreground: #ede6da;
+  --popover: #241e17;
+  --popover-foreground: #ede6da;
+  --primary: #d9a656;
+  --primary-foreground: #241a0c;
+  --secondary: #8f8377;
+  --secondary-foreground: #16120e;
+  --muted: #2a241d;
+  --muted-foreground: #b5a996;
+  --accent: #3a2f22;
+  --accent-foreground: #f0d9ad;
+  --destructive: #e5675c;
+  --border: #372e24;
+  --input: #40362a;
+  --ring: #d9a656;
+  --success: #57b98a;
+  --warning: #e0a13f;
+  --info: #c9a06a;
+  --surface: #16120e;
+  --shadow-level-1: 0 1px 2px rgb(0 0 0 / 0.35), 0 3px 8px rgb(0 0 0 / 0.25);
+  --shadow-level-2: 0 10px 28px rgb(0 0 0 / 0.4);
+  --shadow-level-3: 0 22px 54px rgb(0 0 0 / 0.5);
+}
+
 @layer base {
   * { @apply border-border outline-ring/50; }
   html { @apply font-sans; overflow-x: hidden; }
   body { @apply bg-background text-foreground; min-width: 320px; max-width: 100vw; overflow-x: hidden; font-family: 'Inter Variable', Inter, Arial, Helvetica, sans-serif; }
   button, a, input { -webkit-tap-highlight-color: transparent; }
   ::selection { background: #eadcc6; }
+
+.dark ::selection { background: #4a3c2a; }
+
+/* Dark-mode scrollbars -- light mode keeps the browser default, untouched.
+   Firefox: */
+.dark { scrollbar-width: thin; scrollbar-color: #3a2f22 transparent; }
+/* Chrome/Edge/Safari: */
+.dark ::-webkit-scrollbar { width: 12px; height: 12px; }
+.dark ::-webkit-scrollbar-track { background: transparent; }
+.dark ::-webkit-scrollbar-thumb {
+  background-color: #3a2f22;
+  border-radius: 9999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+.dark ::-webkit-scrollbar-thumb:hover { background-color: #4a3c2a; }
+.dark ::-webkit-scrollbar-corner { background: transparent; }
 }
 
 @media print {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
+import { ThemeToggle } from '@/components/theme-toggle';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BrandMark } from '@/components/brand-mark';
@@ -155,8 +156,27 @@ export function DashboardShell({
   email: string;
   children: ReactNode;
 }) {
+  const themeRootRef = useRef<HTMLDivElement>(null);
+
+  // Applies the saved theme preference on every mount (hard page loads and
+  // client-side/SPA navigations alike -- each route's page.tsx mounts its
+  // own DashboardShell instance). Runs synchronously before the browser
+  // paints, so there's no visible flash, and since it fires strictly after
+  // hydration commits there's no hydration-mismatch warning either.
+  useLayoutEffect(() => {
+    const root = themeRootRef.current;
+    if (!root) return;
+    try {
+      const stored = localStorage.getItem('safawala-theme');
+      const shouldBeDark = stored
+        ? stored === 'dark'
+        : window.matchMedia('(prefers-color-scheme: dark)').matches;
+      root.classList.toggle('dark', shouldBeDark);
+    } catch {}
+  }, []);
+
   return (
-    <div className="min-h-dvh bg-surface text-foreground">
+    <div ref={themeRootRef} data-theme-root className="min-h-dvh bg-surface text-foreground">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-white dark:bg-card px-4 py-6 dark:bg-card lg:flex">
         <BrandMark className="px-2" />
         <BrandDivider />
@@ -202,6 +222,7 @@ export function DashboardShell({
               </SheetContent>
             </Sheet>
             <div className="min-w-0 flex-1" />
+          <ThemeToggle className="pointer-events-auto inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-card" />
           </div>
         </header>
         <main className="bg-surface px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
