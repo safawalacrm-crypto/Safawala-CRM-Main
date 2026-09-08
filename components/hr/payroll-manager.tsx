@@ -142,19 +142,19 @@ export function PayrollManager({
             placeholder="Search employee"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="h-10 rounded-lg border px-3 text-sm"
+            className="h-10 rounded-lg border bg-white dark:bg-card px-3 text-sm"
             type="search"
           />
           <input
             type="month"
             value={month === 'all' ? '' : month}
             onChange={(e) => setMonth(e.target.value || 'all')}
-            className="h-10 rounded-lg border px-3 text-sm"
+            className="h-10 rounded-lg border bg-white dark:bg-card px-3 text-sm"
           />
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="h-10 rounded-lg border px-3 text-sm"
+            className="h-10 rounded-lg border bg-white dark:bg-card px-3 text-sm"
           >
             <option value="all">All statuses</option>
             {statuses.map((s) => (
@@ -175,7 +175,7 @@ export function PayrollManager({
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-[#faf8f4] text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="border-b bg-[#faf8f4] dark:bg-[#241e17] text-left text-xs uppercase tracking-wide text-muted-foreground">
                 {[
                   'Employee',
                   'Period',
@@ -268,7 +268,7 @@ export function PayrollManager({
                   <select
                     name="staff_id"
                     defaultValue={editing.staff_id}
-                    className="mt-1 h-10 w-full rounded border px-2"
+                    className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
                   >
                     {staff.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -283,7 +283,7 @@ export function PayrollManager({
                     name="period"
                     type="date"
                     defaultValue={editing.period}
-                    className="mt-1 h-10 w-full rounded border px-2"
+                    className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
                     required
                   />
                 </label>
@@ -297,7 +297,7 @@ export function PayrollManager({
                         min="0"
                         step="0.01"
                         defaultValue={editing[name as keyof Row] as number}
-                        className="mt-1 h-10 w-full rounded border px-2"
+                        className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
                       />
                     </label>
                   ),
@@ -307,7 +307,7 @@ export function PayrollManager({
                   <select
                     name="status"
                     defaultValue={editing.status}
-                    className="mt-1 h-10 w-full rounded border px-2"
+                    className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
                   >
                     {statuses.map((s) => (
                       <option key={s}>{s}</option>

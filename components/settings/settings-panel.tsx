@@ -261,7 +261,7 @@ export function SettingsPanel({
 
       <section className="grid gap-5 xl:grid-cols-2">
         <Card className="border-border shadow-level-1 ring-0">
-          <CardHeader className="border-b bg-[#fcfaf7]">
+          <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17]">
             <div className="flex items-center gap-3">
               <span className="grid size-10 place-items-center rounded-lg bg-accent text-accent-foreground">
                 <UserRound className="size-5" />
@@ -294,7 +294,7 @@ export function SettingsPanel({
         </Card>
 
         <Card className="border-border shadow-level-1 ring-0">
-          <CardHeader className="border-b bg-[#fcfaf7]">
+          <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17]">
             <div className="flex items-center gap-3">
               <span className="grid size-10 place-items-center rounded-lg bg-accent text-accent-foreground">
                 <KeyRound className="size-5" />
@@ -340,7 +340,7 @@ export function SettingsPanel({
       </section>
 
       <Card className="border-border shadow-level-1 ring-0">
-        <CardHeader className="border-b bg-[#fcfaf7]">
+        <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17]">
           <div className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-lg bg-primary text-primary-foreground">
               <FileDigit className="size-5" />
@@ -360,7 +360,7 @@ export function SettingsPanel({
               const prefix = normalizedPrefix(setting.prefix || config.prefix);
               const preview = `${prefix}${setting.sequence_year || currentYear}-${String(setting.next_number || 1).padStart(setting.number_padding || 4, '0')}`;
               return (
-                <div key={config.series} className="rounded-xl border bg-white p-4">
+                <div key={config.series} className="rounded-xl border bg-white dark:bg-card p-4">
                   <div className="mb-4">
                     <h3 className="font-semibold">{config.title}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{config.description}</p>
@@ -428,7 +428,7 @@ export function SettingsPanel({
                       />
                     </label>
                   </div>
-                  <div className="mt-4 rounded-lg border border-[#e4d2b6] bg-[#fcfaf7] px-3 py-2.5">
+                  <div className="mt-4 rounded-lg border border-[#e4d2b6] bg-[#fcfaf7] dark:bg-[#241e17] px-3 py-2.5">
                     <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Preview</p>
                     <p className="mt-1 font-mono text-sm font-semibold text-[#70481c]">{preview}</p>
                   </div>

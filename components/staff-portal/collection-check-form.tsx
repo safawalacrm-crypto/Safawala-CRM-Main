@@ -12,7 +12,7 @@ import {
 
 const initialState: CollectionFormState = { error: '' };
 const inputClass =
-  'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
 export function CollectionCheckForm({
   jobId,
@@ -118,14 +118,14 @@ export function CollectionCheckForm({
                     name={`remarks-${index}`}
                     rows={2}
                     placeholder="Required when anything is missing, damaged, held, or incorrect"
-                    className="w-full resize-y rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                    className="w-full resize-y rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                   />
                 </label>
               </div>
             </div>
           ))}
 
-          <section className="rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] p-4">
+          <section className="rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] dark:bg-[#241e17] p-4">
             <div className="mb-4">
               <h3 className="font-semibold">Collection handover</h3>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -147,10 +147,10 @@ export function CollectionCheckForm({
                   name="handoverNotes"
                   rows={2}
                   placeholder="Box count, receiver note, or other useful detail"
-                  className="w-full resize-y rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  className="w-full resize-y rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                 />
               </label>
-              <label className="flex items-start gap-2 rounded-lg border bg-white p-3 text-sm sm:col-span-2">
+              <label className="flex items-start gap-2 rounded-lg border bg-white dark:bg-card p-3 text-sm sm:col-span-2">
                 <input type="checkbox" name="handoverConfirmed" required className="mt-0.5 size-4 rounded border-input accent-primary" />
                 <span>I confirm these products were handed over to the showroom or authorized receiver.</span>
               </label>

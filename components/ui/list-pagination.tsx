@@ -26,7 +26,7 @@ export function ListPagination({
   const to = Math.min(safePage * pageSize, total);
 
   return (
-    <div className="flex flex-col gap-3 border-b bg-white px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex flex-col gap-3 border-b bg-white dark:bg-card px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
         <p className="text-muted-foreground" aria-live="polite">
           {total === 0 ? (
@@ -44,7 +44,7 @@ export function ListPagination({
           <select
             value={pageSize}
             onChange={(event) => onPageSizeChange(Number(event.target.value))}
-            className="h-9 rounded-lg border bg-white px-3 font-semibold text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="h-9 rounded-lg border bg-white dark:bg-card px-3 font-semibold text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
             aria-label={`Items per page for ${itemLabel}`}
           >
             {LIST_PAGE_SIZES.map((size) => (

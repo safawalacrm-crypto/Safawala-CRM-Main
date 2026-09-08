@@ -46,7 +46,7 @@ const categoryFields = 'id,name,is_active,created_at,updated_at';
 const variantFields =
   'id,category_id,name,base_price,inclusions,extra_safa_price,missing_safa_penalty,security_deposit,created_at,updated_at';
 const fieldClass =
-  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
 const currency = (value: number | string) =>
   new Intl.NumberFormat('en-IN', {
@@ -374,7 +374,7 @@ export function PackageManagement({
           </div>
           <CardContent className="space-y-2 p-3">
             {activeCategories.length === 0 ? (
-              <div className="grid min-h-44 place-items-center rounded-lg border border-dashed bg-[#fcfaf7] px-4 text-center">
+              <div className="grid min-h-44 place-items-center rounded-lg border border-dashed bg-[#fcfaf7] dark:bg-[#241e17] px-4 text-center">
                 <div>
                   <PackageOpen className="mx-auto size-7 text-primary/70" />
                   <p className="mt-2 text-sm font-medium">
@@ -394,10 +394,10 @@ export function PackageManagement({
                     type="button"
                     onClick={() => setSelectedId(category.id)}
                     aria-pressed={selected}
-                    className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected ? 'border-[#d9bd91] bg-accent shadow-sm' : 'border-border bg-white hover:border-[#d9bd91] hover:bg-[#fcfaf7]'}`}
+                    className={`flex w-full items-center gap-3 rounded-lg border p-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selected ? 'border-[#d9bd91] bg-accent shadow-sm' : 'border-border bg-white dark:bg-card hover:border-[#d9bd91] hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]'}`}
                   >
                     <span
-                      className={`grid size-10 shrink-0 place-items-center rounded-lg ${selected ? 'bg-primary text-white' : 'bg-[#f5ead8] text-primary'}`}
+                      className={`grid size-10 shrink-0 place-items-center rounded-lg ${selected ? 'bg-primary text-white' : 'bg-[#f5ead8] dark:bg-[#33291c] text-primary'}`}
                     >
                       <PackageOpen className="size-5" />
                     </span>
@@ -589,7 +589,7 @@ function VariantCard({
           </Badge>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg border bg-[#fcfaf7] p-3 text-xs">
+        <div className="mt-4 grid grid-cols-2 gap-2 rounded-lg border bg-[#fcfaf7] dark:bg-[#241e17] p-3 text-xs">
           <PriceDetail
             label="Extra Safa"
             value={currency(variant.extra_safa_price)}
@@ -616,7 +616,7 @@ function VariantCard({
                 <Badge
                   key={inclusion}
                   variant="outline"
-                  className="bg-white font-normal"
+                  className="bg-white dark:bg-card font-normal"
                 >
                   {inclusion}
                 </Badge>
@@ -629,7 +629,7 @@ function VariantCard({
           </div>
         </div>
       </CardContent>
-      <div className="flex gap-2 border-t bg-[#fcfaf7] p-3">
+      <div className="flex gap-2 border-t bg-[#fcfaf7] dark:bg-[#241e17] p-3">
         <Button
           type="button"
           variant="outline"
@@ -679,9 +679,9 @@ function DialogFrame({
         open
         aria-modal="true"
         aria-labelledby="package-dialog-title"
-        className={`relative m-auto w-full ${maxWidth} overflow-hidden rounded-2xl border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]`}
+        className={`relative m-auto w-full ${maxWidth} overflow-hidden rounded-2xl border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]`}
       >
-        <div className="flex items-center justify-between border-b bg-[#fcfaf7] px-5 py-4 sm:px-6">
+        <div className="flex items-center justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:px-6">
           <div className="flex items-center gap-3">
             <span className="grid size-10 place-items-center rounded-xl bg-accent text-primary ring-1 ring-[#e4d2b6] [&_svg]:size-5">
               {icon}
@@ -697,7 +697,7 @@ function DialogFrame({
             type="button"
             onClick={onClose}
             aria-label={`Close ${title}`}
-            className="grid size-9 place-items-center rounded-full border bg-white text-muted-foreground transition hover:text-foreground"
+            className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground transition hover:text-foreground"
           >
             <X className="size-4" />
           </button>
@@ -805,7 +805,7 @@ function VariantDialog({
             rows={3}
             defaultValue={variant?.inclusions.join(', ') ?? ''}
             placeholder="E.g. Safa, Kalgi, Necklace, Earrings"
-            className="mt-1.5 w-full rounded-lg border border-input bg-white px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="mt-1.5 w-full rounded-lg border border-input bg-white dark:bg-card px-3 py-2.5 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
           <span className="mt-1 block text-xs text-muted-foreground">
             Add every product or item included in this package, separated by

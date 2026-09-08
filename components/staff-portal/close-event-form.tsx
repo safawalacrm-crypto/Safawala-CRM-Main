@@ -9,7 +9,7 @@ import { closeEventJobAction, type CloseEventFormState } from '@/app/staff-porta
 
 const initialState: CloseEventFormState = { error: '' };
 const inputClass =
-  'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
 export function CloseEventForm({
   jobId,
@@ -88,7 +88,7 @@ export function CloseEventForm({
               name="notes"
               rows={3}
               placeholder="Anything worth recording about this closure…"
-              className="w-full resize-y rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+              className="w-full resize-y rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
             />
           </label>
 

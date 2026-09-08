@@ -85,7 +85,7 @@ type Item = {
 };
 
 const fieldClass =
-  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20';
 const uid = () => Math.random().toString(36).slice(2);
 
 export function BookingEditForm({
@@ -294,7 +294,7 @@ export function BookingEditForm({
       />
       <form onSubmit={submit} className="space-y-5">
         <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1 ring-0">
-          <CardHeader className="flex-row items-center justify-between border-b bg-[#fcfaf7] px-5 py-4">
+          <CardHeader className="flex-row items-center justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4">
             <div className="flex items-center gap-3">
               <span className="grid size-9 place-items-center rounded-xl bg-accent text-primary">
                 <Pencil className="size-4" />
@@ -405,7 +405,7 @@ export function BookingEditForm({
                 name="notes"
                 rows={6}
                 defaultValue={booking.notes ?? ''}
-                className="mt-1.5 w-full rounded-lg border border-input bg-white p-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                className="mt-1.5 w-full rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
               />
             </label>
           </CardContent>
@@ -459,7 +459,7 @@ export function BookingEditForm({
                         key={product.id}
                         type="button"
                         onClick={() => addProduct(product)}
-                        className="flex items-center justify-between gap-2 rounded-xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
+                        className="flex items-center justify-between gap-2 rounded-xl border bg-white dark:bg-card p-3 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
                       >
                         <span className="min-w-0">
                           <span className="block truncate text-sm font-semibold">
@@ -511,7 +511,7 @@ export function BookingEditForm({
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[760px] text-sm">
-                    <thead className="border-b bg-[#f5f2ed] text-left text-xs text-muted-foreground">
+                    <thead className="border-b bg-[#f5f2ed] dark:bg-[#241e17] text-left text-xs text-muted-foreground">
                       <tr>
                         <th className="px-4 py-3 font-medium">Item</th>
                         <th className="px-4 py-3 font-medium">Qty</th>
@@ -665,7 +665,7 @@ export function BookingEditForm({
                 </CardContent>
               </Card>
               <Card className="gap-0 border-[#dfc9a6] py-0 shadow-none ring-0">
-                <CardHeader className="border-b bg-[#fcfaf7] px-4 py-4">
+                <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-4 py-4">
                   <CardTitle className="text-sm font-semibold">
                     Summary
                   </CardTitle>
@@ -685,7 +685,7 @@ export function BookingEditForm({
             </div>
           </>
         ) : (
-          <Alert className="border-[#e4d2b6] bg-[#fcfaf7] text-[#6e471f]">
+          <Alert className="border-[#e4d2b6] bg-[#fcfaf7] dark:bg-[#241e17] text-[#6e471f]">
             <ShieldCheck className="size-4" />
             <AlertTitle>Items and totals are locked</AlertTitle>
             <AlertDescription>
@@ -701,7 +701,7 @@ export function BookingEditForm({
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : null}
-        <div className="flex justify-end gap-2 rounded-xl border bg-white p-4 shadow-level-1">
+        <div className="flex justify-end gap-2 rounded-xl border bg-white dark:bg-card p-4 shadow-level-1">
           <Button
             type="button"
             variant="outline"

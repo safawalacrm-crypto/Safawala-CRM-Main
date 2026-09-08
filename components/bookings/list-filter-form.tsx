@@ -66,7 +66,7 @@ export function ListFilterForm({
   return (
     <form
       onSubmit={submitSearch}
-      className="grid gap-3 border-b bg-[#fcfaf7] p-4 md:grid-cols-[minmax(220px,1fr)_repeat(2,170px)_auto]"
+      className="grid gap-3 border-b bg-[#fcfaf7] dark:bg-[#241e17] p-4 md:grid-cols-[minmax(220px,1fr)_repeat(2,170px)_auto]"
       aria-busy={pending}
     >
       <label className="relative">
@@ -76,7 +76,7 @@ export function ListFilterForm({
           name="q"
           defaultValue={search}
           placeholder={searchPlaceholder}
-          className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+          className="h-10 w-full rounded-lg border bg-white dark:bg-card pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
         />
       </label>
       {filters.map((filter) => (
@@ -86,7 +86,7 @@ export function ListFilterForm({
           value={filter.value}
           onChange={(event) => changeFilter(filter.name, event.target.value)}
           aria-label={filter.label}
-          className="h-10 rounded-lg border bg-white px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+          className="h-10 rounded-lg border bg-white dark:bg-card px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
         >
           <option value="">{filter.label}</option>
           {filter.options.map(([key, text]) => (
@@ -96,21 +96,21 @@ export function ListFilterForm({
           ))}
         </select>
       ))}
-      <Button type="submit" variant="outline" className="h-10 bg-white" disabled={pending}>
+      <Button type="submit" variant="outline" className="h-10 bg-white dark:bg-card" disabled={pending}>
         Search
       </Button>
       {hasActiveFilters ? (
         <div className="flex flex-wrap items-center gap-2 md:col-span-full" aria-live="polite">
           <span className="text-xs font-medium text-muted-foreground">Active filters:</span>
           {search ? (
-            <span className="inline-flex h-7 items-center rounded-full border border-[#e4d2b6] bg-white px-2.5 text-xs font-medium text-[#70481c]">
+            <span className="inline-flex h-7 items-center rounded-full border border-[#e4d2b6] bg-white dark:bg-card px-2.5 text-xs font-medium text-[#70481c]">
               Search: {search}
             </span>
           ) : null}
           {activeFilters.map((filter) => (
             <span
               key={filter.name}
-              className="inline-flex h-7 items-center rounded-full border border-[#e4d2b6] bg-[#f5ead8] px-2.5 text-xs font-semibold text-[#70481c]"
+              className="inline-flex h-7 items-center rounded-full border border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] px-2.5 text-xs font-semibold text-[#70481c]"
             >
               {filter.text}
             </span>
@@ -119,7 +119,7 @@ export function ListFilterForm({
             type="button"
             onClick={resetFilters}
             disabled={pending}
-            className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-medium text-muted-foreground transition hover:bg-white hover:text-foreground disabled:opacity-50"
+            className="inline-flex h-7 items-center gap-1 rounded-full px-2 text-xs font-medium text-muted-foreground transition hover:bg-white dark:hover:bg-card hover:text-foreground disabled:opacity-50"
           >
             <X className="size-3.5" />
             Clear filters

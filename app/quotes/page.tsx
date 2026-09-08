@@ -345,7 +345,7 @@ export default async function QuotesPage({ searchParams }: Props) {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1180px] text-left text-sm">
-                  <thead className="border-b bg-white text-xs text-muted-foreground">
+                  <thead className="border-b bg-white dark:bg-card text-xs text-muted-foreground">
                     <tr>
                       {[
                         'Quote #',
@@ -369,7 +369,7 @@ export default async function QuotesPage({ searchParams }: Props) {
                       return (
                         <tr
                           key={quote.id}
-                          className="border-b last:border-0 hover:bg-[#fcfaf7]"
+                          className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]"
                         >
                           <td className="px-5 py-4">
                             <Link

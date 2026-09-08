@@ -171,7 +171,7 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
             </Link>
             <Link
               href="/staff-portal/warehouse?view=closed"
-              className="rounded-xl border bg-white p-4 shadow-sm transition hover:bg-[#fcfaf7] hover:shadow-level-1"
+              className="rounded-xl border bg-white dark:bg-card p-4 shadow-sm transition hover:bg-[#fcfaf7] dark:hover:bg-[#241e17] hover:shadow-level-1"
             >
               <span className="flex items-center gap-2 text-sm font-medium">
                 <CheckCircle2 className="size-4 text-emerald-700" /> Closed
@@ -200,7 +200,7 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
             </Link>
             <Link
               href="/staff-portal/qc?view=closed"
-              className="rounded-xl border bg-white p-4 shadow-sm transition hover:bg-[#fcfaf7] hover:shadow-level-1"
+              className="rounded-xl border bg-white dark:bg-card p-4 shadow-sm transition hover:bg-[#fcfaf7] dark:hover:bg-[#241e17] hover:shadow-level-1"
             >
               <span className="flex items-center gap-2 text-sm font-medium">
                 <CheckCircle2 className="size-4 text-emerald-700" /> Closed QC

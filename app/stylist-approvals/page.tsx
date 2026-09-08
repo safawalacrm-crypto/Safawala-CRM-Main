@@ -41,11 +41,11 @@ export default async function StylistApprovalsPage() {
           <div className="space-y-5">
             {jobs.map((job) => (
               <Card key={job.id} className="gap-0 overflow-hidden border-border py-0 shadow-level-1">
-                <CardHeader className="border-b border-[#e8dccb] bg-[#fcfaf7] px-5 py-4 sm:px-6">
+                <CardHeader className="border-b border-[#e8dccb] bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:px-6">
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <Badge variant="outline" className="border-[#dfc6a4] bg-[#f5ead8] text-[#70481c]">Rental</Badge>
+                        <Badge variant="outline" className="border-[#dfc6a4] bg-[#f5ead8] dark:bg-[#33291c] text-[#70481c]">Rental</Badge>
                         <Link href={`/event-jobs/${job.id}`} className="font-semibold text-primary hover:underline">{job.id}</Link>
                         <span className="text-sm text-muted-foreground">{job.bookingNumber}</span>
                       </div>
@@ -55,9 +55,9 @@ export default async function StylistApprovalsPage() {
                         {job.eventSummary.venue ? <span className="flex items-center gap-1.5"><MapPin className="size-4" />{job.eventSummary.venue}</span> : null}
                       </p>
                     </div>
-                    <form action={setStylistsRequiredAction} className="flex w-full items-end gap-2 rounded-xl border border-border bg-white p-2.5 lg:w-auto">
+                    <form action={setStylistsRequiredAction} className="flex w-full items-end gap-2 rounded-xl border border-border bg-white dark:bg-card p-2.5 lg:w-auto">
                       <input type="hidden" name="jobId" value={job.id} />
-                      <label className="flex-1 text-xs font-medium text-muted-foreground lg:w-32">Stylists required<input name="count" type="number" min={0} defaultValue={job.stylistsRequiredCount} className="mt-1 h-9 w-full rounded-lg border border-input bg-white px-3 text-sm font-medium outline-none focus:border-ring focus:ring-2 focus:ring-ring/20" /></label>
+                      <label className="flex-1 text-xs font-medium text-muted-foreground lg:w-32">Stylists required<input name="count" type="number" min={0} defaultValue={job.stylistsRequiredCount} className="mt-1 h-9 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm font-medium outline-none focus:border-ring focus:ring-2 focus:ring-ring/20" /></label>
                       <Button type="submit" variant="outline" size="sm">Update</Button>
                     </form>
                   </div>
@@ -77,5 +77,5 @@ export default async function StylistApprovalsPage() {
 }
 
 function Summary({ icon, label, value }: { icon: ReactNode; label: string; value: number }) {
-  return <Card className="border-border shadow-level-1"><CardContent className="flex items-center gap-3 p-4"><span className="grid size-10 place-items-center rounded-xl bg-[#f5ead8] text-primary [&_svg]:size-5">{icon}</span><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-semibold">{value}</p></div></CardContent></Card>;
+  return <Card className="border-border shadow-level-1"><CardContent className="flex items-center gap-3 p-4"><span className="grid size-10 place-items-center rounded-xl bg-[#f5ead8] dark:bg-[#33291c] text-primary [&_svg]:size-5">{icon}</span><div><p className="text-xs text-muted-foreground">{label}</p><p className="text-xl font-semibold">{value}</p></div></CardContent></Card>;
 }

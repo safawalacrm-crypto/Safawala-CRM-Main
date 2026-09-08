@@ -1,8 +1,978 @@
 'use client';
+
 import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
-type Staff = { id: number; name: string; phone?: string | null; email?: string | null }; type Letter = { id: number; staff_id: number; letter_type: string; title: string; issued_on: string; notes?: string | null; staff_members?: { name?: string; phone?: string; email?: string } | null };
-const types = ['Offer letter', 'Appointment letter', 'Joining letter', 'Internship letter', 'Experience certificate', 'Relieving letter', 'Salary increment letter', 'NOC', 'Warning letter', 'Termination letter'];
-export function LettersManager({ initialRecords, staff }: { initialRecords: Letter[]; staff: Staff[] }) { const [rows, setRows] = useState(initialRecords); const [open, setOpen] = useState(false); const [preview, setPreview] = useState<Letter | null>(null); const [pending, start] = useTransition(); function save(form: HTMLFormElement) { const d = new FormData(form); start(async () => { const s = createClient(); const { data: auth } = await s.auth.getUser(); const { error } = await s.from('hr_letters').insert({ owner_id: auth.user?.id, staff_id: Number(d.get('staff_id')), letter_type: String(d.get('letter_type')), title: String(d.get('title')), issued_on: String(d.get('issued_on')), notes: String(d.get('notes') || '') }); if (!error) window.location.reload(); }); } return <div className="space-y-5"><Card><CardContent className="flex items-center justify-between p-5"><div><p className="font-semibold">Generate an HR letter</p><p className="text-sm text-muted-foreground">Use staff information already stored in Staff Directory.</p></div><Button onClick={() => setOpen(true)}>New letter</Button></CardContent></Card><Card><CardContent className="overflow-x-auto p-0"><table className="w-full text-sm"><thead><tr className="border-b bg-[#faf8f4] text-left text-xs uppercase tracking-wide text-muted-foreground"><th className="px-5 py-3">Employee</th><th className="px-5 py-3">Letter type</th><th className="px-5 py-3">Title</th><th className="px-5 py-3">Issued</th><th className="px-5 py-3" /></tr></thead><tbody>{rows.map((r) => <tr key={r.id} className="border-b last:border-0"><td className="px-5 py-4 font-medium">{r.staff_members?.name ?? 'Employee'}</td><td className="px-5 py-4">{r.letter_type}</td><td className="px-5 py-4">{r.title}</td><td className="px-5 py-4">{r.issued_on}</td><td className="px-5 py-4 text-right"><Button variant="ghost" size="sm" onClick={() => setPreview(r)}>Preview / PDF</Button></td></tr>)}{!rows.length && <tr><td colSpan={5} className="px-5 py-12 text-center text-muted-foreground">No letters generated yet.</td></tr>}</tbody></table></CardContent></Card>{open && <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4"><Card className="w-full max-w-lg"><CardContent className="p-6"><h2 className="mb-4 text-lg font-semibold">Generate HR letter</h2><form onSubmit={(e) => { e.preventDefault(); save(e.currentTarget); }} className="space-y-3"><label className="block text-sm">Employee<select name="staff_id" required className="mt-1 h-10 w-full rounded border px-2">{staff.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label><label className="block text-sm">Letter type<select name="letter_type" className="mt-1 h-10 w-full rounded border px-2">{types.map((t) => <option key={t}>{t}</option>)}</select></label><label className="block text-sm">Title<input name="title" required placeholder="e.g. Employment confirmation" className="mt-1 h-10 w-full rounded border px-2" /></label><label className="block text-sm">Issue date<input name="issued_on" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} className="mt-1 h-10 w-full rounded border px-2" /></label><label className="block text-sm">Notes<textarea name="notes" rows={3} className="mt-1 w-full rounded border px-2 py-2" /></label><div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button><Button type="submit" disabled={pending}>{pending ? 'Saving…' : 'Save letter'}</Button></div></form></CardContent></Card></div>}{preview && <div className="fixed inset-0 z-50 grid place-items-center bg-black/30 p-4"><Card className="w-full max-w-2xl"><CardContent className="space-y-4 p-8"><div className="text-center"><p className="text-xs uppercase tracking-[0.25em] text-[#70481c]">Safawala.com</p><h2 className="mt-4 text-2xl font-semibold">{preview.letter_type}</h2><p className="text-sm text-muted-foreground">Issued on {preview.issued_on}</p></div><div className="space-y-3 border-y py-8 text-sm leading-7"><p>To,<br /><strong>{preview.staff_members?.name ?? 'Employee'}</strong><br />{preview.staff_members?.email ?? ''}<br />{preview.staff_members?.phone ?? ''}</p><p>Subject: <strong>{preview.title}</strong></p><p>{preview.notes || 'This letter has been issued by the Human Resources department based on the employee record maintained in Supabase.'}</p><p>Regards,<br /><strong>Admin / Human Resources</strong></p></div><div className="flex justify-end gap-2"><Button variant="outline" onClick={() => window.print()}>Print / Download PDF</Button><Button onClick={() => setPreview(null)}>Close</Button></div></CardContent></Card></div>}</div>; }
+import jsPDF from 'jspdf';
+
+type Staff = {
+  id: number;
+  name: string;
+  phone?: string | null;
+  email?: string | null;
+};
+type Letter = {
+  id: number;
+  staff_id: number;
+  letter_type: string;
+  title: string;
+  issued_on: string;
+  notes?: string | null;
+  staff_members?: { name?: string; phone?: string; email?: string } | null;
+};
+type OfferDetails = {
+  designation: string;
+  department: string;
+  joiningDate: string;
+  salary: string;
+  probation: string;
+  posting: string;
+  workingHours: string;
+  conditions: string;
+  notes: string;
+};
+const types = [
+  'Offer letter',
+  'Appointment letter',
+  'Joining letter',
+  'Internship letter',
+  'Experience certificate',
+  'Relieving letter',
+  'Salary increment letter',
+  'NOC',
+  'Warning letter',
+  'Termination letter',
+];
+
+export function LettersManager({
+  initialRecords,
+  staff,
+}: {
+  initialRecords: Letter[];
+  staff: Staff[];
+}) {
+  const [rows] = useState(initialRecords);
+  const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState<Letter | null>(null);
+  const [pending, start] = useTransition();
+  function save(form: HTMLFormElement) {
+    const d = new FormData(form);
+    start(async () => {
+      const supabase = createClient();
+      const { data: auth } = await supabase.auth.getUser();
+      const letterType = String(d.get('letter_type') || 'Offer letter');
+      const title = String(d.get('title') || letterType);
+      const details: OfferDetails = {
+        designation: String(d.get('designation') || 'Staff Member'),
+        department: String(d.get('department') || 'Safawala.com'),
+        joiningDate: String(
+          d.get('joining_date') || 'To be mutually confirmed',
+        ),
+        salary: String(d.get('salary') || 'To be discussed'),
+        probation: String(d.get('probation') || '3 (Three) months'),
+        posting: String(d.get('posting') || 'Head Office / As assigned'),
+        workingHours: String(
+          d.get('working_hours') || '10:00 AM to 7:00 PM, Monday to Saturday',
+        ),
+        conditions: String(
+          d.get('conditions') ||
+            'This offer is contingent upon satisfactory verification of all original documents submitted by you.\nYou will be required to serve the stated probation period.',
+        ),
+        notes: String(d.get('notes') || ''),
+      };
+      const result = await supabase.from('hr_letters').insert({
+        owner_id: auth.user?.id,
+        staff_id: Number(d.get('staff_id')),
+        letter_type: letterType,
+        title,
+        issued_on: String(d.get('issued_on')),
+        notes: JSON.stringify(details),
+      });
+      if (!result.error) window.location.reload();
+    });
+  }
+  return (
+    <div className="space-y-5">
+      <Card>
+        <CardContent className="flex items-center justify-between p-5">
+          <div>
+            <p className="font-semibold">Generate an HR letter</p>
+            <p className="text-sm text-muted-foreground">
+              Use staff information already stored in Staff Directory.
+            </p>
+          </div>
+          <Button onClick={() => setOpen(true)}>New letter</Button>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardContent className="overflow-x-auto p-0">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b bg-[#faf8f4] dark:bg-[#241e17] text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <th className="px-5 py-3">Employee</th>
+                <th className="px-5 py-3">Letter type</th>
+                <th className="px-5 py-3">Title</th>
+                <th className="px-5 py-3">Issued</th>
+                <th className="px-5 py-3" />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.id} className="border-b last:border-0">
+                  <td className="px-5 py-4 font-medium">
+                    {row.staff_members?.name ?? 'Employee'}
+                  </td>
+                  <td className="px-5 py-4">{row.letter_type}</td>
+                  <td className="px-5 py-4">{row.title || row.letter_type}</td>
+                  <td className="px-5 py-4">{row.issued_on}</td>
+                  <td className="px-5 py-4 text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setPreview(row)}
+                    >
+                      Preview / PDF
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+              {!rows.length && (
+                <tr>
+                  <td
+                    colSpan={5}
+                    className="px-5 py-12 text-center text-muted-foreground"
+                  >
+                    No letters generated yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </CardContent>
+      </Card>
+      {open ? (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-black/40 p-4">
+          <Card className="w-full max-w-lg">
+            <CardContent className="p-6">
+              <h2 className="mb-4 text-lg font-semibold">Generate HR letter</h2>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  save(event.currentTarget);
+                }}
+                className="space-y-3"
+              >
+                <label className="block text-sm">
+                  Employee
+                  <select
+                    name="staff_id"
+                    required
+                    className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                  >
+                    {staff.map((member) => (
+                      <option key={member.id} value={member.id}>
+                        {member.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm">
+                  Letter type
+                  <select
+                    name="letter_type"
+                    className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                  >
+                    {types.map((type) => (
+                      <option key={type}>{type}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="block text-sm">
+                  Subject / title
+                  <input
+                    name="title"
+                    placeholder="Offer of employment"
+                    className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                  />
+                </label>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block text-sm">
+                    Designation
+                    <input
+                      name="designation"
+                      required
+                      defaultValue="Staff Member"
+                      className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Department
+                    <input
+                      name="department"
+                      required
+                      placeholder="e.g. Warehouse"
+                      className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Date of joining
+                    <input
+                      name="joining_date"
+                      type="date"
+                      required
+                      className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Gross monthly salary
+                    <input
+                      name="salary"
+                      required
+                      placeholder="₹ 25,000 per month (CTC)"
+                      className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Probation period
+                    <input
+                      name="probation"
+                      required
+                      defaultValue="3 (Three) months"
+                      className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                    />
+                  </label>
+                  <label className="block text-sm">
+                    Place of posting
+                    <input
+                      name="posting"
+                      required
+                      defaultValue="Head Office / As assigned"
+                      className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                    />
+                  </label>
+                </div>
+                <label className="block text-sm">
+                  Working hours
+                  <input
+                    name="working_hours"
+                    required
+                    defaultValue="10:00 AM to 7:00 PM, Monday to Saturday"
+                    className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Conditions of offer
+                  <textarea
+                    name="conditions"
+                    required
+                    rows={3}
+                    defaultValue={
+                      'This offer is contingent upon satisfactory verification of all original documents submitted by you.\nYou will be required to serve the stated probation period.'
+                    }
+                    className="mt-1 w-full rounded border bg-white dark:bg-card px-2 py-2"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Issue date
+                  <input
+                    name="issued_on"
+                    type="date"
+                    required
+                    defaultValue={new Date().toISOString().slice(0, 10)}
+                    className="mt-1 h-10 w-full rounded border bg-white dark:bg-card px-2"
+                  />
+                </label>
+                <label className="block text-sm">
+                  Additional notes
+                  <textarea
+                    name="notes"
+                    rows={3}
+                    placeholder="Optional terms or instructions"
+                    className="mt-1 w-full rounded border bg-white dark:bg-card px-2 py-2"
+                  />
+                </label>
+                <div className="flex justify-end gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={pending}>
+                    {pending ? 'Saving…' : 'Save letter'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
+      {preview ? (
+        <LetterPreview letter={preview} onClose={() => setPreview(null)} />
+      ) : null}
+    </div>
+  );
+}
+
+function LetterPreview({
+  letter,
+  onClose,
+}: {
+  letter: Letter;
+  onClose: () => void;
+}) {
+  const name = letter.staff_members?.name || 'Candidate Name';
+  const isOffer = letter.letter_type.toLowerCase().includes('offer');
+  const details = parseOfferDetails(letter.notes, name);
+  const terms = [
+    ['POSITION / DESIGNATION', details.designation],
+    ['DEPARTMENT', details.department],
+    ['DATE OF JOINING', details.joiningDate],
+    ['GROSS MONTHLY SALARY', details.salary],
+    ['PROBATION PERIOD', details.probation],
+    ['PLACE OF POSTING', details.posting],
+    ['WORKING HOURS', details.workingHours],
+  ];
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto bg-[#211d18]/70 p-4 sm:p-8 print:static print:bg-white print:p-0">
+      <div className="mx-auto max-w-[820px]">
+        <article className="print:shadow-none mx-auto min-h-[1056px] border-t-[6px] border-[#5b63f6] bg-white dark:bg-card px-8 py-9 text-[#12345b] shadow-2xl sm:px-12 sm:py-11">
+          <header className="flex items-start justify-between gap-8 border-b-4 border-[#5b63f6] pb-5">
+            <div>
+              <img
+                src="/safawala-wordmark-transparent.png"
+                alt="Safawala.com"
+                className="h-12 w-auto object-contain"
+              />
+              <p className="mt-2 text-[11px]">
+                Fashion Rental &amp; Styling • Wedding Turbans &amp; Accessories
+              </p>
+              <p className="text-[11px]">info@safawala.com • +91 98765 43210</p>
+              <p className="text-[11px]">
+                www.safawala.com • Mumbai, Maharashtra, India
+              </p>
+            </div>
+            <dl className="text-right text-xs leading-6">
+              <div>
+                <dt className="font-semibold">Date:</dt>
+                <dd>{formatDate(letter.issued_on)}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Ref No.:</dt>
+                <dd>VADODARA-BRANCH-{String(letter.id).padStart(6, '0')}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold">Issuing Authority:</dt>
+                <dd>Human Resources</dd>
+              </div>
+            </dl>
+          </header>
+          <div className="mt-7 border-y border-[#d8e0eb] py-6 text-center">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#8a9bb5]">
+              Human Resources Department
+            </p>
+            <h1 className="mt-2 text-2xl font-bold tracking-[0.22em] text-[#5b63f6]">
+              {letter.letter_type.toUpperCase()}
+            </h1>
+          </div>
+          <main className="space-y-5 pt-6 text-sm leading-7">
+            <div className="rounded border border-[#d8e0eb] bg-[#f8fafc] dark:bg-[#241e17] px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#6d7f99]">
+                Subject
+              </p>
+              <p className="mt-1 font-semibold text-[#12345b]">
+                {letter.title || 'Offer of Employment'}
+              </p>
+            </div>
+            <p>
+              Dear <strong>{name}</strong>,
+            </p>
+            <p>
+              {isOffer ? (
+                <>
+                  We are delighted to inform you that, after evaluating your
+                  profile and interview performance,{' '}
+                  <strong>Safawala.com</strong> is pleased to extend this formal
+                  offer of employment to you. We believe your skills and
+                  experience will be a valuable addition to our team.
+                </>
+              ) : (
+                <LetterOpening type={letter.letter_type} name={name} />
+              )}
+            </p>
+            <p>
+              {isOffer ? (
+                <>
+                  You are being offered the position of{' '}
+                  <strong>{details.designation}</strong> in the{' '}
+                  {details.department} department, subject to the terms and
+                  conditions outlined below.
+                </>
+              ) : (
+                <LetterBody type={letter.letter_type} name={name} />
+              )}
+            </p>
+            {isOffer ? (
+              <>
+                <h2 className="pt-2 text-xs font-bold tracking-[0.16em] text-[#8a9bb5]">
+                  EMPLOYMENT TERMS
+                </h2>
+                <table className="w-full border-collapse text-sm">
+                  <tbody>
+                    {terms.map(([label, value]) => (
+                      <tr key={label} className="border border-[#d8e0eb]">
+                        <th className="w-2/5 bg-[#f5f8fc] dark:bg-[#241e17] px-3 py-2 text-left text-xs font-semibold tracking-wide">
+                          {label}
+                        </th>
+                        <td className="px-3 py-2 font-medium">{value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <h2 className="pt-2 text-xs font-bold tracking-[0.16em] text-[#8a9bb5]">
+                  CONDITIONS OF OFFER
+                </h2>
+                <ol className="list-decimal space-y-1 pl-5">
+                  {details.conditions
+                    .split('\n')
+                    .filter(Boolean)
+                    .map((condition) => (
+                      <li key={condition}>{condition}</li>
+                    ))}
+                </ol>
+              </>
+            ) : null}
+            {details.notes ? (
+              <p className="border-l-2 border-[#5b63f6] pl-4 italic">
+                {details.notes}
+              </p>
+            ) : null}
+            <p className="pt-4">
+              Regards,
+              <br />
+              <strong>Admin / Human Resources</strong>
+            </p>
+            <p className="text-xs text-[#6d7f99]">
+              This document was generated from the Safawala CRM Staff Directory
+              on {formatDate(letter.issued_on)}.
+            </p>
+          </main>
+        </article>
+        <div className="flex justify-end gap-2 py-4 print:hidden">
+          <Button variant="outline" onClick={() => window.print()}>
+            Print
+          </Button>
+          <Button
+            onClick={() => {
+              void downloadLetterPdf(letter, details, name);
+            }}
+          >
+            Download PDF
+          </Button>
+          <Button onClick={onClose}>Close</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LetterOpening({ type, name }: { type: string; name: string }) {
+  const normalized = type.toLowerCase();
+  if (normalized.includes('experience'))
+    return (
+      <>
+        This is to certify that <strong>{name}</strong> has been associated with{' '}
+        <strong>Safawala.com</strong>. This certificate is issued upon request
+        for official use.
+      </>
+    );
+  if (normalized.includes('relieving'))
+    return (
+      <>
+        This letter confirms that <strong>{name}</strong> has been relieved from
+        their responsibilities with <strong>Safawala.com</strong>, subject to
+        completion of the required handover.
+      </>
+    );
+  if (normalized.includes('internship'))
+    return (
+      <>
+        We are pleased to offer <strong>{name}</strong> an internship
+        opportunity with <strong>Safawala.com</strong> to gain practical
+        experience and professional exposure.
+      </>
+    );
+  if (normalized.includes('joining'))
+    return (
+      <>
+        We are pleased to acknowledge the joining of <strong>{name}</strong> at{' '}
+        <strong>Safawala.com</strong>. We welcome you to the team and look
+        forward to your contribution.
+      </>
+    );
+  if (normalized.includes('appointment'))
+    return (
+      <>
+        We are pleased to confirm the appointment of <strong>{name}</strong>{' '}
+        with <strong>Safawala.com</strong> under the terms set out below.
+      </>
+    );
+  if (normalized.includes('increment'))
+    return (
+      <>
+        We are pleased to inform <strong>{name}</strong> of a revision to their
+        compensation in recognition of their contribution to{' '}
+        <strong>Safawala.com</strong>.
+      </>
+    );
+  if (normalized.includes('noc'))
+    return (
+      <>
+        <strong>Safawala.com</strong> has no objection to{' '}
+        <strong>{name}</strong> for the purpose stated in this letter, subject
+        to company policy.
+      </>
+    );
+  if (normalized.includes('warning'))
+    return (
+      <>
+        This letter serves as a formal warning to <strong>{name}</strong>{' '}
+        regarding the matter documented by Human Resources.
+      </>
+    );
+  if (normalized.includes('termination'))
+    return (
+      <>
+        This letter confirms the termination of <strong>{name}</strong>'s
+        employment with <strong>Safawala.com</strong>, effective as communicated
+        by Human Resources.
+      </>
+    );
+  return (
+    <>
+      This letter has been issued by the Human Resources department based on the
+      employee record maintained in Supabase.
+    </>
+  );
+}
+
+function LetterBody({ type, name }: { type: string; name: string }) {
+  const normalized = type.toLowerCase();
+  if (normalized.includes('experience'))
+    return (
+      <>
+        During their association, <strong>{name}</strong> carried out assigned
+        responsibilities professionally. We wish them success in their future
+        endeavours.
+      </>
+    );
+  if (normalized.includes('relieving'))
+    return (
+      <>
+        All company assets and responsibilities must be handed over to the
+        designated manager. We thank you for your service.
+      </>
+    );
+  if (normalized.includes('internship'))
+    return (
+      <>
+        The internship is subject to company policies, confidentiality
+        requirements, and satisfactory performance.
+      </>
+    );
+  if (normalized.includes('joining') || normalized.includes('appointment'))
+    return (
+      <>
+        Please report to the assigned department on the joining date and comply
+        with all Safawala.com policies and procedures.
+      </>
+    );
+  if (normalized.includes('increment'))
+    return (
+      <>
+        The revised compensation will be administered through payroll from the
+        effective date recorded by Human Resources.
+      </>
+    );
+  if (normalized.includes('noc'))
+    return (
+      <>
+        This no-objection confirmation does not alter the terms of employment or
+        relieve the employee of existing obligations.
+      </>
+    );
+  if (normalized.includes('warning'))
+    return (
+      <>
+        You are expected to take immediate corrective action and maintain the
+        standards required by your role. Further occurrences may lead to
+        disciplinary action.
+      </>
+    );
+  if (normalized.includes('termination'))
+    return (
+      <>
+        Please complete the handover and clearance process with Human Resources.
+        Any final settlement will be processed according to company policy.
+      </>
+    );
+  return (
+    <>
+      Please retain this document for your official records. Any terms specified
+      by HR form part of this letter.
+    </>
+  );
+}
+
+function letterOpeningPlainText(type: string, name: string): string {
+  const normalized = type.toLowerCase();
+  if (normalized.includes('experience'))
+    return `This is to certify that ${name} has been associated with Safawala.com. This certificate is issued upon request for official use.`;
+  if (normalized.includes('relieving'))
+    return `This letter confirms that ${name} has been relieved from their responsibilities with Safawala.com, subject to completion of the required handover.`;
+  if (normalized.includes('internship'))
+    return `We are pleased to offer ${name} an internship opportunity with Safawala.com to gain practical experience and professional exposure.`;
+  if (normalized.includes('joining'))
+    return `We are pleased to acknowledge the joining of ${name} at Safawala.com. We welcome you to the team and look forward to your contribution.`;
+  if (normalized.includes('appointment'))
+    return `We are pleased to confirm the appointment of ${name} with Safawala.com under the terms set out below.`;
+  if (normalized.includes('increment'))
+    return `We are pleased to inform ${name} of a revision to their compensation in recognition of their contribution to Safawala.com.`;
+  if (normalized.includes('noc'))
+    return `Safawala.com has no objection to ${name} for the purpose stated in this letter, subject to company policy.`;
+  if (normalized.includes('warning'))
+    return `This letter serves as a formal warning to ${name} regarding the matter documented by Human Resources.`;
+  if (normalized.includes('termination'))
+    return `This letter confirms the termination of ${name}'s employment with Safawala.com, effective as communicated by Human Resources.`;
+  return `This letter has been issued by the Human Resources department based on the employee record maintained in Supabase.`;
+}
+
+function letterBodyPlainText(type: string, name: string): string {
+  const normalized = type.toLowerCase();
+  if (normalized.includes('experience'))
+    return `During their association, ${name} carried out assigned responsibilities professionally. We wish them success in their future endeavours.`;
+  if (normalized.includes('relieving'))
+    return `All company assets and responsibilities must be handed over to the designated manager. We thank you for your service.`;
+  if (normalized.includes('internship'))
+    return `The internship is subject to company policies, confidentiality requirements, and satisfactory performance.`;
+  if (normalized.includes('joining') || normalized.includes('appointment'))
+    return `Please report to the assigned department on the joining date and comply with all Safawala.com policies and procedures.`;
+  if (normalized.includes('increment'))
+    return `The revised compensation will be administered through payroll from the effective date recorded by Human Resources.`;
+  if (normalized.includes('noc'))
+    return `This no-objection confirmation does not alter the terms of employment or relieve the employee of existing obligations.`;
+  if (normalized.includes('warning'))
+    return `You are expected to take immediate corrective action and maintain the standards required by your role. Further occurrences may lead to disciplinary action.`;
+  if (normalized.includes('termination'))
+    return `Please complete the handover and clearance process with Human Resources. Any final settlement will be processed according to company policy.`;
+  return `Please retain this document for your official records. Any terms specified by HR form part of this letter.`;
+}
+
+async function loadImageAsDataUrl(url: string): Promise<string | null> {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    return await new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () =>
+        resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function downloadLetterPdf(
+  letter: Letter,
+  details: OfferDetails,
+  name: string,
+) {
+  const pdf = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 55;
+  const rightEdge = pageWidth - margin;
+  const contentWidth = pageWidth - margin * 2;
+  const isOfferType = letter.letter_type.toLowerCase().includes('offer');
+  let y = margin - 3;
+
+  const ensureSpace = (height: number) => {
+    if (y + height > pageHeight - 70) {
+      pdf.addPage();
+      y = margin;
+    }
+  };
+
+  const logoDataUrl = await loadImageAsDataUrl(
+    '/safawala-wordmark-transparent.png',
+  );
+  if (logoDataUrl) {
+    try {
+      pdf.addImage(logoDataUrl, 'PNG', margin, y - 6, 132, 32);
+    } catch {
+      pdf.setTextColor(18, 52, 91);
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('SAFAWALA.COM', margin, y + 12);
+    }
+  } else {
+    pdf.setTextColor(18, 52, 91);
+    pdf.setFontSize(18);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('SAFAWALA.COM', margin, y + 12);
+  }
+  pdf.setTextColor(80, 92, 112);
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'normal');
+  pdf.text(
+    'Fashion Rental & Styling - Wedding Turbans & Accessories',
+    margin,
+    y + 36,
+  );
+  pdf.text('info@safawala.com  |  +91 98765 43210', margin, y + 49);
+  pdf.text('www.safawala.com  |  Mumbai, Maharashtra, India', margin, y + 62);
+
+  pdf.setTextColor(18, 52, 91);
+  pdf.setFontSize(9);
+  pdf.setFont('helvetica', 'bold');
+  pdf.text(`Date: ${formatDate(letter.issued_on)}`, rightEdge, y, {
+    align: 'right',
+  });
+  pdf.text(
+    `Ref No.: VADODARA-BRANCH-${String(letter.id).padStart(6, '0')}`,
+    rightEdge,
+    y + 15,
+    { align: 'right' },
+  );
+  pdf.text('Issuing Authority: Human Resources', rightEdge, y + 30, {
+    align: 'right',
+  });
+
+  y += 74;
+  pdf.setDrawColor(91, 99, 246);
+  pdf.setLineWidth(2.5);
+  pdf.line(margin, y, rightEdge, y);
+
+  y += 22;
+  pdf.setDrawColor(216, 224, 235);
+  pdf.setLineWidth(0.75);
+  pdf.line(margin, y, rightEdge, y);
+  y += 18;
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(138, 155, 181);
+  pdf.text('HUMAN RESOURCES DEPARTMENT', pageWidth / 2, y, {
+    align: 'center',
+  });
+  y += 20;
+  pdf.setFontSize(16);
+  pdf.setTextColor(91, 99, 246);
+  pdf.text(letter.letter_type.toUpperCase(), pageWidth / 2, y, {
+    align: 'center',
+  });
+  y += 15;
+  pdf.setDrawColor(216, 224, 235);
+  pdf.line(margin, y, rightEdge, y);
+  y += 28;
+
+  ensureSpace(48);
+  pdf.setDrawColor(216, 224, 235);
+  pdf.setFillColor(248, 250, 252);
+  pdf.rect(margin, y, contentWidth, 40, 'FD');
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(8);
+  pdf.setTextColor(109, 127, 153);
+  pdf.text('SUBJECT', margin + 10, y + 15);
+  pdf.setFont('helvetica', 'bold');
+  pdf.setFontSize(10.5);
+  pdf.setTextColor(18, 52, 91);
+  pdf.text(letter.title || letter.letter_type, margin + 10, y + 31);
+  y += 58;
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  pdf.setTextColor(30, 41, 59);
+  ensureSpace(20);
+  pdf.text(`Dear ${name},`, margin, y);
+  y += 22;
+
+  const paragraph1 = isOfferType
+    ? 'We are delighted to inform you that, after evaluating your profile and interview performance, Safawala.com is pleased to extend this formal offer of employment to you. We believe your skills and experience will be a valuable addition to our team.'
+    : letterOpeningPlainText(letter.letter_type, name);
+  const paragraph2 = isOfferType
+    ? `You are being offered the position of ${details.designation} in the ${details.department} department, subject to the terms and conditions outlined below.`
+    : letterBodyPlainText(letter.letter_type, name);
+
+  for (const paragraph of [paragraph1, paragraph2]) {
+    const lines = pdf.splitTextToSize(paragraph, contentWidth);
+    ensureSpace(lines.length * 14 + 10);
+    pdf.text(lines, margin, y);
+    y += lines.length * 14 + 12;
+  }
+
+  if (isOfferType) {
+    ensureSpace(30);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(138, 155, 181);
+    pdf.text('EMPLOYMENT TERMS', margin, y);
+    y += 14;
+
+    const labelWidth = contentWidth * 0.38;
+    const valueWidth = contentWidth - labelWidth - 16;
+    const terms: [string, string][] = [
+      ['POSITION / DESIGNATION', details.designation],
+      ['DEPARTMENT', details.department],
+      ['DATE OF JOINING', details.joiningDate],
+      ['GROSS MONTHLY SALARY', details.salary],
+      ['PROBATION PERIOD', details.probation],
+      ['PLACE OF POSTING', details.posting],
+      ['WORKING HOURS', details.workingHours],
+    ];
+    pdf.setFontSize(9);
+    for (const [label, value] of terms) {
+      const valueLines = pdf.splitTextToSize(value || '-', valueWidth);
+      const labelLines = pdf.splitTextToSize(label, labelWidth - 12);
+      const rowHeight =
+        Math.max(labelLines.length, valueLines.length) * 12 + 12;
+      ensureSpace(rowHeight);
+      pdf.setDrawColor(216, 224, 235);
+      pdf.setFillColor(245, 248, 252);
+      pdf.rect(margin, y, labelWidth, rowHeight, 'FD');
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(margin + labelWidth, y, contentWidth - labelWidth, rowHeight, 'FD');
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(30, 41, 59);
+      pdf.text(labelLines, margin + 8, y + 14);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(valueLines, margin + labelWidth + 8, y + 14);
+      y += rowHeight;
+    }
+    y += 18;
+
+    ensureSpace(24);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(138, 155, 181);
+    pdf.text('CONDITIONS OF OFFER', margin, y);
+    y += 16;
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(30, 41, 59);
+    const conditions = details.conditions
+      .replace(/\\r\\n/g, '\n')
+      .replace(/\\n/g, '\n')
+      .split('\n')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    conditions.forEach((condition, index) => {
+      const lines = pdf.splitTextToSize(
+        `${index + 1}. ${condition}`,
+        contentWidth - 8,
+      );
+      ensureSpace(lines.length * 13 + 6);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(lines, margin + 4, y);
+      y += lines.length * 13 + 6;
+    });
+    y += 8;
+  }
+
+  if (details.notes) {
+    const noteLines = pdf.splitTextToSize(details.notes, contentWidth - 16);
+    const boxHeight = noteLines.length * 13 + 16;
+    ensureSpace(boxHeight + 12);
+    pdf.setDrawColor(91, 99, 246);
+    pdf.setLineWidth(2);
+    pdf.line(margin, y, margin, y + boxHeight);
+    pdf.setFont('helvetica', 'italic');
+    pdf.setFontSize(9.5);
+    pdf.setTextColor(60, 70, 90);
+    pdf.text(noteLines, margin + 12, y + 12);
+    y += boxHeight + 16;
+  }
+
+  ensureSpace(70);
+  y += 6;
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(10);
+  pdf.setTextColor(30, 41, 59);
+  pdf.text('Regards,', margin, y);
+  y += 17;
+  pdf.setFont('helvetica', 'bold');
+  pdf.text('Admin / Human Resources', margin, y);
+  y += 26;
+
+  pdf.setFont('helvetica', 'normal');
+  pdf.setFontSize(8);
+  pdf.setTextColor(120, 130, 150);
+  const footerLines = pdf.splitTextToSize(
+    `This document was generated from the Safawala CRM Staff Directory on ${formatDate(letter.issued_on)}.`,
+    contentWidth,
+  );
+  pdf.text(footerLines, margin, y);
+
+  pdf.save(
+    `safawala-${letter.letter_type.toLowerCase().replace(/\s+/g, '-')}-${letter.id}.pdf`,
+  );
+}
+
+function parseOfferDetails(
+  notes: string | null | undefined,
+  staffName: string,
+): OfferDetails {
+  const inferredDepartment = staffName.toLowerCase().endsWith(' department')
+    ? staffName.slice(0, -' department'.length)
+    : 'Safawala.com';
+  const fallback: OfferDetails = {
+    designation: 'Staff Member',
+    department: inferredDepartment,
+    joiningDate: 'To be mutually confirmed',
+    salary: 'As per the company compensation structure',
+    probation: '3 (Three) months',
+    posting: 'Head Office / As assigned',
+    workingHours: '10:00 AM to 7:00 PM, Monday to Saturday',
+    conditions:
+      'This offer is contingent upon satisfactory verification of all original documents submitted by you.\nYou will be required to serve the stated probation period.',
+    notes: '',
+  };
+  if (!notes) return fallback;
+  try {
+    const parsed = JSON.parse(notes) as Partial<OfferDetails>;
+    if (parsed && typeof parsed === 'object' && 'designation' in parsed) {
+      const merged = { ...fallback, ...parsed };
+      return {
+        ...merged,
+        conditions: normalizeMultiline(merged.conditions),
+        notes: normalizeMultiline(merged.notes),
+      };
+    }
+  } catch {
+    /* Older letters stored plain notes; keep the safe defaults. */
+  }
+  return { ...fallback, notes: normalizeMultiline(notes) };
+}
+
+function normalizeMultiline(value: string): string {
+  // Some older letters were saved with a literal two-character "\\n"
+  // (backslash + n) instead of a real newline, because a plain JSX string
+  // attribute does not interpret escape sequences. Normalize both so every
+  // letter -- old or new -- renders its conditions/notes as real line breaks.
+  if (typeof value !== 'string') return value;
+  return value.replace(/\\r\\n/g, '\n').replace(/\\n/g, '\n');
+}
+
+function formatDate(value: string) {
+  const date = new Date(`${value}T00:00:00`);
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+}

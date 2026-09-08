@@ -106,7 +106,7 @@ export default async function WarehouseJobDetailPage({ params }: { params: Promi
           <ArrowLeft className="size-4" /> Back to warehouse
         </Link>
 
-        <section className="rounded-2xl border border-[#dfd3c3] bg-white p-5 shadow-level-1">
+        <section className="rounded-2xl border border-[#dfd3c3] bg-white dark:bg-card p-5 shadow-level-1">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -127,7 +127,7 @@ export default async function WarehouseJobDetailPage({ params }: { params: Promi
         <JobTracker stages={job.stages} />
 
         {job.warehousePrep ? (
-          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+          <section className="rounded-2xl border border-emerald-200 bg-white dark:bg-card p-5 shadow-level-1">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="font-semibold text-emerald-800">Picking completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.warehousePrep.completedBy} on {friendlyDate(job.warehousePrep.completedAt ?? '')}</p></div>
               <WarehousePickSlipButton
@@ -151,7 +151,7 @@ export default async function WarehouseJobDetailPage({ params }: { params: Promi
         ) : null}
 
         {job.returnWarehouseCheck ? (
-          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+          <section className="rounded-2xl border border-emerald-200 bg-white dark:bg-card p-5 shadow-level-1">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="font-semibold text-emerald-800">Return receiving completed</h2><p className="mt-1 text-sm text-muted-foreground">Received from {job.returnWarehouseCheck.receivedFrom ?? 'QC'} by {job.returnWarehouseCheck.completedBy} on {friendlyDate(job.returnWarehouseCheck.completedAt ?? '')}. Sent to Booking Final Check.</p></div>
               <ReturnWarehouseSlipButton
@@ -167,7 +167,7 @@ export default async function WarehouseJobDetailPage({ params }: { params: Promi
                 </li>
               ))}
             </ul>
-            {job.returnWarehouseCheck.receivingNotes ? <p className="mt-3 rounded-lg bg-[#fcfaf7] p-3 text-sm text-muted-foreground">{job.returnWarehouseCheck.receivingNotes}</p> : null}
+            {job.returnWarehouseCheck.receivingNotes ? <p className="mt-3 rounded-lg bg-[#fcfaf7] dark:bg-[#241e17] p-3 text-sm text-muted-foreground">{job.returnWarehouseCheck.receivingNotes}</p> : null}
           </section>
         ) : returnIsOpen && job.returnQualityCheck ? (
           <ReturnWarehouseForm jobId={job.id} items={returnItems} />

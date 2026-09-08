@@ -61,7 +61,7 @@ export type ModificationBooking = {
 };
 
 const fieldClass =
-  'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 const actionNames = new Set([
   'modification_started',
   'modification_completed',
@@ -129,7 +129,7 @@ function urgency(booking: ModificationBooking) {
   return {
     rank: 10 + days,
     label: `${days} days to delivery`,
-    className: 'border-stone-200 bg-stone-50 text-stone-700',
+    className: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-border dark:bg-muted dark:text-muted-foreground',
   };
 }
 
@@ -309,7 +309,7 @@ export function ModificationQueue({
 
       {focusRows.length ? (
         <Card className="gap-0 border-[#dfc9a6] py-0 shadow-level-2 ring-0">
-          <CardHeader className="border-b bg-[linear-gradient(90deg,#fbf3e7,#fff)] px-5 py-4">
+          <CardHeader className="border-b bg-[linear-gradient(90deg,#fbf3e7,#fff)] px-5 py-4 dark:bg-[linear-gradient(90deg,#241e17,#1c1712)]">
             <div className="flex items-center gap-3">
               <span className="grid size-9 place-items-center rounded-xl bg-primary text-white">
                 <Clock3 className="size-4" />
@@ -328,7 +328,7 @@ export function ModificationQueue({
                 key={row.booking.id}
                 type="button"
                 onClick={() => setSelected(row.booking)}
-                className="rounded-xl border bg-white p-4 text-left transition hover:border-primary/50 hover:shadow-level-1"
+                className="rounded-xl border bg-white dark:bg-card p-4 text-left transition hover:border-primary/50 hover:shadow-level-1"
               >
                 <span className="flex items-center justify-between gap-3">
                   <Badge variant="outline" className={row.urgency.className}>
@@ -353,7 +353,7 @@ export function ModificationQueue({
       ) : null}
 
       <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1 ring-0">
-        <CardHeader className="border-b bg-[#fcfaf7] px-5 py-4">
+        <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <CardTitle>Modification work queue</CardTitle>
@@ -410,7 +410,7 @@ export function ModificationQueue({
           {visibleRows.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1040px] text-left text-sm">
-                <thead className="border-b bg-[#f7f4ef] text-xs text-muted-foreground">
+                <thead className="border-b bg-[#f7f4ef] dark:bg-[#241e17] text-xs text-muted-foreground">
                   <tr>
                     <th className="px-5 py-3 font-medium">
                       Priority & booking
@@ -517,7 +517,7 @@ function ModificationRow({
 }) {
   const statusInfo = statusPresentation(row.status);
   return (
-    <tr className="border-b last:border-0 hover:bg-[#fcfaf7]">
+    <tr className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]">
       <td className="px-5 py-4">
         <Badge variant="outline" className={row.urgency.className}>
           {row.urgency.label}
@@ -620,7 +620,7 @@ function statusPresentation(status: ModificationStatus) {
     };
   return {
     label: 'Pending',
-    className: 'border-stone-200 bg-stone-50 text-stone-700',
+    className: 'border-stone-200 bg-stone-50 text-stone-700 dark:border-border dark:bg-muted dark:text-muted-foreground',
     actionLabel: 'Start work',
     actionIcon: <Play />,
   };
@@ -646,9 +646,9 @@ function ModificationDialog({
       <dialog
         open
         aria-labelledby="modification-dialog-title"
-        className="relative m-0 max-h-[92dvh] w-full max-w-3xl overflow-hidden rounded-[24px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.4)]"
+        className="relative m-0 max-h-[92dvh] w-full max-w-3xl overflow-hidden rounded-[24px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.4)]"
       >
-        <div className="flex items-start justify-between border-b bg-[#fcfaf7] px-5 py-5 sm:px-6">
+        <div className="flex items-start justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-5 sm:px-6">
           <div className="flex gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary ring-1 ring-[#e4d2b6]">
               <Wrench className="size-5" />
@@ -674,14 +674,14 @@ function ModificationDialog({
             type="button"
             onClick={onClose}
             aria-label="Close modification details"
-            className="grid size-9 place-items-center rounded-full border bg-white text-muted-foreground hover:text-foreground"
+            className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground hover:text-foreground"
           >
             <X className="size-4" />
           </button>
         </div>
         <div className="max-h-[calc(92dvh-160px)] space-y-5 overflow-y-auto p-5 sm:p-6">
           <Card className="gap-0 border-[#dfc9a6] py-0 shadow-none ring-0">
-            <CardHeader className="border-b bg-[#fbf3e7] px-4 py-3">
+            <CardHeader className="border-b bg-[#fbf3e7] dark:bg-[#241e17] px-4 py-3">
               <CardTitle className="text-sm">Work instructions</CardTitle>
             </CardHeader>
             <CardContent className="p-4">
@@ -737,7 +737,7 @@ function ModificationDialog({
                 {booking.booking_items.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-lg border bg-white px-3 py-2.5"
+                    className="flex items-center justify-between rounded-lg border bg-white dark:bg-card px-3 py-2.5"
                   >
                     <span className="flex items-center gap-2 text-sm">
                       <PackageCheck className="size-4 text-primary" />
@@ -750,7 +750,7 @@ function ModificationDialog({
             </Card>
           </div>
         </div>
-        <div className="flex flex-col-reverse gap-2 border-t bg-[#fcfaf7] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex flex-col-reverse gap-2 border-t bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <Button
             variant="outline"
             render={<Link href={`/bookings/${booking.id}`} />}

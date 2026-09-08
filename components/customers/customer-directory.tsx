@@ -51,7 +51,7 @@ export type CustomerBooking = {
 };
 
 const inputClass =
-  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
 export function CustomerDirectory({
   initialCustomers,
@@ -171,7 +171,7 @@ export function CustomerDirectory({
       ) : null}
 
       <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1 ring-0">
-        <CardHeader className="border-b bg-[#fcfaf7] px-5 py-4">
+        <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle>All customers</CardTitle>
@@ -209,7 +209,7 @@ export function CustomerDirectory({
           {visibleCustomers.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1050px] text-left text-sm">
-                <thead className="border-b bg-[#f7f4ef] text-xs text-muted-foreground">
+                <thead className="border-b bg-[#f7f4ef] dark:bg-[#241e17] text-xs text-muted-foreground">
                   <tr>
                     <th className="px-5 py-3 font-medium">Customer</th>
                     <th className="px-5 py-3 font-medium">Address</th>
@@ -335,10 +335,10 @@ function CustomerRow({
     .join('')
     .toUpperCase();
   return (
-    <tr className="border-b last:border-0 hover:bg-[#fcfaf7]">
+    <tr className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]">
       <td aria-label={`Customer ${customer.name}`} className="px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f5ead8] text-xs font-semibold text-[#70481c] ring-1 ring-[#e4d2b6]">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f5ead8] dark:bg-[#33291c] text-xs font-semibold text-[#70481c] ring-1 ring-[#e4d2b6]">
             {initials}
           </span>
           <div>
@@ -475,9 +475,9 @@ function CustomerDialog({
       <dialog
         open
         aria-labelledby="customer-dialog-title"
-        className="relative m-0 max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
+        className="relative m-0 max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
       >
-        <div className="flex items-start justify-between border-b bg-[#fcfaf7] px-5 py-5 sm:px-6">
+        <div className="flex items-start justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-5 sm:px-6">
           <div className="flex gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary ring-1 ring-[#e4d2b6]">
               <UserRound className="size-5" />
@@ -498,7 +498,7 @@ function CustomerDialog({
             type="button"
             onClick={onClose}
             aria-label="Close customer popup"
-            className="grid size-9 place-items-center rounded-full border bg-white text-muted-foreground transition hover:text-foreground"
+            className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground transition hover:text-foreground"
           >
             <X className="size-4" />
           </button>
@@ -533,7 +533,7 @@ function CustomerDialog({
                 rows={3}
                 defaultValue={customer?.address ?? ''}
                 placeholder="Enter the complete customer address…"
-                className="mt-1.5 w-full rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                className="mt-1.5 w-full rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
               />
             </label>
           </div>
@@ -585,9 +585,9 @@ function CustomerDetails({
       <dialog
         open
         aria-labelledby="customer-details-title"
-        className="relative m-0 max-h-[88dvh] w-full max-w-2xl overflow-hidden rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
+        className="relative m-0 max-h-[88dvh] w-full max-w-2xl overflow-hidden rounded-[22px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
       >
-        <div className="flex items-start justify-between border-b bg-[#fcfaf7] px-5 py-5 sm:px-6">
+        <div className="flex items-start justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-5 sm:px-6">
           <div>
             <p className="text-xs font-medium uppercase tracking-wide text-primary">
               Customer profile
@@ -606,7 +606,7 @@ function CustomerDetails({
             type="button"
             onClick={onClose}
             aria-label="Close customer details"
-            className="grid size-9 place-items-center rounded-full border bg-white text-muted-foreground transition hover:text-foreground"
+            className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground transition hover:text-foreground"
           >
             <X className="size-4" />
           </button>
@@ -632,7 +632,7 @@ function CustomerDetails({
                 bookings.map((booking) => (
                   <div
                     key={booking.id}
-                    className="flex flex-col gap-3 rounded-xl border bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-xl border bg-white dark:bg-card p-4 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
@@ -678,7 +678,7 @@ function CustomerDetails({
 
 function DetailMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border bg-white p-4">
+    <div className="rounded-xl border bg-white dark:bg-card p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-1 text-lg font-semibold">{value}</p>
     </div>

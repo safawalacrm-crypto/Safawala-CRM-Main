@@ -126,7 +126,7 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
           <ArrowLeft className="size-4" /> Back to QC &amp; Packing
         </Link>
 
-        <section className="rounded-2xl border border-[#dfd3c3] bg-white p-5 shadow-level-1">
+        <section className="rounded-2xl border border-[#dfd3c3] bg-white dark:bg-card p-5 shadow-level-1">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -144,7 +144,7 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
           </div>
         </section>
 
-        <div className="grid grid-cols-2 gap-2 rounded-xl border bg-white p-2 shadow-level-1">
+        <div className="grid grid-cols-2 gap-2 rounded-xl border bg-white dark:bg-card p-2 shadow-level-1">
           <div className={`rounded-lg px-3 py-2.5 text-center text-sm font-medium ${job.qualityCheck ? 'bg-emerald-50 text-emerald-700' : qcOpen ? 'bg-[#a86f2c] text-white' : 'bg-muted text-muted-foreground'}`}>
             {job.qualityCheck ? '✓ QC passed' : 'Quality check'}
           </div>
@@ -156,7 +156,7 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
         <JobTracker stages={job.stages} />
 
         {job.qualityCheck ? (
-          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+          <section className="rounded-2xl border border-emerald-200 bg-white dark:bg-card p-5 shadow-level-1">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="font-semibold text-emerald-800">Quality check completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.qualityCheck.completedBy} on {friendlyDate(job.qualityCheck.completedAt ?? '')}</p></div>
               <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{packedItems.length} passed</Badge>
@@ -167,7 +167,7 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
         {job.qualityCheck && !job.packingChecklist && packingOpen ? <PackingChecklistForm jobId={job.id} details={slipDetails} items={packedItems} /> : null}
 
         {job.packingChecklist ? (
-          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+          <section className="rounded-2xl border border-emerald-200 bg-white dark:bg-card p-5 shadow-level-1">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="font-semibold text-emerald-800">Packing completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.packingChecklist.completedBy} on {friendlyDate(job.packingChecklist.completedAt ?? '')}</p></div>
               <PackingSlipButton details={slipDetails} items={packedItems} />
@@ -190,7 +190,7 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
         ) : null}
 
         {job.returnQualityCheck ? (
-          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+          <section className="rounded-2xl border border-emerald-200 bg-white dark:bg-card p-5 shadow-level-1">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="font-semibold text-emerald-800">Return QC completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.returnQualityCheck.completedBy} on {friendlyDate(job.returnQualityCheck.completedAt ?? '')}. Sent to Return Warehouse.</p></div>
               <ReturnQcSlipButton

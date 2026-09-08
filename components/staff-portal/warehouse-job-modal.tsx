@@ -107,8 +107,8 @@ export async function WarehouseJobModal({
       aria-modal="true"
       aria-label="Warehouse job details"
     >
-      <div className="flex max-h-[92vh] w-full max-w-[720px] flex-col overflow-hidden rounded-2xl border border-[#dfd3c3] bg-[#fcfaf7] shadow-2xl">
-        <div className="flex shrink-0 items-start justify-between border-b border-border bg-white px-5 py-4 sm:px-6">
+      <div className="flex max-h-[92vh] w-full max-w-[720px] flex-col overflow-hidden rounded-2xl border border-[#dfd3c3] bg-[#fcfaf7] dark:bg-[#241e17] shadow-2xl">
+        <div className="flex shrink-0 items-start justify-between border-b border-border bg-white dark:bg-card px-5 py-4 sm:px-6">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#70481c]">
               {job.id} · {job.bookingNumber}
@@ -130,7 +130,7 @@ export async function WarehouseJobModal({
           </Link>
         </div>
         <div className="min-h-0 overflow-y-auto p-4 sm:p-6">
-          <section className="rounded-xl border border-[#dfd3c3] bg-white p-4">
+          <section className="rounded-xl border border-[#dfd3c3] bg-white dark:bg-card p-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant="outline"
@@ -180,7 +180,7 @@ export async function WarehouseJobModal({
           </div>
 
           {job.warehousePrep ? (
-            <section className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+            <section className="mt-4 rounded-xl border border-emerald-200 bg-white dark:bg-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="font-semibold text-emerald-800">
@@ -237,7 +237,7 @@ export async function WarehouseJobModal({
           ) : null}
 
           {job.returnWarehouseCheck ? (
-            <section className="mt-4 rounded-xl border border-emerald-200 bg-white p-4">
+            <section className="mt-4 rounded-xl border border-emerald-200 bg-white dark:bg-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <h3 className="font-semibold text-emerald-800">
@@ -281,7 +281,7 @@ export async function WarehouseJobModal({
                 ))}
               </ul>
               {job.returnWarehouseCheck.receivingNotes ? (
-                <p className="mt-3 rounded-lg bg-[#fcfaf7] p-3 text-sm text-muted-foreground">
+                <p className="mt-3 rounded-lg bg-[#fcfaf7] dark:bg-[#241e17] p-3 text-sm text-muted-foreground">
                   {job.returnWarehouseCheck.receivingNotes}
                 </p>
               ) : null}

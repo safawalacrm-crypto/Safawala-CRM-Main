@@ -56,7 +56,7 @@ export default async function StylistEventDetailsPage({ params }: { params: Prom
         <DashboardHeader title={job.eventSummary.eventName} subtitle="Rental event details" />
 
         <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1">
-          <CardHeader className="border-b border-[#e8dccb] bg-[#fcfaf7] px-5 py-4 sm:px-6">
+          <CardHeader className="border-b border-[#e8dccb] bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:px-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <Badge variant="outline" className="border-[#dfc6a4] bg-[#f5ead8] text-[#70481c]">Rental</Badge>
@@ -88,7 +88,7 @@ export default async function StylistEventDetailsPage({ params }: { params: Prom
 
 function Detail({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className="flex gap-3 rounded-xl border border-border bg-white p-4">
+    <div className="flex gap-3 rounded-xl border border-border bg-white dark:bg-card p-4">
       <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#f5ead8] text-primary [&_svg]:size-4">{icon}</span>
       <div><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 font-medium">{value}</p></div>
     </div>

@@ -105,7 +105,7 @@ export default async function HrModulePage({
         <div className="mx-auto max-w-[1280px] space-y-6">
           <DashboardHeader title={config.title} subtitle={config.subtitle} backHref="/hr" />
           {error && (
-            <Card className="border-[#e4d2b6] bg-[#fffaf2]">
+            <Card className="border-[#e4d2b6] bg-[#fffaf2] dark:bg-[#241e17]">
               <CardContent className="p-5">
                 <p className="font-semibold text-[#70481c]">
                   One-time setup required
@@ -129,7 +129,7 @@ export default async function HrModulePage({
         <div className="mx-auto max-w-[1280px] space-y-6">
           <DashboardHeader title={config.title} subtitle={config.subtitle} backHref="/hr" />
           {error && (
-            <Card className="border-[#e4d2b6] bg-[#fffaf2]">
+            <Card className="border-[#e4d2b6] bg-[#fffaf2] dark:bg-[#241e17]">
               <CardContent className="p-5">
                 <p className="font-semibold text-[#70481c]">
                   One-time setup required
@@ -153,7 +153,7 @@ export default async function HrModulePage({
         <div className="mx-auto max-w-[1280px] space-y-6">
           <DashboardHeader title={config.title} subtitle={config.subtitle} backHref="/hr" />
           {error && (
-            <Card className="border-[#e4d2b6] bg-[#fffaf2]">
+            <Card className="border-[#e4d2b6] bg-[#fffaf2] dark:bg-[#241e17]">
               <CardContent className="p-5">
                 <p className="font-semibold text-[#70481c]">
                   One-time setup required
@@ -177,7 +177,7 @@ export default async function HrModulePage({
         <div className="mx-auto max-w-[1280px] space-y-6">
           <DashboardHeader title={config.title} subtitle={config.subtitle} backHref="/hr" />
           {error && (
-            <Card className="border-[#e4d2b6] bg-[#fffaf2]">
+            <Card className="border-[#e4d2b6] bg-[#fffaf2] dark:bg-[#241e17]">
               <CardContent className="p-5">
                 <p className="font-semibold text-[#70481c]">
                   One-time setup required
@@ -204,7 +204,7 @@ export default async function HrModulePage({
             subtitle="Live operational tasks from the existing event workflow"
           />
           {workflow?.error && (
-            <Card className="border-[#e4d2b6] bg-[#fffaf2]">
+            <Card className="border-[#e4d2b6] bg-[#fffaf2] dark:bg-[#241e17]">
               <CardContent className="p-5">
                 <p className="font-semibold text-[#70481c]">
                   Event workflow is not available
@@ -227,14 +227,14 @@ export default async function HrModulePage({
       <div className="mx-auto max-w-[1280px] space-y-6">
         <DashboardHeader title={config.title} subtitle={config.subtitle} backHref="/hr" />
         {error && (
-          <Card className="border-[#e4d2b6] bg-[#fffaf2]">
+          <Card className="border-[#e4d2b6] bg-[#fffaf2] dark:bg-[#241e17]">
             <CardContent className="p-5">
               <p className="font-semibold text-[#70481c]">
                 One-time setup required
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Run{' '}
-                <code className="rounded bg-white px-1.5 py-0.5 text-xs">
+                <code className="rounded bg-white dark:bg-card px-1.5 py-0.5 text-xs">
                   supabase/migrations/20260908010000_hr_admin_module.sql
                 </code>{' '}
                 in the Supabase SQL Editor. After it runs, this page will load
@@ -251,7 +251,7 @@ export default async function HrModulePage({
           <CardContent className="overflow-x-auto p-0">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b bg-[#faf8f4] text-left text-xs uppercase tracking-wide text-muted-foreground">
+                <tr className="border-b bg-[#faf8f4] dark:bg-[#241e17] text-left text-xs uppercase tracking-wide text-muted-foreground">
                   <th className="px-5 py-3">Employee / work</th>
                   {config.columns.map((column) => (
                     <th key={column} className="px-5 py-3">

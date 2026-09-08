@@ -179,7 +179,7 @@ export default async function BookingsPage({ searchParams }: Props) {
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1040px] text-left text-sm">
-                  <thead className="border-b bg-white text-xs text-muted-foreground">
+                  <thead className="border-b bg-white dark:bg-card text-xs text-muted-foreground">
                     <tr>
                       {[
                         'Booking',
@@ -199,7 +199,7 @@ export default async function BookingsPage({ searchParams }: Props) {
                     {bookings.map((booking) => (
                       <tr
                         key={booking.id}
-                        className="border-b last:border-0 hover:bg-[#fcfaf7]"
+                        className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]"
                       >
                         <td className="px-5 py-4">
                           <Link

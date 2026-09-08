@@ -34,14 +34,14 @@ export function WarehousePrepForm({
 
   if (items.length === 0) {
     return (
-      <section className="rounded-2xl border bg-white p-5 text-sm text-muted-foreground shadow-level-1">
+      <section className="rounded-2xl border bg-white dark:bg-card p-5 text-sm text-muted-foreground shadow-level-1">
         This rental booking has no products to pick.
       </section>
     );
   }
 
   return (
-    <form action={formAction} className="rounded-2xl border bg-white shadow-level-1">
+    <form action={formAction} className="rounded-2xl border bg-white dark:bg-card shadow-level-1">
       <input type="hidden" name="jobId" value={jobId} />
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-5">
         <div>
@@ -72,7 +72,7 @@ export function WarehousePrepForm({
             <li key={`${item.itemName}-${index}`}>
               <input type="hidden" name="itemName" value={item.itemName} />
               <input type="hidden" name={`requiredQuantity-${index}`} value={item.quantity} />
-              <label className={`flex cursor-pointer items-center gap-3 px-3 py-3.5 transition sm:px-4 ${picked[index] ? 'bg-emerald-50/70' : 'hover:bg-[#fcfaf7]'}`}>
+              <label className={`flex cursor-pointer items-center gap-3 px-3 py-3.5 transition sm:px-4 ${picked[index] ? 'bg-emerald-50/70' : 'hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]'}`}>
                 <input
                   type="checkbox"
                   name={`picked-${index}`}
@@ -80,7 +80,7 @@ export function WarehousePrepForm({
                   onChange={(event) => setPicked((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.checked : value))}
                   className="peer sr-only"
                 />
-                <span className={`grid size-6 shrink-0 place-items-center rounded-md border transition ${picked[index] ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-[#cfc4b5] bg-white text-transparent'}`}>
+                <span className={`grid size-6 shrink-0 place-items-center rounded-md border transition ${picked[index] ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-[#cfc4b5] bg-white dark:bg-card text-transparent'}`}>
                   <Check className="size-4" />
                 </span>
                 <span className="min-w-0 flex-1">

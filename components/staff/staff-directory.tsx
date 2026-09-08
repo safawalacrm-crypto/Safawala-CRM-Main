@@ -63,7 +63,7 @@ export type StaffMember = {
 type StatusFilter = 'all' | 'active' | 'inactive';
 
 const fieldClass =
-  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
 function departmentsOf(member: StaffMember): StaffDepartment[] {
   return (member.staff_departments ?? []).map((row) => row.department);
@@ -204,7 +204,7 @@ export function StaffDirectory({
       ) : null}
 
       <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1 ring-0">
-        <CardHeader className="border-b bg-[#fcfaf7] px-5 py-4">
+        <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <CardTitle>All staff</CardTitle>
@@ -259,7 +259,7 @@ export function StaffDirectory({
           {visibleStaff.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[1020px] text-left text-sm">
-                <thead className="border-b bg-[#f7f4ef] text-xs text-muted-foreground">
+                <thead className="border-b bg-[#f7f4ef] dark:bg-[#241e17] text-xs text-muted-foreground">
                   <tr>
                     <th className="px-5 py-3 font-medium">Staff member</th>
                     <th className="px-5 py-3 font-medium">Contact</th>
@@ -382,10 +382,10 @@ function StaffRow({
     .toUpperCase();
   const departments = departmentsOf(member);
   return (
-    <tr className="border-b last:border-0 hover:bg-[#fcfaf7]">
+    <tr className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]">
       <td aria-label={`Staff member ${member.name}`} className="px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f5ead8] text-xs font-semibold text-[#70481c] ring-1 ring-[#e4d2b6]">
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#f5ead8] dark:bg-[#33291c] text-xs font-semibold text-[#70481c] ring-1 ring-[#e4d2b6]">
             {initials}
           </span>
           <div>
@@ -395,7 +395,7 @@ function StaffRow({
             </p>
             {member.user_id ? (
               <div className="mt-1.5 flex flex-wrap items-center gap-1">
-                <Badge variant="outline" className="border-[#e4d2b6] bg-[#f5ead8] px-1.5 py-0 text-[10px] text-[#70481c]">
+                <Badge variant="outline" className="border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] px-1.5 py-0 text-[10px] text-[#70481c]">
                   {member.access_type === 'main' ? 'Main ID' : 'Staff ID'}
                 </Badge>
                 {departments.map((department) => (
@@ -404,7 +404,7 @@ function StaffRow({
                   </Badge>
                 ))}
                 {!member.portal_active ? (
-                  <Badge variant="outline" className="border-stone-200 bg-stone-50 px-1.5 py-0 text-[10px] text-stone-600">
+                  <Badge variant="outline" className="border-stone-200 bg-stone-50 px-1.5 py-0 text-[10px] text-stone-600 dark:border-border dark:bg-muted dark:text-muted-foreground">
                     Login disabled
                   </Badge>
                 ) : null}
@@ -425,7 +425,7 @@ function StaffRow({
       <td className="px-5 py-4">
         <Badge
           variant="outline"
-          className={member.staff_type === 'stylist' ? 'border-[#dfc6a4] bg-[#f5ead8] text-[#70481c]' : ''}
+          className={member.staff_type === 'stylist' ? 'border-[#dfc6a4] bg-[#f5ead8] dark:bg-[#33291c] text-[#70481c]' : ''}
         >
           {member.staff_type === 'stylist' ? 'Stylist' : 'Regular staff'}
         </Badge>
@@ -436,7 +436,7 @@ function StaffRow({
           className={
             member.is_active
               ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-              : 'border-stone-200 bg-stone-50 text-stone-600'
+              : 'border-stone-200 bg-stone-50 text-stone-600 dark:border-border dark:bg-muted dark:text-muted-foreground'
           }
         >
           {member.is_active ? 'Active' : 'Inactive'}
@@ -638,9 +638,9 @@ function StaffDialog({
       <dialog
         open
         aria-labelledby="staff-dialog-title"
-        className="relative m-0 max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
+        className="relative m-0 max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
       >
-        <div className="flex items-start justify-between border-b bg-[#fcfaf7] px-5 py-5 sm:px-6">
+        <div className="flex items-start justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-5 sm:px-6">
           <div className="flex gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary ring-1 ring-[#e4d2b6]">
               <UserRound className="size-5" />
@@ -663,7 +663,7 @@ function StaffDialog({
             type="button"
             onClick={onClose}
             aria-label="Close staff popup"
-            className="grid size-9 place-items-center rounded-full border bg-white text-muted-foreground transition hover:text-foreground"
+            className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground transition hover:text-foreground"
           >
             <X className="size-4" />
           </button>
@@ -722,7 +722,7 @@ function StaffDialog({
           </label>
 
           {showLoginSection ? (
-            <div className="space-y-4 rounded-xl border border-dashed border-[#e4d2b6] bg-[#fcfaf7] p-4">
+            <div className="space-y-4 rounded-xl border border-dashed border-[#e4d2b6] bg-[#fcfaf7] dark:bg-[#241e17] p-4">
               <div>
                 <p className="text-sm font-medium">Portal login (required)</p>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -764,7 +764,7 @@ function StaffDialog({
                   <p className="text-sm font-medium">Departments</p>
                   <div className="mt-2 grid gap-2 sm:grid-cols-2">
                     {STAFF_DEPARTMENTS.map((department) => (
-                      <label key={department} className="flex gap-2 rounded-lg border bg-white p-3 text-sm">
+                      <label key={department} className="flex gap-2 rounded-lg border bg-white dark:bg-card p-3 text-sm">
                         <input
                           type="checkbox"
                           checked={departments.includes(department)}
@@ -780,11 +780,11 @@ function StaffDialog({
                   </div>
                 </div>
               ) : staffType === 'stylist' ? (
-                <div className="rounded-lg border border-[#e4d2b6] bg-[#f5ead8] p-3 text-xs text-[#70481c]">
+                <div className="rounded-lg border border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] p-3 text-xs text-[#70481c]">
                   Fixed to the Stylist Portal — rental opportunities, assigned events and personal notifications.
                 </div>
               ) : (
-                <div className="rounded-lg border border-[#e4d2b6] bg-[#f5ead8] p-3 text-xs text-[#70481c]">
+                <div className="rounded-lg border border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] p-3 text-xs text-[#70481c]">
                   Fixed to the Booking department — quote-only access, payment fields locked.
                 </div>
               )}
@@ -819,13 +819,13 @@ function StaffDialog({
 function Modal({ title, subtitle, onClose, children }: { title: string; subtitle: string; onClose: () => void; children: ReactNode }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto bg-[#211d18]/70 p-4 backdrop-blur-sm sm:p-6">
-      <dialog open className="relative m-0 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)] sm:max-h-[calc(100dvh-3rem)]">
-        <div className="flex justify-between border-b bg-[#fcfaf7] px-5 py-4">
+      <dialog open className="relative m-0 max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)] sm:max-h-[calc(100dvh-3rem)]">
+        <div className="flex justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4">
           <div>
             <h2 className="text-lg font-semibold">{title}</h2>
             <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="grid size-9 place-items-center rounded-full border bg-white">
+          <button type="button" aria-label="Close" onClick={onClose} className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card">
             <X className="size-4" />
           </button>
         </div>
@@ -861,7 +861,7 @@ function AccessDialog({
     <Modal title={`Manage access · ${member.name}`} subtitle={`Login ID: ${member.login_id}`} onClose={onClose}>
       <div className="space-y-5 p-5">
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className="border-[#e4d2b6] bg-[#f5ead8] text-[#70481c]">
+          <Badge variant="outline" className="border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] text-[#70481c]">
             {member.access_type === 'main' ? 'Main ID' : 'Staff ID'}
           </Badge>
           <Badge variant="outline" className={member.portal_active ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : ''}>
@@ -933,12 +933,12 @@ function AccessDialog({
             </div>
           </div>
         ) : member.staff_type === 'stylist' ? (
-          <div className="rounded-xl border border-[#e4d2b6] bg-[#fffaf2] p-4 text-sm">
+          <div className="rounded-xl border border-[#e4d2b6] bg-[#fffaf2] dark:bg-[#241e17] p-4 text-sm">
             <p className="font-medium text-[#70481c]">Stylist Portal</p>
             <p className="mt-1 text-muted-foreground">This personal login sees rental opportunities, its own applications, assignments and notifications.</p>
           </div>
         ) : (
-          <div className="rounded-xl border border-[#e4d2b6] bg-[#fffaf2] p-4 text-sm">
+          <div className="rounded-xl border border-[#e4d2b6] bg-[#fffaf2] dark:bg-[#241e17] p-4 text-sm">
             <p className="font-medium text-[#70481c]">Booking department</p>
             <p className="mt-1 text-muted-foreground">
               This Staff ID opens quote creation in the Staff Portal only.
@@ -978,7 +978,7 @@ function AccessDialog({
             </div>
           </div>
         ) : member.staff_type === 'stylist' ? null : (
-          <div className="rounded-xl border border-[#e4d2b6] bg-[#f5ead8] p-4 text-sm text-[#70481c]">
+          <div className="rounded-xl border border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] p-4 text-sm text-[#70481c]">
             <strong>Fixed quote-only access</strong>
             <p className="mt-1">Payment fields are locked and Create Order is unavailable for Staff IDs.</p>
           </div>
@@ -1136,12 +1136,12 @@ function CreateLoginForm({
           </div>
         </div>
       ) : staffType === 'stylist' ? (
-        <div className="rounded-xl border border-[#e4d2b6] bg-[#f5ead8] p-4 text-sm text-[#70481c]">
+        <div className="rounded-xl border border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] p-4 text-sm text-[#70481c]">
           <strong>Fixed to the Stylist Portal</strong>
           <p className="mt-1">Rental opportunities, assigned events and personal notifications only.</p>
         </div>
       ) : (
-        <div className="rounded-xl border border-[#e4d2b6] bg-[#f5ead8] p-4 text-sm text-[#70481c]">
+        <div className="rounded-xl border border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] p-4 text-sm text-[#70481c]">
           <strong>Fixed to the Booking department</strong>
           <p className="mt-1">This login can prepare and save quotations only — payment fields are locked and Create Order is unavailable.</p>
         </div>
@@ -1200,13 +1200,13 @@ function PasswordDialog({ member, onClose }: { member: StaffMember; onClose: () 
   }
   return (
     <div className="fixed inset-0 z-[80] grid place-items-center bg-[#211d18]/70 p-4 backdrop-blur-sm">
-      <dialog open className="m-0 w-full max-w-md rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]">
-        <div className="flex justify-between border-b bg-[#fcfaf7] px-5 py-5">
+      <dialog open className="m-0 w-full max-w-md rounded-[22px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]">
+        <div className="flex justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-5">
           <div>
             <h2 className="text-lg font-semibold">{`Reset password · ${member.name}`}</h2>
             <p className="mt-1 text-xs text-muted-foreground">The existing password is never displayed.</p>
           </div>
-          <button type="button" aria-label="Close" onClick={onClose} className="grid size-9 place-items-center rounded-full border bg-white">
+          <button type="button" aria-label="Close" onClick={onClose} className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card">
             <X className="size-4" />
           </button>
         </div>

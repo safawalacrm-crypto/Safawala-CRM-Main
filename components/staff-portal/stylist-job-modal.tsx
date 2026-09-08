@@ -36,8 +36,8 @@ export async function StylistJobModal({ jobId }: { jobId: string }) {
       aria-modal="true"
       aria-label="Stylist event details"
     >
-      <div className="w-full max-w-[680px] overflow-hidden rounded-2xl border border-[#dfd3c3] bg-[#fcfaf7] shadow-2xl">
-        <div className="flex items-start justify-between border-b bg-white px-5 py-4 sm:px-6">
+      <div className="w-full max-w-[680px] overflow-hidden rounded-2xl border border-[#dfd3c3] bg-[#fcfaf7] dark:bg-[#241e17] shadow-2xl">
+        <div className="flex items-start justify-between border-b bg-white dark:bg-card px-5 py-4 sm:px-6">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[#70481c]">
               Rental event · {job.bookingNumber}
@@ -56,7 +56,7 @@ export async function StylistJobModal({ jobId }: { jobId: string }) {
         </div>
         <div className="space-y-4 p-4 sm:p-6">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex gap-3 rounded-xl border bg-white p-4">
+            <div className="flex gap-3 rounded-xl border bg-white dark:bg-card p-4">
               <CalendarClock className="mt-0.5 size-4 text-[#9a6a2f]" />
               <div>
                 <p className="text-xs text-muted-foreground">Date and time</p>
@@ -66,7 +66,7 @@ export async function StylistJobModal({ jobId }: { jobId: string }) {
                 </p>
               </div>
             </div>
-            <div className="flex gap-3 rounded-xl border bg-white p-4">
+            <div className="flex gap-3 rounded-xl border bg-white dark:bg-card p-4">
               <MapPin className="mt-0.5 size-4 text-[#9a6a2f]" />
               <div>
                 <p className="text-xs text-muted-foreground">Location</p>
@@ -75,14 +75,14 @@ export async function StylistJobModal({ jobId }: { jobId: string }) {
                 </p>
               </div>
             </div>
-            <div className="flex gap-3 rounded-xl border bg-white p-4">
+            <div className="flex gap-3 rounded-xl border bg-white dark:bg-card p-4">
               <PackageCheck className="mt-0.5 size-4 text-[#9a6a2f]" />
               <div>
                 <p className="text-xs text-muted-foreground">Rental quantity</p>
                 <p className="mt-1 font-medium">{quantity} items</p>
               </div>
             </div>
-            <div className="flex gap-3 rounded-xl border bg-white p-4">
+            <div className="flex gap-3 rounded-xl border bg-white dark:bg-card p-4">
               <UsersRound className="mt-0.5 size-4 text-[#9a6a2f]" />
               <div>
                 <p className="text-xs text-muted-foreground">

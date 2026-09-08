@@ -31,11 +31,11 @@ export function QualityCheckForm({ jobId, items }: { jobId: string; items: QcRev
   const allReviewed = reviewedCount === items.length;
 
   if (items.length === 0) {
-    return <section className="rounded-2xl border bg-white p-5 text-sm text-muted-foreground shadow-level-1">No picked rental products are available for quality checking.</section>;
+    return <section className="rounded-2xl border bg-white dark:bg-card p-5 text-sm text-muted-foreground shadow-level-1">No picked rental products are available for quality checking.</section>;
   }
 
   return (
-    <form action={formAction} className="overflow-hidden rounded-2xl border bg-white shadow-level-1">
+    <form action={formAction} className="overflow-hidden rounded-2xl border bg-white dark:bg-card shadow-level-1">
       <input type="hidden" name="jobId" value={jobId} />
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-5">
         <div>
@@ -58,7 +58,7 @@ export function QualityCheckForm({ jobId, items }: { jobId: string; items: QcRev
           {items.map((item, index) => {
             const decision = decisions[index];
             return (
-              <li key={`${item.itemName}-${index}`} className={`rounded-xl border p-3 transition ${decision === 'pass' ? 'border-emerald-200 bg-emerald-50/70' : decision === 'fail' ? 'border-red-200 bg-red-50/60' : 'bg-white'}`}>
+              <li key={`${item.itemName}-${index}`} className={`rounded-xl border p-3 transition ${decision === 'pass' ? 'border-emerald-200 bg-emerald-50/70' : decision === 'fail' ? 'border-red-200 bg-red-50/60' : 'bg-white dark:bg-card'}`}>
                 <input type="hidden" name="itemName" value={item.itemName} />
                 <input type="hidden" name={`checkedQuantity-${index}`} value={item.quantity} />
                 <input type="hidden" name={`goodQuantity-${index}`} value={decision === 'pass' ? item.quantity : decision === 'fail' ? 0 : ''} />
@@ -73,8 +73,8 @@ export function QualityCheckForm({ jobId, items }: { jobId: string; items: QcRev
                 </div>
                 {decision === 'fail' ? (
                   <div className="mt-3 grid gap-2 border-t border-red-200 pt-3 sm:grid-cols-2">
-                    <label className="text-sm"><span className="mb-1 block text-muted-foreground">Issue</span><select name={`issueType-${index}`} defaultValue="other" className="h-10 w-full rounded-lg border bg-white px-3">{ISSUE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
-                    <label className="text-sm"><span className="mb-1 block text-muted-foreground">Remarks (optional)</span><input name={`remarks-${index}`} placeholder="Short issue note" className="h-10 w-full rounded-lg border bg-white px-3" /></label>
+                    <label className="text-sm"><span className="mb-1 block text-muted-foreground">Issue</span><select name={`issueType-${index}`} defaultValue="other" className="h-10 w-full rounded-lg border bg-white dark:bg-card px-3">{ISSUE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label>
+                    <label className="text-sm"><span className="mb-1 block text-muted-foreground">Remarks (optional)</span><input name={`remarks-${index}`} placeholder="Short issue note" className="h-10 w-full rounded-lg border bg-white dark:bg-card px-3" /></label>
                   </div>
                 ) : null}
               </li>

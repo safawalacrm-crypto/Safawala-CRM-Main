@@ -36,7 +36,7 @@ export function PackingChecklistForm({
   const ready = checkedCount === CHECKS.length && validPhotoCount;
 
   return (
-    <form action={formAction} className="overflow-hidden rounded-2xl border bg-white shadow-level-1">
+    <form action={formAction} className="overflow-hidden rounded-2xl border bg-white dark:bg-card shadow-level-1">
       <input type="hidden" name="jobId" value={jobId} />
       <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-4 sm:px-5">
         <div>
@@ -55,7 +55,7 @@ export function PackingChecklistForm({
 
         <div className="grid gap-2 sm:grid-cols-2">
           {CHECKS.map((check, index) => (
-            <label key={check.name} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3.5 transition ${checked[index] ? 'border-emerald-200 bg-emerald-50/70' : 'hover:bg-[#fcfaf7]'}`}>
+            <label key={check.name} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3.5 transition ${checked[index] ? 'border-emerald-200 bg-emerald-50/70' : 'hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]'}`}>
               <input type="checkbox" name={check.name} checked={checked[index]} onChange={(event) => setChecked((current) => current.map((value, itemIndex) => itemIndex === index ? event.target.checked : value))} className="sr-only" />
               <span className={`grid size-6 shrink-0 place-items-center rounded-md border ${checked[index] ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-[#cfc4b5] text-transparent'}`}><Check className="size-4" /></span>
               <span className="text-sm font-medium">{check.label}</span>
@@ -63,7 +63,7 @@ export function PackingChecklistForm({
           ))}
         </div>
 
-        <label className="block rounded-xl border border-dashed border-[#d6b98d] bg-[#fcfaf7] p-4 text-center">
+        <label className="block rounded-xl border border-dashed border-[#d6b98d] bg-[#fcfaf7] dark:bg-[#241e17] p-4 text-center">
           <Camera className="mx-auto size-5 text-[#9a6a2f]" />
           <span className="mt-2 block text-sm font-medium">Packing proof photos</span>
           <span className="mt-1 block text-xs text-muted-foreground">1-3 images, maximum 3 MB each</span>
@@ -81,7 +81,7 @@ export function PackingChecklistForm({
 
         <label className="block text-sm">
           <span className="mb-1.5 block text-muted-foreground">Remarks (optional)</span>
-          <textarea name="remarks" rows={2} placeholder="Anything the event team should know…" className="w-full resize-y rounded-lg border bg-white p-3 outline-none focus:border-[#a86f2c] focus:ring-2 focus:ring-[#a86f2c]/15" />
+          <textarea name="remarks" rows={2} placeholder="Anything the event team should know…" className="w-full resize-y rounded-lg border bg-white dark:bg-card p-3 outline-none focus:border-[#a86f2c] focus:ring-2 focus:ring-[#a86f2c]/15" />
         </label>
 
         <Button type="submit" disabled={pending || !ready} className="h-11 w-full">

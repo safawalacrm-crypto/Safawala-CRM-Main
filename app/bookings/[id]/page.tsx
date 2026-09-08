@@ -164,7 +164,7 @@ export default async function BookingDetailsPage({
               <CardContent className="p-0">
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[600px] text-sm">
-                    <thead className="border-b bg-[#fcfaf7] text-left text-xs text-muted-foreground">
+                    <thead className="border-b bg-[#fcfaf7] dark:bg-[#241e17] text-left text-xs text-muted-foreground">
                       <tr>
                         <th className="px-5 py-3 font-medium">Item</th>
                         <th className="px-5 py-3 font-medium">Qty</th>
@@ -257,7 +257,7 @@ export default async function BookingDetailsPage({
           </div>
           <aside className="space-y-6">
             <Card className="border-[#dfc9a6] shadow-level-1 ring-0">
-              <CardHeader className="border-b bg-[#fcfaf7]">
+              <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17]">
                 <CardTitle>Financial summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">

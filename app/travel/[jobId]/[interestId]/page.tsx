@@ -56,7 +56,7 @@ export default async function TravelPlanPage({
 
         <div className="grid gap-4 md:grid-cols-2">
           <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1">
-            <CardHeader className="border-b bg-[#fcfaf7] px-5 py-4"><CardTitle className="flex items-center gap-2 text-base"><span className="grid size-8 place-items-center rounded-lg bg-[#f5ead8]"><UserRound className="size-4 text-primary" /></span> Selected staff</CardTitle></CardHeader>
+            <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4"><CardTitle className="flex items-center gap-2 text-base"><span className="grid size-8 place-items-center rounded-lg bg-[#f5ead8] dark:bg-[#33291c]"><UserRound className="size-4 text-primary" /></span> Selected staff</CardTitle></CardHeader>
             <CardContent className="space-y-2 p-5">
               <p className="text-lg font-semibold">{selectedStaff?.name ?? interest.stylistName}</p>
               <p className="text-sm text-muted-foreground">Staff ID: {selectedStaff?.login_id ?? 'Staff account'}</p>
@@ -66,7 +66,7 @@ export default async function TravelPlanPage({
           </Card>
 
           <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1">
-            <CardHeader className="border-b bg-[#fcfaf7] px-5 py-4"><CardTitle className="flex items-center gap-2 text-base"><span className="grid size-8 place-items-center rounded-lg bg-[#f5ead8]"><MapPin className="size-4 text-primary" /></span> Event destination</CardTitle></CardHeader>
+            <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4"><CardTitle className="flex items-center gap-2 text-base"><span className="grid size-8 place-items-center rounded-lg bg-[#f5ead8] dark:bg-[#33291c]"><MapPin className="size-4 text-primary" /></span> Event destination</CardTitle></CardHeader>
             <CardContent className="space-y-2 p-5">
               <p className="text-lg font-semibold">{job.eventSummary.eventName}</p>
               <p className="flex items-center gap-1.5 text-sm text-muted-foreground"><CalendarClock className="size-4" /> {friendlyDate(job.eventSummary.eventDate)} · {friendlyTime(job.eventSummary.eventTime)}</p>
@@ -75,9 +75,9 @@ export default async function TravelPlanPage({
           </Card>
         </div>
 
-        <Card className="border-[#dfc6a4] bg-[#fcfaf7] shadow-level-1">
+        <Card className="border-[#dfc6a4] bg-[#fcfaf7] dark:bg-[#241e17] shadow-level-1">
           <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f5ead8] text-primary"><MessageCircle className="size-5" /></span><div><p className="font-semibold">Ticket confirmation</p><p className="mt-1 max-w-xl text-sm text-muted-foreground">After sending the ticket to {selectedStaff?.name ?? interest.stylistName} on WhatsApp, confirm it here. Only this selected staff account receives the notification.</p></div></div>
+            <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f5ead8] dark:bg-[#33291c] text-primary"><MessageCircle className="size-5" /></span><div><p className="font-semibold">Ticket confirmation</p><p className="mt-1 max-w-xl text-sm text-muted-foreground">After sending the ticket to {selectedStaff?.name ?? interest.stylistName} on WhatsApp, confirm it here. Only this selected staff account receives the notification.</p></div></div>
             {plan?.ticketConfirmedAt ? <div className="text-left sm:text-right"><Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700"><CheckCircle2 /> Confirmed & sent</Badge><p className="mt-1 text-xs text-muted-foreground">{friendlyDate(plan.ticketConfirmedAt)}</p></div> : <form action={confirmTicketSentAction}><input type="hidden" name="jobId" value={job.id} /><input type="hidden" name="interestId" value={interest.id} /><Button type="submit" className="w-full sm:w-auto"><MessageCircle /> Ticket confirmed & sent on WhatsApp</Button></form>}
           </CardContent>
         </Card>

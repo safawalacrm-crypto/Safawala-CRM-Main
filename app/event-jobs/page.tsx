@@ -63,7 +63,7 @@ export default async function EventJobsPage() {
           />
           <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1 ring-0">
             <CardContent className="p-0">
-              {staffJobs.length ? <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="border-b bg-[#f7f4ef] text-xs text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Job</th><th className="px-5 py-3 font-medium">Booking</th><th className="px-5 py-3 font-medium">Event</th><th className="px-5 py-3 font-medium">Current stage</th><th className="px-5 py-3 font-medium">Status</th></tr></thead><tbody>{staffJobs.map((job) => <tr key={job.id} className="border-b last:border-0 hover:bg-[#fcfaf7]"><td className="px-5 py-4"><Link href={`/event-jobs/${job.id}`} className="font-semibold text-primary hover:underline">{job.id}</Link></td><td className="px-5 py-4 text-muted-foreground">{job.bookingNumber}</td><td className="px-5 py-4"><p>{job.eventSummary.eventName}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarClock className="size-3.5" />{friendlyDate(job.eventSummary.eventDate)}{job.eventSummary.venue ? ` · ${job.eventSummary.venue}` : ''}</p></td><td className="px-5 py-4">{currentStageSummary(job)}</td><td className="px-5 py-4"><Badge variant="outline" className={job.status === 'closed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800'}>{job.status === 'closed' ? 'Closed' : 'Active'}</Badge></td></tr>)}</tbody></table></div> : <div className="grid min-h-56 place-items-center p-8 text-center"><div><span className="mx-auto grid size-12 place-items-center rounded-full bg-accent text-primary"><ClipboardList /></span><h3 className="mt-4 font-semibold">{isCollectionAccount ? 'No rental Event Jobs yet' : 'No Central Event Jobs yet'}</h3><p className="mt-1 text-sm text-muted-foreground">{isCollectionAccount ? 'Rental bookings appear here automatically.' : 'Confirmed bookings appear here automatically.'}</p></div></div>}
+              {staffJobs.length ? <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="border-b bg-[#f7f4ef] dark:bg-[#241e17] text-xs text-muted-foreground"><tr><th className="px-5 py-3 font-medium">Job</th><th className="px-5 py-3 font-medium">Booking</th><th className="px-5 py-3 font-medium">Event</th><th className="px-5 py-3 font-medium">Current stage</th><th className="px-5 py-3 font-medium">Status</th></tr></thead><tbody>{staffJobs.map((job) => <tr key={job.id} className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]"><td className="px-5 py-4"><Link href={`/event-jobs/${job.id}`} className="font-semibold text-primary hover:underline">{job.id}</Link></td><td className="px-5 py-4 text-muted-foreground">{job.bookingNumber}</td><td className="px-5 py-4"><p>{job.eventSummary.eventName}</p><p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground"><CalendarClock className="size-3.5" />{friendlyDate(job.eventSummary.eventDate)}{job.eventSummary.venue ? ` · ${job.eventSummary.venue}` : ''}</p></td><td className="px-5 py-4">{currentStageSummary(job)}</td><td className="px-5 py-4"><Badge variant="outline" className={job.status === 'closed' ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-amber-200 bg-amber-50 text-amber-800'}>{job.status === 'closed' ? 'Closed' : 'Active'}</Badge></td></tr>)}</tbody></table></div> : <div className="grid min-h-56 place-items-center p-8 text-center"><div><span className="mx-auto grid size-12 place-items-center rounded-full bg-accent text-primary"><ClipboardList /></span><h3 className="mt-4 font-semibold">{isCollectionAccount ? 'No rental Event Jobs yet' : 'No Central Event Jobs yet'}</h3><p className="mt-1 text-sm text-muted-foreground">{isCollectionAccount ? 'Rental bookings appear here automatically.' : 'Confirmed bookings appear here automatically.'}</p></div></div>}
             </CardContent>
           </Card>
         </div>
@@ -148,7 +148,7 @@ export default async function EventJobsPage() {
             {rows.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[900px] text-left text-sm">
-                  <thead className="border-b bg-[#f7f4ef] text-xs text-muted-foreground">
+                  <thead className="border-b bg-[#f7f4ef] dark:bg-[#241e17] text-xs text-muted-foreground">
                     <tr>
                       <th className="px-5 py-3 font-medium">Job</th>
                       <th className="px-5 py-3 font-medium">Booking</th>
@@ -160,7 +160,7 @@ export default async function EventJobsPage() {
                   </thead>
                   <tbody>
                     {rows.map(({ job, booking }) => (
-                      <tr key={job.id} className="border-b last:border-0 hover:bg-[#fcfaf7]">
+                      <tr key={job.id} className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]">
                         <td className="px-5 py-4">
                           <Link href={`/event-jobs/${job.id}`} className="font-semibold text-primary hover:underline">
                             {job.id}

@@ -83,7 +83,7 @@ export function LoginForm({ configured }: { configured: boolean }) {
 
       {success && (
         <Alert
-          className="border-[#b9dfcf] bg-[#eff9f4] px-3 py-3 text-[#246b50]"
+          className="border-[#b9dfcf] bg-[#eff9f4] dark:bg-[#241e17] px-3 py-3 text-[#246b50]"
           aria-live="polite"
         >
           <CheckCircle2 aria-hidden="true" />

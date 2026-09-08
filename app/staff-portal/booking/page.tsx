@@ -196,7 +196,7 @@ export default async function StaffBookingPage() {
                   <Link
                     key={booking.id}
                     href={`/bookings/${booking.id}`}
-                    className="flex flex-col gap-2 px-4 py-3 transition hover:bg-[#fcfaf7] sm:flex-row sm:items-center"
+                    className="flex flex-col gap-2 px-4 py-3 transition hover:bg-[#fcfaf7] dark:hover:bg-[#241e17] sm:flex-row sm:items-center"
                   >
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium text-primary">

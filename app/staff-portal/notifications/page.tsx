@@ -39,7 +39,7 @@ export default async function StaffNotificationsPage() {
                 {notifications.map((item) => (
                   <li
                     key={item.id}
-                    className={`flex items-start gap-3 p-4 text-sm ${item.readAt ? '' : 'bg-[#fcfaf7]'}`}
+                    className={`flex items-start gap-3 p-4 text-sm ${item.readAt ? '' : 'bg-[#fcfaf7] dark:bg-[#241e17]'}`}
                   >
                     <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-full bg-accent text-primary">
                       <Bell className="size-4" />

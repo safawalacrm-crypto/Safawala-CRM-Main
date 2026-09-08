@@ -42,7 +42,7 @@ function stageTone(status: string) {
   if (status === 'blocked') return 'border-red-200 bg-red-50 text-red-700';
   if (status === 'open' || status === 'in_progress')
     return 'border-amber-200 bg-amber-50 text-amber-800';
-  return 'border-stone-200 bg-stone-50 text-stone-600';
+  return 'border-stone-200 bg-stone-50 text-stone-600 dark:border-border dark:bg-muted dark:text-muted-foreground';
 }
 
 export default async function EventJobDetailPage({
@@ -114,7 +114,7 @@ export default async function EventJobDetailPage({
                           ? 'border-red-200 bg-red-50 text-red-700'
                           : row.tone === 'pending'
                             ? 'border-amber-200 bg-amber-50 text-amber-800'
-                            : 'border-stone-200 bg-stone-50 text-stone-600'
+                            : 'border-stone-200 bg-stone-50 text-stone-600 dark:border-border dark:bg-muted dark:text-muted-foreground'
                     }
                   >
                     {row.value}
@@ -489,7 +489,7 @@ export default async function EventJobDetailPage({
                   name="description"
                   required
                   placeholder="Describe an issue for this job…"
-                  className="h-10 flex-1 rounded-lg border border-input bg-white px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  className="h-10 flex-1 rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                 />
                 <Button type="submit" size="sm">
                   Add issue

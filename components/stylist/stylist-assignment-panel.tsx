@@ -39,7 +39,7 @@ export function StylistAssignmentPanel({ jobId, requiredCount, applicants }: { j
               const checked = selected.includes(applicant.id);
               const limitReached = selected.length >= remaining;
               return (
-                <label key={applicant.id} className={`flex items-center gap-3 rounded-xl border p-3 text-sm transition ${checked ? 'border-[#d7b98d] bg-[#fffaf2]' : 'border-border bg-white'}`}>
+                <label key={applicant.id} className={`flex items-center gap-3 rounded-xl border p-3 text-sm transition ${checked ? 'border-[#d7b98d] bg-[#fffaf2] dark:bg-[#241e17]' : 'border-border bg-white dark:bg-card'}`}>
                   <input type="checkbox" name="interestId" value={applicant.id} checked={checked} disabled={pending || (!checked && limitReached)} onChange={(event) => setSelected((current) => event.target.checked ? [...current, applicant.id] : current.filter((id) => id !== applicant.id))} />
                   <span className="font-medium">{applicant.name}</span>
                 </label>

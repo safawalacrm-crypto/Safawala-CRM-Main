@@ -97,7 +97,7 @@ type Item = {
 };
 
 const inputClass =
-  'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 const uid = () => Math.random().toString(36).slice(2);
 
 export function BookingForm({
@@ -801,7 +801,7 @@ export function BookingForm({
                 <ArrowLeft />
                 <span className="hidden xl:inline">All bookings</span>
               </Button>
-              <Badge variant="outline" className="h-9 bg-white px-3">
+              <Badge variant="outline" className="h-9 bg-white dark:bg-card px-3">
                 {isSale ? 'Sale booking' : 'Rental booking'}
               </Badge>
             </>
@@ -812,7 +812,7 @@ export function BookingForm({
 
         <section
           id="booking-workflow"
-          className="scroll-mt-20 overflow-hidden rounded-2xl border border-[#d9c29e] bg-white shadow-level-2"
+          className="scroll-mt-20 overflow-hidden rounded-2xl border border-[#d9c29e] bg-white dark:bg-card shadow-level-2"
         >
           <div className="grid gap-5 bg-[linear-gradient(115deg,#2f2a23_0%,#5d482c_62%,#9a6728_100%)] px-5 py-5 text-white sm:grid-cols-[1fr_auto] sm:items-end lg:px-7">
             <div>
@@ -835,11 +835,11 @@ export function BookingForm({
             </div>
           </div>
 
-          <div className="bg-[#fbfaf8] p-4 lg:p-6">
+          <div className="bg-[#fbfaf8] dark:bg-[#241e17] p-4 lg:p-6">
             <div hidden={step !== 1} className="space-y-5">
               <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
                 <Card className="gap-0 border-border py-0 shadow-none ring-0">
-                  <CardHeader className="gap-3 border-b bg-[#fcfaf7] px-4 py-4">
+                  <CardHeader className="gap-3 border-b bg-[#fcfaf7] dark:bg-[#241e17] px-4 py-4">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-primary ring-1 ring-[#e4d2b6]">
                         <UserRound className="size-4" />
@@ -857,7 +857,7 @@ export function BookingForm({
                       type="button"
                       variant="outline"
                       size="sm"
-                      className="mt-1 w-full bg-white"
+                      className="mt-1 w-full bg-white dark:bg-card"
                       onClick={() => setCustomerModalOpen(true)}
                     >
                       <Plus />
@@ -883,7 +883,7 @@ export function BookingForm({
                             type="button"
                             aria-label={`Select customer ${customer.name}, ${customer.phone}`}
                             onClick={() => setSelectedCustomer(customer)}
-                            className={`w-full rounded-xl border p-3 text-left transition ${selectedCustomer?.id === customer.id ? 'border-primary bg-accent shadow-sm' : 'border-border bg-white hover:border-primary/40 hover:bg-[#fcfaf7]'}`}
+                            className={`w-full rounded-xl border p-3 text-left transition ${selectedCustomer?.id === customer.id ? 'border-primary bg-accent shadow-sm' : 'border-border bg-white dark:bg-card hover:border-primary/40 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]'}`}
                           >
                             <span className="flex items-start justify-between gap-3">
                               <span className="min-w-0">
@@ -1140,12 +1140,12 @@ export function BookingForm({
                       <legend className="mb-2 text-sm font-medium text-muted-foreground">
                         Selection mode
                       </legend>
-                      <div className="grid grid-cols-2 gap-2 rounded-xl border bg-[#fcfaf7] p-1.5">
+                      <div className="grid grid-cols-2 gap-2 rounded-xl border bg-[#fcfaf7] dark:bg-[#241e17] p-1.5">
                         <button
                           type="button"
                           aria-pressed={rentalSelectionMode === 'individual'}
                           onClick={() => setRentalSelectionMode('individual')}
-                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${rentalSelectionMode === 'individual' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-white hover:text-foreground'}`}
+                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${rentalSelectionMode === 'individual' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-white dark:hover:bg-card hover:text-foreground'}`}
                         >
                           <Box className="size-4" />
                           Individual products
@@ -1154,7 +1154,7 @@ export function BookingForm({
                           type="button"
                           aria-pressed={rentalSelectionMode === 'packages'}
                           onClick={() => setRentalSelectionMode('packages')}
-                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${rentalSelectionMode === 'packages' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-white hover:text-foreground'}`}
+                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${rentalSelectionMode === 'packages' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-white dark:hover:bg-card hover:text-foreground'}`}
                         >
                           <Package className="size-4" />
                           Packages
@@ -1224,7 +1224,7 @@ export function BookingForm({
                           {visibleProducts.map((product) => (
                             <div
                               key={product.id}
-                              className="group overflow-hidden rounded-xl border bg-white p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
+                              className="group overflow-hidden rounded-xl border bg-white dark:bg-card p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
                             >
                               <span className="relative grid aspect-square overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
                                 {product.image_urls?.[0] ? (
@@ -1241,7 +1241,7 @@ export function BookingForm({
                                 {product.category ? (
                                   <Badge
                                     variant="outline"
-                                    className="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate bg-white/95 text-[10px] shadow-sm"
+                                    className="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate bg-white/95 dark:bg-card/95 text-[10px] shadow-sm"
                                   >
                                     {product.category}
                                   </Badge>
@@ -1301,7 +1301,7 @@ export function BookingForm({
                                       ),
                                     }))
                                   }
-                                  className="h-7 min-w-0 flex-1 rounded-full border px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                                  className="h-7 min-w-0 flex-1 rounded-full border bg-white dark:bg-card px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                                   aria-label={`Quantity for ${product.name}`}
                                 />
                                 <Button
@@ -1404,7 +1404,7 @@ export function BookingForm({
                                 onClick={() =>
                                   setSelectedRentalCategory(category)
                                 }
-                                className={`h-10 rounded-xl border px-4 text-left text-sm font-medium transition ${selected ? 'border-primary bg-primary text-white shadow-sm' : 'border-border bg-white text-foreground hover:border-primary/40 hover:bg-[#fcfaf7]'}`}
+                                className={`h-10 rounded-xl border px-4 text-left text-sm font-medium transition ${selected ? 'border-primary bg-primary text-white shadow-sm' : 'border-border bg-white dark:bg-card text-foreground hover:border-primary/40 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]'}`}
                               >
                                 {category}
                               </button>
@@ -1437,7 +1437,7 @@ export function BookingForm({
                               return (
                                 <div
                                   key={pack.id}
-                                  className={`group rounded-xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 ${pack.id === selectedRentalPackageId ? 'border-primary ring-2 ring-primary/20' : ''}`}
+                                  className={`group rounded-xl border bg-white dark:bg-card p-4 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 ${pack.id === selectedRentalPackageId ? 'border-primary ring-2 ring-primary/20' : ''}`}
                                 >
                                   <button
                                     type="button"
@@ -1447,7 +1447,7 @@ export function BookingForm({
                                     <span className="flex justify-end">
                                       <Badge
                                         variant="outline"
-                                        className="max-w-full truncate bg-white text-[10px]"
+                                        className="max-w-full truncate bg-white dark:bg-card text-[10px]"
                                       >
                                         {pack.category_name}
                                       </Badge>
@@ -1526,7 +1526,7 @@ export function BookingForm({
                                           );
                                         }
                                       }}
-                                      className="h-7 min-w-0 flex-1 rounded-full border px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                                      className="h-7 min-w-0 flex-1 rounded-full border bg-white dark:bg-card px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                                       aria-label={`Quantity for ${pack.name}`}
                                     />
                                     <Button
@@ -1568,7 +1568,7 @@ export function BookingForm({
                       </section>
 
                       {selectedRentalPackage ? (
-                        <section className="rounded-2xl border border-[#d9c29e] bg-[#fcfaf7] p-4">
+                        <section className="rounded-2xl border border-[#d9c29e] bg-[#fcfaf7] dark:bg-[#241e17] p-4">
                           <div className="flex items-center justify-between gap-3 border-b pb-3">
                             <div className="flex items-center gap-2">
                               <span className="grid size-8 place-items-center rounded-lg bg-accent text-primary">
@@ -1577,7 +1577,7 @@ export function BookingForm({
                               <h3 className="text-sm font-semibold">
                                 Select Products
                               </h3>
-                              <Badge variant="outline" className="bg-white">
+                              <Badge variant="outline" className="bg-white dark:bg-card">
                                 {selectedPackageProducts.length} products
                               </Badge>
                             </div>
@@ -1595,7 +1595,7 @@ export function BookingForm({
                                 return (
                                   <div
                                     key={product.id}
-                                    className="group overflow-hidden rounded-xl border bg-white p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
+                                    className="group overflow-hidden rounded-xl border bg-white dark:bg-card p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
                                   >
                                     <span className="relative grid aspect-square overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
                                       {product.image_urls?.[0] ? (
@@ -1611,7 +1611,7 @@ export function BookingForm({
                                       )}
                                       <Badge
                                         variant="outline"
-                                        className="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate bg-white/95 text-[10px]"
+                                        className="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate bg-white/95 dark:bg-card/95 text-[10px]"
                                       >
                                         {product.subcategory ||
                                           product.category ||
@@ -1671,7 +1671,7 @@ export function BookingForm({
                                             ),
                                           }))
                                         }
-                                        className="h-7 min-w-0 flex-1 rounded-full border px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                                        className="h-7 min-w-0 flex-1 rounded-full border bg-white dark:bg-card px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                                         aria-label={`Quantity for ${product.name}`}
                                       />
                                       <Button
@@ -1718,7 +1718,7 @@ export function BookingForm({
                         </section>
                       ) : null}
 
-                      <section className="rounded-2xl border border-[#d9c29e] bg-[#fcfaf7] p-4">
+                      <section className="rounded-2xl border border-[#d9c29e] bg-[#fcfaf7] dark:bg-[#241e17] p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                           <div>
                             <div className="flex items-center gap-2">
@@ -1728,7 +1728,7 @@ export function BookingForm({
                               <h3 className="text-sm font-semibold">
                                 Additional Safa
                               </h3>
-                              <Badge variant="outline" className="bg-white">
+                              <Badge variant="outline" className="bg-white dark:bg-card">
                                 {additionalSafaProducts.length} options
                               </Badge>
                             </div>
@@ -1736,7 +1736,7 @@ export function BookingForm({
                               Optional · Select only from Barati Safa inventory.
                             </p>
                           </div>
-                          <div className="flex items-center gap-3 rounded-lg border bg-white px-3 py-2 text-xs">
+                          <div className="flex items-center gap-3 rounded-lg border bg-white dark:bg-card px-3 py-2 text-xs">
                             <span className="font-medium tabular-nums">
                               {additionalSafaCount} / {packageSafaLimit || '—'}{' '}
                               used
@@ -1807,7 +1807,7 @@ export function BookingForm({
                                       String(product.id),
                                     )
                                   }
-                                  className={`group overflow-hidden rounded-xl border bg-white p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 ${selected ? 'border-primary ring-2 ring-primary/20' : ''}`}
+                                  className={`group overflow-hidden rounded-xl border bg-white dark:bg-card p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 ${selected ? 'border-primary ring-2 ring-primary/20' : ''}`}
                                 >
                                   <span className="relative grid aspect-square overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
                                     {product.image_urls?.[0] ? (
@@ -1824,7 +1824,7 @@ export function BookingForm({
                                     {product.subcategory ? (
                                       <Badge
                                         variant="outline"
-                                        className="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate bg-white/95 text-[10px] shadow-sm"
+                                        className="absolute right-2 top-2 max-w-[calc(100%-1rem)] truncate bg-white/95 dark:bg-card/95 text-[10px] shadow-sm"
                                       >
                                         {product.subcategory}
                                       </Badge>
@@ -1885,7 +1885,7 @@ export function BookingForm({
                                       onClick={(event) =>
                                         event.stopPropagation()
                                       }
-                                      className="h-7 min-w-0 flex-1 rounded-full border px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                                      className="h-7 min-w-0 flex-1 rounded-full border bg-white dark:bg-card px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                                       aria-label={`Quantity for ${product.name}`}
                                     />
                                     <Button
@@ -1938,7 +1938,7 @@ export function BookingForm({
                         )}
                       </section>
 
-                      <section className="rounded-2xl border bg-white p-4">
+                      <section className="rounded-2xl border bg-white dark:bg-card p-4">
                         <label className="block text-sm">
                           <span className="mb-1.5 flex items-center gap-2 font-medium">
                             <FileText className="size-4 text-primary" /> Notes
@@ -1951,7 +1951,7 @@ export function BookingForm({
                               setRentalNotes(event.target.value)
                             }
                             placeholder="Any additional notes…"
-                            className="w-full resize-y rounded-xl border border-input bg-white p-3 text-sm leading-6 outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                            className="w-full resize-y rounded-xl border border-input bg-white dark:bg-card p-3 text-sm leading-6 outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                           />
                         </label>
                       </section>
@@ -1974,7 +1974,7 @@ export function BookingForm({
                 <CardContent className="p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[760px] text-sm">
-                      <thead className="border-b bg-[#f5f2ed] text-left text-xs text-muted-foreground">
+                      <thead className="border-b bg-[#f5f2ed] dark:bg-[#241e17] text-left text-xs text-muted-foreground">
                         <tr>
                           <th className="px-4 py-3 font-medium">Item</th>
                           <th className="px-4 py-3 font-medium">Qty</th>
@@ -2135,7 +2135,7 @@ export function BookingForm({
 
             <div hidden={step !== 3} className="space-y-5">
               <Card className="gap-0 border-[#dfc9a6] py-0 shadow-none ring-0">
-                <CardHeader className="border-b bg-[#fcfaf7] px-4 py-4">
+                <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-4 py-4">
                   <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                     <Check className="size-4 text-primary" />
                     Review booking
@@ -2209,7 +2209,7 @@ export function BookingForm({
                       Modifications required
                     </label>
                     {modificationsRequired && (
-                      <div className="mt-4 rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] p-4">
+                      <div className="mt-4 rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] dark:bg-[#241e17] p-4">
                         <label className="block text-sm">
                           <span className="mb-1.5 block font-medium">
                             Modification details{' '}
@@ -2220,7 +2220,7 @@ export function BookingForm({
                             required
                             rows={3}
                             placeholder="Describe the colour change, size adjustment, embroidery or other work required…"
-                            className="w-full rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                            className="w-full rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                           />
                         </label>
                         <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -2244,7 +2244,7 @@ export function BookingForm({
 
               {!isSale && rentalSelectionMode === 'individual' ? (
                 <Card className="gap-0 border-border py-0 shadow-none ring-0">
-                  <CardHeader className="border-b bg-[#fcfaf7] px-4 py-4">
+                  <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-4 py-4">
                     <CardTitle className="flex items-center gap-2 text-sm font-semibold">
                       <span className="grid size-8 place-items-center rounded-lg bg-accent text-primary">
                         <FileText className="size-4" />
@@ -2267,7 +2267,7 @@ export function BookingForm({
                         value={rentalNotes}
                         onChange={(event) => setRentalNotes(event.target.value)}
                         placeholder="Enter delivery instructions, product handling notes, fitting details or return information…"
-                        className="w-full resize-y rounded-lg border border-input bg-white p-3 text-sm leading-6 outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                        className="w-full resize-y rounded-lg border border-input bg-white dark:bg-card p-3 text-sm leading-6 outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                       />
                     </label>
                   </CardContent>
@@ -2279,7 +2279,7 @@ export function BookingForm({
                     name="notes"
                     rows={4}
                     placeholder="Any additional notes…"
-                    className="w-full rounded-lg border border-input bg-white p-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                    className="w-full rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                   />
                 </label>
               ) : null}
@@ -2377,7 +2377,7 @@ export function BookingForm({
                   </CardContent>
                 </Card>
                 <Card className="gap-0 border-[#dfc9a6] py-0 shadow-none ring-0">
-                  <CardHeader className="border-b bg-[#fcfaf7] px-4 py-4">
+                  <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-4 py-4">
                     <CardTitle className="text-sm font-semibold">
                       Summary
                     </CardTitle>
@@ -2700,7 +2700,7 @@ function BookingSteps({ current }: { current: 1 | 2 | 3 }) {
   return (
     <nav
       aria-label="Booking progress"
-      className="rounded-xl border bg-white px-3 py-3 shadow-level-1 sm:px-5"
+      className="rounded-xl border bg-white dark:bg-card px-3 py-3 shadow-level-1 sm:px-5"
     >
       <ol className="grid grid-cols-3 gap-2">
         {steps.map((item, index) => {
@@ -2712,7 +2712,7 @@ function BookingSteps({ current }: { current: 1 | 2 | 3 }) {
               className="relative flex min-w-0 items-center gap-2 sm:gap-3"
             >
               <span
-                className={`grid size-8 shrink-0 place-items-center rounded-full border text-xs font-semibold transition sm:size-9 ${complete || active ? 'border-primary bg-primary text-white' : 'border-border bg-[#f7f4ef] text-muted-foreground'}`}
+                className={`grid size-8 shrink-0 place-items-center rounded-full border text-xs font-semibold transition sm:size-9 ${complete || active ? 'border-primary bg-primary text-white' : 'border-border bg-[#f7f4ef] dark:bg-[#241e17] text-muted-foreground'}`}
               >
                 {complete ? <Check className="size-4" /> : item.icon}
               </span>
@@ -2742,7 +2742,7 @@ function BookingSteps({ current }: { current: 1 | 2 | 3 }) {
 
 function ReviewDetail({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg border bg-white px-3 py-2.5">
+    <div className="rounded-lg border bg-white dark:bg-card px-3 py-2.5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {label}
       </p>
@@ -2777,13 +2777,13 @@ function TypeChooser({
       <dialog
         open
         aria-labelledby="booking-type-title"
-        className="relative m-0 max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-[24px] border border-white/40 bg-[#fffdf9] p-6 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)] sm:p-8"
+        className="relative m-0 max-h-[90dvh] w-full max-w-xl overflow-y-auto rounded-[24px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-6 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)] sm:p-8"
       >
         <button
           type="button"
           onClick={onClose}
           aria-label="Close"
-          className="absolute right-5 top-5 grid size-9 place-items-center rounded-full border bg-white text-muted-foreground hover:text-foreground"
+          className="absolute right-5 top-5 grid size-9 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground hover:text-foreground"
         >
           <X className="size-4" />
         </button>
@@ -2877,9 +2877,9 @@ function NewCustomerDialog({
       <dialog
         open
         aria-labelledby="new-customer-title"
-        className="relative m-0 max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
+        className="relative m-0 max-h-[90dvh] w-full max-w-lg overflow-y-auto rounded-[22px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
       >
-        <div className="flex items-start justify-between border-b bg-[#fcfaf7] px-5 py-5 sm:px-6">
+        <div className="flex items-start justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-5 sm:px-6">
           <div className="flex gap-3">
             <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary ring-1 ring-[#e4d2b6]">
               <UserRound className="size-5" />
@@ -2900,7 +2900,7 @@ function NewCustomerDialog({
             type="button"
             onClick={onClose}
             aria-label="Close new customer popup"
-            className="grid size-9 place-items-center rounded-full border bg-white text-muted-foreground transition hover:text-foreground"
+            className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground transition hover:text-foreground"
           >
             <X className="size-4" />
           </button>
@@ -2917,7 +2917,7 @@ function NewCustomerDialog({
                 name="address"
                 rows={3}
                 placeholder="Enter the complete customer address…"
-                className="w-full rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                className="w-full rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
               />
             </label>
           </div>
@@ -2962,7 +2962,7 @@ function Choice({
     <button
       type="button"
       onClick={onClick}
-      className="group rounded-2xl border bg-white p-6 text-center transition hover:-translate-y-1 hover:border-primary/50 hover:shadow-level-2"
+      className="group rounded-2xl border bg-white dark:bg-card p-6 text-center transition hover:-translate-y-1 hover:border-primary/50 hover:shadow-level-2"
     >
       <span className="mx-auto grid size-14 place-items-center rounded-full bg-accent text-primary ring-1 ring-[#e4d2b6] transition group-hover:bg-primary group-hover:text-white">
         {icon}
@@ -3031,7 +3031,7 @@ export function TimeField({
         name={name}
         value={hour ? `${hour24}:${minute}` : ''}
       />
-      <div className="flex h-10 w-full items-center overflow-hidden rounded-lg border border-input bg-white text-sm tabular-nums transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">
+      <div className="flex h-10 w-full items-center overflow-hidden rounded-lg border border-input bg-white dark:bg-card text-sm tabular-nums transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/20">
         <label className="relative min-w-0 flex-1">
           <span className="sr-only">{label} hour</span>
           <select
@@ -3081,7 +3081,7 @@ export function TimeField({
             value={period}
             onChange={(event) => setPeriod(event.target.value)}
             disabled={!hour}
-            className="h-full w-full appearance-none bg-[#fcfaf7] py-0 pl-2.5 pr-5 font-semibold text-primary outline-none disabled:opacity-60"
+            className="h-full w-full appearance-none bg-[#fcfaf7] dark:bg-[#241e17] py-0 pl-2.5 pr-5 font-semibold text-primary outline-none disabled:opacity-60"
           >
             <option value="AM">AM</option>
             <option value="PM">PM</option>
@@ -3096,7 +3096,7 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <p className="mb-1 text-xs text-white/60">{label}</p>
-      <div className="grid h-9 place-items-center rounded-lg bg-white px-3 text-sm font-medium text-[#2f2a23]">
+      <div className="grid h-9 place-items-center rounded-lg bg-white dark:bg-card px-3 text-sm font-medium text-[#2f2a23]">
         {value}
       </div>
     </div>
@@ -3111,7 +3111,7 @@ function EditableDateField({ defaultValue }: { defaultValue: string }) {
         type="date"
         required
         defaultValue={defaultValue}
-        className="h-9 w-full rounded-lg border-0 bg-white px-3 text-sm font-medium text-[#2f2a23] outline-none ring-offset-2 focus:ring-2 focus:ring-white/60"
+        className="h-9 w-full rounded-lg border-0 bg-white dark:bg-card px-3 text-sm font-medium text-[#2f2a23] outline-none ring-offset-2 focus:ring-2 focus:ring-white/60"
       />
     </label>
   );
@@ -3164,7 +3164,7 @@ function Amount({
 }
 function EmptyCatalog() {
   return (
-    <div className="rounded-xl border border-dashed bg-white py-9 text-center">
+    <div className="rounded-xl border border-dashed bg-white dark:bg-card py-9 text-center">
       <Package className="mx-auto size-6 text-muted-foreground/50" />
       <p className="mt-2 text-sm font-medium">
         No products in your catalog yet

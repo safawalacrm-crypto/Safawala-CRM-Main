@@ -12,7 +12,7 @@ import {
 
 const initialState: ReturnWarehouseFormState = { error: '' };
 const inputClass =
-  'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
 export function ReturnWarehouseForm({
   jobId,
@@ -107,14 +107,14 @@ export function ReturnWarehouseForm({
                     name={`remarks-${index}`}
                     rows={2}
                     placeholder="Any additional notes…"
-                    className="w-full resize-y rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                    className="w-full resize-y rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                   />
                 </label>
               </div>
             </div>
           ))}
 
-          <div className="rounded-xl border border-[#dfd3c3] bg-[#fcfaf7] p-4">
+          <div className="rounded-xl border border-[#dfd3c3] bg-[#fcfaf7] dark:bg-[#241e17] p-4">
             <div className="flex items-center gap-2 font-medium text-[#70481c]"><Warehouse className="size-4" /> Warehouse receiving</div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="block text-sm">
@@ -126,7 +126,7 @@ export function ReturnWarehouseForm({
                 <input name="receivingNotes" placeholder="Any handover note" className={inputClass} />
               </label>
             </div>
-            <div className="mt-3 flex items-start gap-2 rounded-lg border bg-white p-3 text-sm">
+            <div className="mt-3 flex items-start gap-2 rounded-lg border bg-white dark:bg-card p-3 text-sm">
               <input id="handoverConfirmed" type="checkbox" name="handoverConfirmed" required className="mt-0.5 size-4 rounded border-input accent-primary" />
               <label htmlFor="handoverConfirmed" className="cursor-pointer">
                 <strong className="font-medium">Physical receiving confirmed</strong>

@@ -53,7 +53,7 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
           {jobs.map((job) => (
             <div
               key={job.id}
-              className="flex flex-col gap-3 px-4 py-4 transition hover:bg-[#fcfaf7] sm:flex-row sm:items-center"
+              className="flex flex-col gap-3 px-4 py-4 transition hover:bg-[#fcfaf7] dark:hover:bg-[#241e17] sm:flex-row sm:items-center"
             >
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-[#f5ead8] text-[#8a5b24]">
                 <Route className="size-4" />
@@ -83,7 +83,7 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 w-fit shrink-0 bg-white px-3 text-xs"
+                className="h-8 w-fit shrink-0 bg-white dark:bg-card px-3 text-xs"
                 onClick={() => setSelected(job)}
               >
                 <Route className="size-3.5" />
@@ -108,7 +108,7 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
             aria-labelledby="tracking-title"
             className="relative z-10 m-0 flex h-fit max-h-[calc(100dvh-1.5rem)] w-full max-w-sm flex-col overflow-hidden rounded-2xl border border-white/50 bg-[#fffdf9] p-0 text-foreground shadow-[0_24px_70px_rgb(20_15_10_/.3)] sm:max-h-[calc(100dvh-2.5rem)]"
           >
-            <header className="border-b bg-[#fcfaf7] px-5 py-4">
+            <header className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
@@ -128,7 +128,7 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
                   type="button"
                   aria-label="Close job tracker"
                   onClick={() => setSelected(null)}
-                  className="grid size-8 shrink-0 place-items-center rounded-full border bg-white text-muted-foreground transition hover:text-foreground"
+                  className="grid size-8 shrink-0 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground transition hover:text-foreground"
                 >
                   <X className="size-4" />
                 </button>

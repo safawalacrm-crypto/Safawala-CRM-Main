@@ -14,6 +14,7 @@ import {
   MapPin,
   PackageCheck,
   Plus,
+  Route,
   Users,
 } from 'lucide-react';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
@@ -22,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { friendlyDate, money, statusLabel, statusTone } from '@/lib/bookings';
+import { currentStageSummary, listActiveJobs } from '@/lib/event-jobs/store';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
@@ -43,6 +45,7 @@ export default async function DashboardPage() {
     { data: eventJobs },
     { data: paymentRows },
     { data: recent, error },
+    jobTrackerJobs,
   ] = await Promise.all([
     supabase
       .from('bookings')
@@ -122,6 +125,7 @@ export default async function DashboardPage() {
       )
       .order('created_at', { ascending: false })
       .limit(6),
+    listActiveJobs().catch(() => []),
   ]);
   const jobsToClose = (eventJobs ?? []).filter((row) => {
     const state = row.state as {
@@ -174,6 +178,7 @@ export default async function DashboardPage() {
     jobsToClose +
     pendingPaymentBookings.length +
     Number(modificationCount ?? 0);
+  const trackedJobs = jobTrackerJobs.slice(0, 8);
   const recentBookings = (recent ?? []) as unknown as Array<{
     id: number;
     booking_number: string;
@@ -258,7 +263,7 @@ export default async function DashboardPage() {
       note: 'Sales and rental bookings',
       icon: ClipboardList,
       href: '/bookings',
-      tone: 'bg-[#f5ead8] text-[#8a5b24]',
+      tone: 'bg-[#f5ead8] dark:bg-[#33291c] text-[#8a5b24]',
     },
     {
       label: 'Upcoming events',
@@ -436,7 +441,7 @@ export default async function DashboardPage() {
                     <Link
                       key={booking.id}
                       href={`/bookings/${booking.id}`}
-                      className="flex items-center gap-3 px-4 py-3 transition hover:bg-[#fcfaf7]"
+                      className="flex items-center gap-3 px-4 py-3 transition hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]"
                     >
                       <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-accent text-primary">
                         <CalendarDays className="size-4" />
@@ -481,7 +486,7 @@ export default async function DashboardPage() {
               {pipeline.map((stage) => (
                 <div
                   key={stage.label}
-                  className="rounded-lg bg-[#fcfaf7] p-3 text-center"
+                  className="rounded-lg bg-[#fcfaf7] dark:bg-[#241e17] p-3 text-center"
                 >
                   <p className="text-xl font-semibold tracking-[-0.03em]">
                     {stage.value}
@@ -522,7 +527,7 @@ export default async function DashboardPage() {
                 <Link
                   key={String(label)}
                   href={String(href)}
-                  className="flex items-center gap-3 px-4 py-3 transition hover:bg-[#fcfaf7]"
+                  className="flex items-center gap-3 px-4 py-3 transition hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]"
                 >
                   <span className="flex-1 text-sm">{label}</span>
                   <Badge variant="outline">{String(value)}</Badge>
@@ -532,6 +537,96 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </section>
+        <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
+          <CardHeader className="flex-row items-center justify-between border-b py-5">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Route className="size-4 text-primary" /> Event tracker
+              </CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Live stage progress for every active event job.
+              </p>
+            </div>
+            <Button variant="outline" render={<Link href="/event-jobs" />}>
+              View all
+            </Button>
+          </CardHeader>
+          <CardContent className="p-0">
+            {trackedJobs.length ? (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[780px] text-left text-sm">
+                  <thead className="border-b bg-[#fcfaf7] dark:bg-[#241e17] text-xs text-muted-foreground">
+                    <tr>
+                      {['Job', 'Booking', 'Event', 'Current stage', 'Status'].map(
+                        (h) => (
+                          <th key={h} className="px-5 py-3 font-medium">
+                            {h}
+                          </th>
+                        ),
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {trackedJobs.map((job) => (
+                      <tr
+                        key={job.id}
+                        className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]"
+                      >
+                        <td className="px-5 py-4">
+                          <Link
+                            href={`/event-jobs/${job.id}`}
+                            className="font-semibold text-primary hover:underline"
+                          >
+                            {job.id}
+                          </Link>
+                        </td>
+                        <td className="px-5 py-4 text-muted-foreground">
+                          {job.bookingNumber}
+                        </td>
+                        <td className="px-5 py-4">
+                          {job.eventSummary.eventName}
+                          <p className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <CalendarClock className="size-3.5" />
+                            {friendlyDate(job.eventSummary.eventDate)}
+                            {job.eventSummary.venue
+                              ? ` · ${job.eventSummary.venue}`
+                              : ''}
+                          </p>
+                        </td>
+                        <td className="px-5 py-4">{currentStageSummary(job)}</td>
+                        <td className="px-5 py-4">
+                          <Badge
+                            variant="outline"
+                            className={
+                              job.status === 'closed'
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                                : 'border-amber-200 bg-amber-50 text-amber-800'
+                            }
+                          >
+                            {job.status === 'closed' ? 'Closed' : 'Active'}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="grid min-h-56 place-items-center p-8 text-center">
+                <div>
+                  <span className="mx-auto grid size-12 place-items-center rounded-full bg-accent text-primary">
+                    <Route />
+                  </span>
+                  <h3 className="mt-4 font-semibold">No active event jobs</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Confirm a booking to see its job tracker appear here
+                    automatically.
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
         <Card className="border-border shadow-level-1 ring-0">
           <CardHeader className="border-b py-4">
             <CardTitle className="text-base">Quick access</CardTitle>
@@ -609,7 +704,7 @@ export default async function DashboardPage() {
             ) : recentBookings.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[780px] text-left text-sm">
-                  <thead className="border-b bg-[#fcfaf7] text-xs text-muted-foreground">
+                  <thead className="border-b bg-[#fcfaf7] dark:bg-[#241e17] text-xs text-muted-foreground">
                     <tr>
                       {[
                         'Booking',
@@ -629,7 +724,7 @@ export default async function DashboardPage() {
                     {recentBookings.map((row) => (
                       <tr
                         key={row.id}
-                        className="border-b last:border-0 hover:bg-[#fcfaf7]"
+                        className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]"
                       >
                         <td className="px-5 py-4">
                           <Link

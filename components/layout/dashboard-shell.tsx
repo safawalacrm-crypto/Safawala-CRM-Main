@@ -16,7 +16,6 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import {
   Boxes,
-  BriefcaseBusiness,
   CalendarDays,
   ChevronUp,
   ClipboardList,
@@ -29,6 +28,7 @@ import {
   Menu,
   PlaneTakeoff,
   Plus,
+  Route,
   Settings,
   Trophy,
   UserCheck,
@@ -45,10 +45,10 @@ function SidebarNavigation() {
     { href: '/quotes', label: 'Quotes', icon: FileText },
     { href: '/bookings/new', label: 'Create booking', icon: Plus },
     { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
-    { href: '/event-jobs', label: 'Event Jobs', icon: BriefcaseBusiness },
     { href: '/stylist-approvals', label: 'Stylist Approvals', icon: UserCheck },
     { href: '/travel', label: 'Travel Manager', icon: PlaneTakeoff },
     { href: '/performance', label: 'Performance', icon: Trophy },
+    { href: '/event-tracking', label: 'Job Tracking', icon: Route },
     { href: '/modifications', label: 'Modifications', icon: Wrench },
     { href: '/inventory', label: 'Inventory', icon: Boxes },
     { href: '/packages', label: 'Package Manager', icon: Layers3 },
@@ -72,7 +72,7 @@ function SidebarNavigation() {
             key={href}
             href={href}
             aria-current={active ? 'page' : undefined}
-            className={`flex h-11 items-center gap-2.5 rounded-lg border px-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? 'border-[#e4d2b6] bg-[#f5ead8] font-semibold text-[#70481c]' : 'border-transparent text-muted-foreground hover:bg-[#f7f4ef] hover:text-foreground'}`}
+            className={`flex h-11 items-center gap-2.5 rounded-lg border px-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? 'border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] font-semibold text-[#70481c] dark:border-[#4a3c2a] dark:bg-[#33291c] dark:text-[#f0d9ad]' : 'border-transparent text-muted-foreground hover:bg-[#f7f4ef] dark:hover:bg-[#241e17] hover:text-foreground dark:hover:bg-[#241e17]'}`}
           >
             <span
               className={`grid size-7 place-items-center rounded-md ${active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'}`}
@@ -102,12 +102,12 @@ function AccountPanel({ email }: { email: string }) {
   }
 
   return (
-    <div className="rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] p-1.5 shadow-level-1">
+    <div className="rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] dark:bg-[#241e17] p-1.5 shadow-level-1 dark:border-[#3a2f22] dark:bg-[#241e17]">
       <button
         type="button"
         onClick={() => setOpen((current) => !current)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition hover:bg-[#f5ead8]"
+        className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition hover:bg-[#f5ead8] dark:hover:bg-[#33291c]"
       >
         <span
           aria-hidden="true"
@@ -133,7 +133,7 @@ function AccountPanel({ email }: { email: string }) {
           type="button"
           variant="ghost"
           onClick={signOut}
-          className="mt-1 h-9 w-full justify-start px-3 text-muted-foreground hover:bg-red-50 hover:text-destructive"
+          className="mt-1 h-9 w-full justify-start px-3 text-muted-foreground hover:bg-red-50 hover:text-destructive dark:hover:bg-destructive/15"
           aria-label="Log out of Safawala CRM"
         >
           <LogOut aria-hidden="true" />
@@ -145,7 +145,7 @@ function AccountPanel({ email }: { email: string }) {
 }
 
 function BrandDivider() {
-  return <div aria-hidden="true" className="mt-5 h-px bg-[#cec5b9]" />;
+  return <div aria-hidden="true" className="mt-5 h-px bg-[#cec5b9] dark:bg-[#332b21]" />;
 }
 
 export function DashboardShell({
@@ -156,8 +156,8 @@ export function DashboardShell({
   children: ReactNode;
 }) {
   return (
-    <div className="min-h-dvh bg-surface">
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-white px-4 py-6 lg:flex">
+    <div className="min-h-dvh bg-surface text-foreground">
+      <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-white dark:bg-card px-4 py-6 dark:bg-card lg:flex">
         <BrandMark className="px-2" />
         <BrandDivider />
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -177,13 +177,13 @@ export function DashboardShell({
             <Sheet>
               <SheetTrigger
                 aria-label="Open navigation"
-                className="pointer-events-auto fixed left-4 top-4 z-40 inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+                className="pointer-events-auto fixed left-4 top-4 z-40 inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white dark:bg-card text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-card lg:hidden"
               >
                 <Menu aria-hidden="true" className="size-5" />
               </SheetTrigger>
               <SheetContent
                 side="left"
-                className="flex w-72 flex-col border-border bg-white px-4 py-6"
+                className="flex w-72 flex-col border-border bg-white dark:bg-card px-4 py-6 dark:bg-card"
               >
                 <SheetHeader className="sr-only">
                   <SheetTitle>Navigation</SheetTitle>

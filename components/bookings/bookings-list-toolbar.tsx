@@ -59,9 +59,9 @@ export function BookingsListToolbar({
   }, [rentalHref, router, saleHref]);
 
   return (
-    <div className="flex flex-col gap-3 border-b bg-white px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+    <div className="flex flex-col gap-3 border-b bg-white dark:bg-card px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
       <div
-        className="inline-flex w-fit items-center rounded-xl border bg-[#fcfaf7] p-1 shadow-sm"
+        className="inline-flex w-fit items-center rounded-xl border bg-[#fcfaf7] dark:bg-[#241e17] p-1 shadow-sm"
         aria-label="Booking mode"
       >
         {modes.map(({ value, label, icon: Icon }) => {
@@ -76,7 +76,7 @@ export function BookingsListToolbar({
               className={`inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-medium transition-colors ${
                 active
                   ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted-foreground hover:bg-white hover:text-foreground'
+                  : 'text-muted-foreground hover:bg-white dark:hover:bg-card hover:text-foreground'
               }`}
             >
               <Icon className="size-4" />
@@ -104,7 +104,7 @@ export function BookingsListToolbar({
           <select
             value={String(pageSize)}
             onChange={(event) => changePageSize(event.target.value)}
-            className="h-9 rounded-lg border bg-white px-3 font-semibold text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="h-9 rounded-lg border bg-white dark:bg-card px-3 font-semibold text-foreground outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
             aria-label="Items per page"
           >
             <option value="10">10</option>

@@ -12,7 +12,7 @@ import {
 
 const initialState: QcFormState = { error: '' };
 const inputClass =
-  'h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 
 export function ReturnQualityCheckForm({
   jobId,
@@ -112,14 +112,14 @@ export function ReturnQualityCheckForm({
                     name={`remarks-${index}`}
                     rows={2}
                     placeholder="Describe the damage or condition…"
-                    className="w-full resize-y rounded-lg border border-input bg-white p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
+                    className="w-full resize-y rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                   />
                 </label>
               </div>
             </div>
           ))}
 
-          <label className="block rounded-xl border border-dashed border-[#d8c5a8] bg-[#fcfaf7] p-4 text-sm">
+          <label className="block rounded-xl border border-dashed border-[#d8c5a8] bg-[#fcfaf7] dark:bg-[#241e17] p-4 text-sm">
             <span className="flex items-center gap-2 font-medium text-[#70481c]"><Camera className="size-4" /> Issue proof photos</span>
             <span className="mt-1 block text-xs text-muted-foreground">Required only when an item is damaged, needs repair, or is unusable. Maximum 3 images, 3 MB each.</span>
             <input name="issuePhotos" type="file" accept="image/*" multiple className="mt-3 block w-full text-sm file:mr-3 file:rounded-md file:border-0 file:bg-[#f5ead8] file:px-3 file:py-2 file:text-[#70481c]" />

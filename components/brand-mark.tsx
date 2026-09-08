@@ -29,7 +29,7 @@ export function BrandMark({
           compact ? 'max-w-36' : 'max-w-[210px]',
           inverse
             ? 'bg-[linear-gradient(90deg,#fff8ed_0%,#dfbc77_100%)]'
-            : 'bg-[linear-gradient(90deg,#9a6728_0%,#70481c_35%,#332c24_100%)]',
+            : 'bg-[linear-gradient(90deg,#9a6728_0%,#70481c_35%,#332c24_100%)] dark:bg-[linear-gradient(90deg,#fff8ed_0%,#dfbc77_100%)]',
         )}
       />
     </div>

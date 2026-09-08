@@ -4,7 +4,7 @@ import type { EventJobStage } from '@/lib/event-jobs/types';
 
 export function JobTracker({ stages }: { stages: EventJobStage[] }) {
   return (
-    <details className="group rounded-xl border bg-white shadow-level-1">
+    <details className="group rounded-xl border bg-white dark:bg-card shadow-level-1">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-medium">
         <span className="flex items-center gap-2">
           <Route className="size-4 text-[#9a6a2f]" /> Track this job
@@ -29,7 +29,7 @@ export function JobTracker({ stages }: { stages: EventJobStage[] }) {
                     ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
                     : current
                       ? 'border-[#a86f2c] bg-[#f5ead8] text-[#70481c]'
-                      : 'border-border bg-white text-muted-foreground'
+                      : 'border-border bg-white dark:bg-card text-muted-foreground'
                 }`}
               >
                 {done ? (

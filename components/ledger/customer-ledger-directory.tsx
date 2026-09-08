@@ -142,7 +142,7 @@ export function CustomerLedgerDirectory({
       ) : null}
 
       <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1 ring-0">
-        <CardHeader className="border-b bg-[#fcfaf7] px-5 py-4">
+        <CardHeader className="border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <CardTitle>Customer accounts</CardTitle>
@@ -161,7 +161,7 @@ export function CustomerLedgerDirectory({
                     resetPage();
                   }}
                   placeholder="Customer, bill or reference…"
-                  className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  className="h-10 w-full rounded-lg border bg-white dark:bg-card pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                 />
               </label>
               <select
@@ -171,7 +171,7 @@ export function CustomerLedgerDirectory({
                   resetPage();
                 }}
                 aria-label="Booking type"
-                className="h-10 rounded-lg border bg-white px-3 text-sm outline-none focus:border-ring"
+                className="h-10 rounded-lg border bg-white dark:bg-card px-3 text-sm outline-none focus:border-ring"
               >
                 <option value="all">All types</option>
                 <option value="sale">Sales</option>
@@ -184,7 +184,7 @@ export function CustomerLedgerDirectory({
                   resetPage();
                 }}
                 aria-label="Balance status"
-                className="h-10 rounded-lg border bg-white px-3 text-sm outline-none focus:border-ring"
+                className="h-10 rounded-lg border bg-white dark:bg-card px-3 text-sm outline-none focus:border-ring"
               >
                 <option value="all">All balances</option>
                 <option value="due">Outstanding</option>
@@ -208,7 +208,7 @@ export function CustomerLedgerDirectory({
           {pagedRows.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[900px] text-left text-sm">
-                <thead className="border-b bg-[#f7f4ef] text-xs text-muted-foreground">
+                <thead className="border-b bg-[#f7f4ef] dark:bg-[#241e17] text-xs text-muted-foreground">
                   <tr>
                     <th className="px-5 py-3 font-medium">Customer</th>
                     <th className="px-5 py-3 text-right font-medium">Bills</th>
@@ -220,7 +220,7 @@ export function CustomerLedgerDirectory({
                 </thead>
                 <tbody>
                   {pagedRows.map(({ customer, totals }) => (
-                    <tr key={customer.id} className="border-b last:border-0 hover:bg-[#fcfaf7]">
+                    <tr key={customer.id} className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]">
                       <td className="px-5 py-4">
                         <Link href={`/ledger/${customer.id}`} className="font-semibold text-primary hover:underline">
                           {customer.name}

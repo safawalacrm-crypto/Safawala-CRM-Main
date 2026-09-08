@@ -164,7 +164,7 @@ export function CalendarDayGrid({
 
   return (
     <>
-      <div className="flex flex-col gap-3 rounded-xl border border-[#e4d2b6] bg-[#fffaf1] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-xl border border-[#e4d2b6] bg-[#fffaf1] dark:bg-[#241e17] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-sm">
           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#a86f2d] text-white">
             <Sparkles className="size-4" />
@@ -180,13 +180,13 @@ export function CalendarDayGrid({
         </div>
         <Badge
           variant="outline"
-          className="w-fit border-[#d9b77f] bg-white text-[#7c5225]"
+          className="w-fit border-[#d9b77f] bg-white dark:bg-card text-[#7c5225]"
         >
           {importantDays.length} this month
         </Badge>
       </div>
       <Card className="gap-0 overflow-x-auto border-border py-0 shadow-level-1 ring-0">
-        <div className="grid min-w-[840px] grid-cols-7 border-b bg-[#fcfaf7]">
+        <div className="grid min-w-[840px] grid-cols-7 border-b bg-[#fcfaf7] dark:bg-[#241e17]">
           {WEEKDAYS.map((day) => (
             <div
               key={day}
@@ -208,7 +208,7 @@ export function CalendarDayGrid({
               <div
                 key={index}
                 className={`min-h-32 border-b border-r p-2 ${
-                  isImportant ? 'bg-[#fff8eb]' : ''
+                  isImportant ? 'bg-[#fff8eb] dark:bg-[#241e17]' : ''
                 }`}
               >
                 {hasDetail ? (
@@ -238,7 +238,7 @@ export function CalendarDayGrid({
                       setTab('events');
                       setSearch('');
                     }}
-                    className="mt-2 flex w-fit items-center gap-1 rounded-full bg-[#f4e3c7] px-2 py-1 text-left text-[10px] font-semibold text-[#7a4c1d] transition hover:bg-[#ead1aa]"
+                    className="mt-2 flex w-fit items-center gap-1 rounded-full bg-[#f4e3c7] dark:bg-[#33291c] px-2 py-1 text-left text-[10px] font-semibold text-[#7a4c1d] transition hover:bg-[#ead1aa] dark:hover:bg-[#33291c]"
                   >
                     <Sparkles className="size-3" />
                     Important
@@ -287,9 +287,9 @@ export function CalendarDayGrid({
             open
             aria-modal="true"
             aria-labelledby="calendar-day-title"
-            className="relative z-10 m-0 flex max-h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[22px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
+            className="relative z-10 m-0 flex max-h-[90dvh] w-full max-w-5xl flex-col overflow-hidden rounded-[22px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.35)]"
           >
-            <div className="flex items-start justify-between border-b bg-[#fcfaf7] p-5">
+            <div className="flex items-start justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] p-5">
               <div className="flex items-center gap-3">
                 <span className="grid size-11 place-items-center rounded-xl bg-[#181818] text-white">
                   <Calendar className="size-5" />
@@ -307,19 +307,19 @@ export function CalendarDayGrid({
                 type="button"
                 onClick={() => setSelectedDay(null)}
                 aria-label="Close day details"
-                className="grid size-9 place-items-center rounded-full border bg-white text-muted-foreground"
+                className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground"
               >
                 <X className="size-4" />
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#f3efe9] p-1 mx-5 mt-4">
+            <div className="grid grid-cols-2 gap-1 rounded-xl bg-[#f3efe9] dark:bg-[#241e17] p-1 mx-5 mt-4">
               <button
                 type="button"
                 onClick={() => setTab('events')}
                 className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                   tab === 'events'
-                    ? 'bg-white text-foreground shadow-sm'
+                    ? 'bg-white dark:bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -333,7 +333,7 @@ export function CalendarDayGrid({
                 onClick={() => setTab('mod')}
                 className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
                   tab === 'mod'
-                    ? 'bg-white text-foreground shadow-sm'
+                    ? 'bg-white dark:bg-card text-foreground shadow-sm'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -345,7 +345,7 @@ export function CalendarDayGrid({
             </div>
 
             {importantDays.includes(selectedDay) ? (
-              <div className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-[#e5c58f] bg-[#fff8eb] px-4 py-3 text-[#71481e]">
+              <div className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-[#e5c58f] bg-[#fff8eb] dark:bg-[#241e17] px-4 py-3 text-[#71481e]">
                 <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#a86f2d] text-white">
                   <Sparkles className="size-4" />
                 </span>
@@ -368,13 +368,13 @@ export function CalendarDayGrid({
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   placeholder="Search name, booking…"
-                  className="h-10 w-full rounded-lg border bg-white pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
+                  className="h-10 w-full rounded-lg border bg-white dark:bg-card pl-9 pr-3 text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
                 />
               </label>
               <Button
                 type="button"
                 variant="outline"
-                className="h-10 shrink-0 bg-white"
+                className="h-10 shrink-0 bg-white dark:bg-card"
                 onClick={() => printDateList(dateLabel, filteredRows)}
                 disabled={filteredRows.length === 0}
               >
@@ -393,7 +393,7 @@ export function CalendarDayGrid({
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[900px] text-left text-sm">
-                    <thead className="border-b bg-white text-xs text-muted-foreground">
+                    <thead className="border-b bg-white dark:bg-card text-xs text-muted-foreground">
                       <tr>
                         {[
                           'Customer',
@@ -414,7 +414,7 @@ export function CalendarDayGrid({
                       {filteredRows.map((row) => (
                         <tr
                           key={row.id}
-                          className="border-b last:border-0 hover:bg-[#fcfaf7]"
+                          className="border-b last:border-0 hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]"
                         >
                           <td className="px-5 py-4 font-medium">
                             {row.customers?.name ?? '—'}

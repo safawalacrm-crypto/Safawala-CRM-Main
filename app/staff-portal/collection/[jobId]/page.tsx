@@ -77,7 +77,7 @@ export default async function CollectionJobDetailPage({ params }: { params: Prom
           <ArrowLeft className="size-4" /> Back to Collection
         </Link>
 
-        <section className="rounded-2xl border border-[#dfd3c3] bg-white p-5 shadow-level-1">
+        <section className="rounded-2xl border border-[#dfd3c3] bg-white dark:bg-card p-5 shadow-level-1">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex flex-wrap items-center gap-2">
@@ -98,7 +98,7 @@ export default async function CollectionJobDetailPage({ params }: { params: Prom
         <JobTracker stages={job.stages} />
 
         {job.collectionCheck ? (
-          <section className="rounded-2xl border border-emerald-200 bg-white p-5 shadow-level-1">
+          <section className="rounded-2xl border border-emerald-200 bg-white dark:bg-card p-5 shadow-level-1">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <h2 className="flex items-center gap-2 font-semibold text-emerald-800"><PackageCheck className="size-5" /> Collection handed over</h2>
@@ -150,7 +150,7 @@ export default async function CollectionJobDetailPage({ params }: { params: Prom
                 );
               })}
             </ul>
-            {job.collectionCheck.handoverNotes ? <p className="mt-4 rounded-lg bg-[#fcfaf7] p-3 text-sm text-muted-foreground">{job.collectionCheck.handoverNotes}</p> : null}
+            {job.collectionCheck.handoverNotes ? <p className="mt-4 rounded-lg bg-[#fcfaf7] dark:bg-[#241e17] p-3 text-sm text-muted-foreground">{job.collectionCheck.handoverNotes}</p> : null}
           </section>
         ) : isOpen ? (
           <CollectionCheckForm jobId={job.id} items={items} />

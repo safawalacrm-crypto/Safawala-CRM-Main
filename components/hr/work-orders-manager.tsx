@@ -93,12 +93,12 @@ export function WorkOrdersManager({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search job or event"
-            className="h-10 rounded-lg border px-3 text-sm"
+            className="h-10 rounded-lg border bg-white dark:bg-card px-3 text-sm"
           />
           <select
             value={department}
             onChange={(e) => setDepartment(e.target.value)}
-            className="h-10 rounded-lg border px-3 text-sm"
+            className="h-10 rounded-lg border bg-white dark:bg-card px-3 text-sm"
           >
             <option value="all">All departments</option>
             {departments.map((d) => (
@@ -108,7 +108,7 @@ export function WorkOrdersManager({
           <select
             value={status}
             onChange={(e) => setStatus(e.target.value)}
-            className="h-10 rounded-lg border px-3 text-sm"
+            className="h-10 rounded-lg border bg-white dark:bg-card px-3 text-sm"
           >
             <option value="all">All statuses</option>
             {['not_started', 'open', 'in_progress', 'done', 'blocked'].map(
@@ -123,7 +123,7 @@ export function WorkOrdersManager({
         <CardContent className="overflow-x-auto p-0">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b bg-[#faf8f4] text-left text-xs uppercase tracking-wide text-muted-foreground">
+              <tr className="border-b bg-[#faf8f4] dark:bg-[#241e17] text-left text-xs uppercase tracking-wide text-muted-foreground">
                 <th className="px-5 py-3">Job / event</th>
                 <th className="px-5 py-3">Department task</th>
                 <th className="px-5 py-3">Assigned staff</th>

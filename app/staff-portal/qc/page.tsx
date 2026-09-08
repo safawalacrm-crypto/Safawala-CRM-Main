@@ -96,7 +96,7 @@ export default async function StaffQcPage({
         <div className="grid grid-cols-2 gap-3">
           <Link
             href="/staff-portal/qc"
-            className={`rounded-xl border p-4 transition ${view === 'open' ? 'border-[#d6b98d] bg-[#f5ead8] text-[#70481c] shadow-sm' : 'bg-white hover:bg-[#fcfaf7]'}`}
+            className={`rounded-xl border p-4 transition ${view === 'open' ? 'border-[#d6b98d] bg-[#f5ead8] text-[#70481c] shadow-sm' : 'bg-white dark:bg-card hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]'}`}
           >
             <span className="flex items-center gap-2 text-sm font-medium">
               <Clock3 className="size-4" /> Open jobs
@@ -105,7 +105,7 @@ export default async function StaffQcPage({
           </Link>
           <Link
             href="/staff-portal/qc?view=closed"
-            className={`rounded-xl border p-4 transition ${view === 'closed' ? 'border-[#d6b98d] bg-[#f5ead8] text-[#70481c] shadow-sm' : 'bg-white hover:bg-[#fcfaf7]'}`}
+            className={`rounded-xl border p-4 transition ${view === 'closed' ? 'border-[#d6b98d] bg-[#f5ead8] text-[#70481c] shadow-sm' : 'bg-white dark:bg-card hover:bg-[#fcfaf7] dark:hover:bg-[#241e17]'}`}
           >
             <span className="flex items-center gap-2 text-sm font-medium">
               <CheckCircle2 className="size-4" /> Closed jobs
@@ -120,7 +120,7 @@ export default async function StaffQcPage({
               <div>
                 {groupedJobs.map(([date, dateJobs]) => (
                   <section key={date}>
-                    <div className="flex items-center gap-2 border-b bg-[#fcfaf7] px-4 py-2.5 sm:px-5">
+                    <div className="flex items-center gap-2 border-b bg-[#fcfaf7] dark:bg-[#241e17] px-4 py-2.5 sm:px-5">
                       <h3 className="text-xs font-semibold uppercase tracking-[0.12em] text-[#70481c]">
                         {date === 'unscheduled'
                           ? 'Date not added'
@@ -154,7 +154,7 @@ export default async function StaffQcPage({
                           <li key={job.id}>
                             <Link
                               href={`/staff-portal/qc?view=${view}&job=${encodeURIComponent(job.id)}`}
-                              className="group flex items-center gap-3 px-4 py-4 transition hover:bg-[#fcfaf7] sm:px-5"
+                              className="group flex items-center gap-3 px-4 py-4 transition hover:bg-[#fcfaf7] dark:hover:bg-[#241e17] sm:px-5"
                             >
                               <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-[#f5ead8] text-[#70481c]">
                                 <ClipboardCheck className="size-5" />
@@ -167,7 +167,7 @@ export default async function StaffQcPage({
                                   </strong>
                                   <Badge
                                     variant="outline"
-                                    className="border-[#e4d2b6] bg-white text-[#70481c]"
+                                    className="border-[#e4d2b6] bg-white dark:bg-card text-[#70481c]"
                                   >
                                     {status}
                                   </Badge>

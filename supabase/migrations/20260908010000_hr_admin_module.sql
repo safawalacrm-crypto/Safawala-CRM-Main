@@ -36,8 +36,8 @@ alter table public.hr_payroll add column if not exists advances numeric(12,2) no
 alter table public.hr_kyc_documents add column if not exists address_proof text, add column if not exists bank_details_status text not null default 'pending' check (bank_details_status in ('pending','verified','not_provided')), add column if not exists admin_notes text, add column if not exists verified_by uuid references auth.users(id), add column if not exists verified_at timestamptz;
 insert into storage.buckets (id, name, public) values ('staff-kyc', 'staff-kyc', false) on conflict (id) do nothing;
 drop policy if exists staff_kyc_upload on storage.objects;
-create policy staff_kyc_upload on storage.objects for insert to authenticated with check (bucket_id = 'staff-kyc' and owner_id = (select auth.uid()));
+create policy staff_kyc_upload on storage.objects for insert to authenticated with check (bucket_id = 'staff-kyc' and owner_id = (select auth.uid())::text);
 drop policy if exists staff_kyc_read on storage.objects;
-create policy staff_kyc_read on storage.objects for select to authenticated using (bucket_id = 'staff-kyc' and owner_id = (select auth.uid()));
+create policy staff_kyc_read on storage.objects for select to authenticated using (bucket_id = 'staff-kyc' and owner_id = (select auth.uid())::text);
 drop policy if exists staff_kyc_update on storage.objects;
-create policy staff_kyc_update on storage.objects for update to authenticated using (bucket_id = 'staff-kyc' and owner_id = (select auth.uid()));
+create policy staff_kyc_update on storage.objects for update to authenticated using (bucket_id = 'staff-kyc' and owner_id = (select auth.uid())::text);

@@ -107,7 +107,7 @@ type VariantDraft = {
 const productFields =
   'id,sku,barcode,name,description,category,subcategory,size,color,material,cost_price,regular_price,sale_price,rental_price,security_deposit,stock_quantity,reorder_level,image_urls,is_active,created_at,updated_at,product_variants(id,name,size,color,material,stock_quantity,barcode)';
 const fieldClass =
-  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
+  'mt-1.5 h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 const barcodePattern = /^[A-Za-z0-9_-]{1,50}$/;
 const barcodeCharacters = /[^A-Za-z0-9_-]/g;
 const barcodeMaxLength = 50;
@@ -353,7 +353,7 @@ export function InventoryDirectory({
               </span>
             </span>
           </span>
-          <span className="hidden rounded-md bg-white px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-200 sm:block">
+          <span className="hidden rounded-md bg-white dark:bg-card px-2.5 py-1 text-xs font-medium text-amber-900 ring-1 ring-amber-200 sm:block">
             Review items
           </span>
         </button>
@@ -369,7 +369,7 @@ export function InventoryDirectory({
               size="sm"
               variant="outline"
               onClick={exportCsv}
-              className="bg-white"
+              className="bg-white dark:bg-card"
             >
               <Download />
               <span className="hidden sm:inline">Export CSV</span>
@@ -502,7 +502,7 @@ export function InventoryDirectory({
         </CardContent>
       </Card>
 
-      <div className="overflow-hidden rounded-xl border bg-white shadow-level-1">
+      <div className="overflow-hidden rounded-xl border bg-white dark:bg-card shadow-level-1">
         <ListPagination
           total={visibleProducts.length}
           page={safeInventoryPage}
@@ -515,7 +515,7 @@ export function InventoryDirectory({
           itemLabel="products"
         />
         <div className="flex items-center justify-end px-5 py-2.5">
-          <Badge variant="outline" className="bg-white">
+          <Badge variant="outline" className="bg-white dark:bg-card">
             <Barcode />
             Legacy barcode ready
           </Badge>
@@ -642,7 +642,7 @@ function ProductCard({
             <Boxes className="size-12 text-primary/30" />
           </div>
         )}
-        <Badge variant="outline" className="absolute left-3 top-3 bg-white/95">
+        <Badge variant="outline" className="absolute left-3 top-3 bg-white/95 dark:bg-card/95">
           {product.category || 'Uncategorised'}
         </Badge>
       </div>
@@ -663,7 +663,7 @@ function ProductCard({
             {product.stock_quantity} units
           </span>
         </div>
-        <div className="grid grid-cols-2 gap-2 rounded-lg border bg-[#fcfaf7] p-3 text-xs">
+        <div className="grid grid-cols-2 gap-2 rounded-lg border bg-[#fcfaf7] dark:bg-[#241e17] p-3 text-xs">
           <span className="text-muted-foreground">
             Rental
             <strong className="mt-1 block text-sm text-foreground">
@@ -685,7 +685,7 @@ function ProductCard({
             {money(Number(product.sale_price) * product.stock_quantity)}
           </strong>
         </div>
-        <div className="flex items-center gap-2 rounded-lg bg-[#f7f4ef] px-3 py-2 font-mono text-xs text-[#70481c]">
+        <div className="flex items-center gap-2 rounded-lg bg-[#f7f4ef] dark:bg-[#241e17] px-3 py-2 font-mono text-xs text-[#70481c]">
           <Barcode className="size-4 shrink-0" />
           <span className="truncate">
             {product.barcode || product.sku || 'Barcode pending'}
@@ -694,7 +694,7 @@ function ProductCard({
         <Button
           type="button"
           variant="outline"
-          className="w-full bg-white"
+          className="w-full bg-white dark:bg-card"
           onClick={onEdit}
         >
           <Pencil />
@@ -976,9 +976,9 @@ function ProductDialog({
       <dialog
         open
         aria-labelledby="product-dialog-title"
-        className="relative m-0 flex max-h-[94dvh] w-full max-w-4xl flex-col overflow-hidden rounded-[24px] border border-white/40 bg-[#fffdf9] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.4)]"
+        className="relative m-0 flex max-h-[94dvh] w-full max-w-4xl flex-col overflow-hidden rounded-[24px] border border-white/40 bg-[#fffdf9] dark:bg-[#241e17] p-0 text-foreground shadow-[0_32px_90px_rgb(20_15_10_/.4)]"
       >
-        <div className="flex items-start justify-between border-b bg-[#fcfaf7] px-5 py-4 sm:px-6">
+        <div className="flex items-start justify-between border-b bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:px-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
               {product ? 'Inventory update' : 'Inventory setup'}
@@ -1001,16 +1001,16 @@ function ProductDialog({
             aria-label={
               product ? 'Close edit product popup' : 'Close add product popup'
             }
-            className="grid size-9 place-items-center rounded-full border bg-white text-muted-foreground transition hover:text-foreground"
+            className="grid size-9 place-items-center rounded-full border bg-white dark:bg-card text-muted-foreground transition hover:text-foreground"
           >
             <X className="size-4" />
           </button>
         </div>
-        <div className="border-b bg-white px-4 py-3 sm:px-6">
+        <div className="border-b bg-white dark:bg-card px-4 py-3 sm:px-6">
           <div
             role="tablist"
             aria-label="Product setup steps"
-            className="grid grid-cols-5 gap-1 rounded-xl bg-[#f3efe9] p-1"
+            className="grid grid-cols-5 gap-1 rounded-xl bg-[#f3efe9] dark:bg-[#241e17] p-1"
           >
             {steps.map((item, index) => (
               <button
@@ -1019,7 +1019,7 @@ function ProductDialog({
                 role="tab"
                 aria-selected={step === item.id}
                 onClick={() => setStep(item.id)}
-                className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-2 text-xs font-medium transition [&_svg]:size-3.5 ${step === item.id ? 'bg-white text-[#70481c] shadow-sm ring-1 ring-[#e4d2b6]' : 'text-muted-foreground hover:text-foreground'}`}
+                className={`flex min-w-0 items-center justify-center gap-2 rounded-lg px-2 py-2 text-xs font-medium transition [&_svg]:size-3.5 ${step === item.id ? 'bg-white dark:bg-card text-[#70481c] shadow-sm ring-1 ring-[#e4d2b6]' : 'text-muted-foreground hover:text-foreground'}`}
               >
                 <span className="hidden sm:inline-flex">{item.icon}</span>
                 <span className="hidden md:inline">{item.label}</span>
@@ -1069,7 +1069,7 @@ function ProductDialog({
               </Alert>
             ) : null}
           </div>
-          <div className="flex flex-col-reverse gap-3 border-t bg-[#fcfaf7] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex flex-col-reverse gap-3 border-t bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
             <p className="text-xs text-muted-foreground">
               Step {stepIndex + 1} of {steps.length}
             </p>
@@ -1188,7 +1188,7 @@ function DetailsStep({
             value={draft.description}
             onChange={(event) => set('description', event.target.value)}
             placeholder="Product design, finish and handling notes…"
-            className="mt-1.5 w-full rounded-lg border border-input bg-white p-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+            className="mt-1.5 w-full rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
           />
         </label>
         <Field
@@ -1238,7 +1238,7 @@ function PhotosStep({
       />
       <label
         aria-label="Choose product photos"
-        className="mt-6 grid min-h-44 cursor-pointer place-items-center rounded-2xl border border-dashed border-[#d6c5ad] bg-[#fcfaf7] p-6 text-center transition hover:border-primary hover:bg-accent/40"
+        className="mt-6 grid min-h-44 cursor-pointer place-items-center rounded-2xl border border-dashed border-[#d6c5ad] bg-[#fcfaf7] dark:bg-[#241e17] p-6 text-center transition hover:border-primary hover:bg-accent/40"
       >
         <span>
           <span className="mx-auto grid size-11 place-items-center rounded-xl bg-accent text-primary">
@@ -1264,7 +1264,7 @@ function PhotosStep({
           {files.map((file, index) => (
             <div
               key={`${file.name}-${index}`}
-              className="flex items-center gap-3 rounded-xl border bg-white p-3"
+              className="flex items-center gap-3 rounded-xl border bg-white dark:bg-card p-3"
             >
               <span className="grid size-9 place-items-center rounded-lg bg-accent text-primary">
                 <ImageIcon className="size-4" />
@@ -1333,7 +1333,7 @@ function PricingStep({
           onChange={(value) => set('securityDeposit', value)}
         />
       </div>
-      <div className="mt-6 grid gap-3 rounded-xl border bg-[#fcfaf7] p-4 sm:grid-cols-4">
+      <div className="mt-6 grid gap-3 rounded-xl border bg-[#fcfaf7] dark:bg-[#241e17] p-4 sm:grid-cols-4">
         <PriceSummary
           label="Stock value"
           value={String(
@@ -1379,7 +1379,7 @@ function VariantsStep({
       {variants.length ? (
         <div className="mt-6 space-y-4">
           {variants.map((variant, index) => (
-            <div key={variant.key} className="rounded-2xl border bg-white p-4">
+            <div key={variant.key} className="rounded-2xl border bg-white dark:bg-card p-4">
               <div className="mb-4 flex items-center justify-between">
                 <strong className="text-sm">Variant {index + 1}</strong>
                 <button
@@ -1436,7 +1436,7 @@ function VariantsStep({
           ))}
         </div>
       ) : (
-        <div className="mt-6 rounded-2xl border border-dashed bg-[#fcfaf7] p-10 text-center">
+        <div className="mt-6 rounded-2xl border border-dashed bg-[#fcfaf7] dark:bg-[#241e17] p-10 text-center">
           <Layers3 className="mx-auto size-8 text-primary/40" />
           <h3 className="mt-3 text-sm font-semibold">No variants needed?</h3>
           <p className="mt-1 text-xs text-muted-foreground">
@@ -1490,7 +1490,7 @@ function BarcodeStep({
           />
         </div>
         <div
-          className={`rounded-2xl border p-5 ${valid ? 'border-emerald-200 bg-emerald-50/60' : 'border-[#e4d2b6] bg-[#fcfaf7]'}`}
+          className={`rounded-2xl border p-5 ${valid ? 'border-emerald-200 bg-emerald-50/60' : 'border-[#e4d2b6] bg-[#fcfaf7] dark:bg-[#241e17]'}`}
         >
           <label className="block">
             <span className="flex items-center justify-between text-sm font-semibold">
@@ -1518,7 +1518,7 @@ function BarcodeStep({
                   set('barcode', cleanBarcode(event.target.value))
                 }
                 placeholder="Scan or enter the printed code"
-                className="h-12 w-full rounded-xl border border-input bg-white pl-12 pr-4 font-mono text-lg tracking-[0.08em] outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
+                className="h-12 w-full rounded-xl border border-input bg-white dark:bg-card pl-12 pr-4 font-mono text-lg tracking-[0.08em] outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/20"
               />
             </div>
           </label>
