@@ -15,9 +15,9 @@ import {
   PackageCheck,
   Plus,
   Route,
-  Users,
 } from 'lucide-react';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
+import { CalendarDayGrid, type CalendarBooking } from '@/components/bookings/calendar-day-grid';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -111,7 +111,7 @@ export default async function DashboardPage() {
     supabase.from('event_jobs').select('state'),
     supabase
       .from('bookings')
-      .select('customer_id,total,paid_amount,payment_status')
+      .select('customer_id,total,paid_amount,payment_status,created_at')
       .or(
         'is_quote.eq.false,and(is_quote.eq.true,status.not.in.(draft,cancelled))',
       ),
@@ -127,6 +127,25 @@ export default async function DashboardPage() {
       .limit(6),
     listActiveJobs().catch(() => []),
   ]);
+  const calendarBase = new Date();
+  const calendarYear = calendarBase.getFullYear();
+  const calendarMonth = calendarBase.getMonth();
+  const calendarFirst = new Date(calendarYear, calendarMonth, 1);
+  const calendarLast = new Date(calendarYear, calendarMonth + 1, 0);
+  const calendarPad = (value: number) => String(value).padStart(2, '0');
+  const calendarStart = `${calendarYear}-${calendarPad(calendarMonth + 1)}-01`;
+  const calendarEnd = `${calendarYear}-${calendarPad(calendarMonth + 1)}-${calendarPad(calendarLast.getDate())}`;
+  const { data: calendarRows } = await supabase
+    .from('bookings')
+    .select('id,booking_number,booking_type,status,payment_status,is_quote,event_name,event_date,event_time,event_location,pickup_date,due_date,subtotal,discount,tax,security_deposit,total,paid_amount,balance_amount,notes,customers(name,phone),booking_items(item_name,quantity,unit_price,line_total,product_id,products(image_urls,barcode))')
+    .or('is_quote.eq.false,and(is_quote.eq.true,status.not.in.(draft,cancelled))')
+    .gte('event_date', calendarStart)
+    .lte('event_date', calendarEnd)
+    .order('event_date');
+  const calendarCells = Array.from(
+    { length: calendarFirst.getDay() + calendarLast.getDate() },
+    (_, index) => (index < calendarFirst.getDay() ? null : index - calendarFirst.getDay() + 1),
+  );
   const jobsToClose = (eventJobs ?? []).filter((row) => {
     const state = row.state as {
       bookingType?: string;
@@ -153,6 +172,26 @@ export default async function DashboardPage() {
   const pendingPaymentAmount = pendingPaymentBookings.reduce(
     (sum, row) =>
       sum + Math.max(Number(row.total ?? 0) - Number(row.paid_amount ?? 0), 0),
+    0,
+  );
+  const revenueRows = (paymentRows ?? []) as Array<{
+    paid_amount: number | null;
+    created_at: string | null;
+  }>;
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const yearStart = new Date(now.getFullYear(), 0, 1);
+  const paidRevenue = (from: Date) =>
+    revenueRows.reduce((sum, row) => {
+      const createdAt = row.created_at ? new Date(row.created_at) : null;
+      return createdAt && createdAt >= from
+        ? sum + Number(row.paid_amount ?? 0)
+        : sum;
+    }, 0);
+  const revenueThisMonth = paidRevenue(monthStart);
+  const revenueThisYear = paidRevenue(yearStart);
+  const revenueTillNow = revenueRows.reduce(
+    (sum, row) => sum + Number(row.paid_amount ?? 0),
     0,
   );
   const activeCustomers = new Set(
@@ -198,15 +237,6 @@ export default async function DashboardPage() {
           note: 'Event date is today',
           href: '/bookings/calendar',
           tone: 'text-rose-700 bg-rose-50',
-        }
-      : null,
-    quoteTotal
-      ? {
-          label: 'Quotation awaiting action',
-          detail: `${quoteTotal} quotation${quoteTotal === 1 ? '' : 's'} need review`,
-          note: 'Review and convert when ready',
-          href: '/quotes',
-          tone: 'text-blue-700 bg-blue-50',
         }
       : null,
     activeEventJobs
@@ -266,30 +296,6 @@ export default async function DashboardPage() {
       tone: 'bg-[#f5ead8] dark:bg-[#33291c] text-[#8a5b24]',
     },
     {
-      label: 'Upcoming events',
-      value: String(upcoming ?? 0),
-      note: 'Next 30 days',
-      icon: CalendarClock,
-      href: '/bookings/calendar',
-      tone: 'bg-violet-50 text-violet-700',
-    },
-    {
-      label: "Today's events",
-      value: String(todayEvents ?? 0),
-      note: 'Requires attention today',
-      icon: CalendarClock,
-      href: '/bookings/calendar',
-      tone: 'bg-rose-50 text-rose-700',
-    },
-    {
-      label: 'Pending quotations',
-      value: String(quoteTotal ?? 0),
-      note: 'Awaiting review or conversion',
-      icon: FileText,
-      href: '/quotes',
-      tone: 'bg-blue-50 text-blue-700',
-    },
-    {
       label: 'Pending client jobs',
       value: String(activeEventJobs),
       note: 'Warehouse, QC and collection flow',
@@ -305,22 +311,6 @@ export default async function DashboardPage() {
       href: '/modifications',
       tone: 'bg-amber-50 text-amber-700',
     },
-    {
-      label: 'Active customers',
-      value: String(activeCustomers ?? 0),
-      note: 'Customers with live bookings',
-      icon: Users,
-      href: '/customers',
-      tone: 'bg-cyan-50 text-cyan-700',
-    },
-    {
-      label: 'Attention required',
-      value: String(attentionCount),
-      note: `${money(pendingPaymentAmount)} pending payment balance`,
-      icon: CircleDollarSign,
-      href: '/staff-portal/booking/close-jobs',
-      tone: 'bg-orange-50 text-orange-700',
-    },
   ];
   return (
     <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
@@ -329,13 +319,45 @@ export default async function DashboardPage() {
           title="Booking Dashboard"
           subtitle="Bookings, quotations and jobs waiting for closure"
           actions={
-            <Button size="sm" render={<Link href="/bookings/new" />}>
-              <Plus />
-              <span className="hidden sm:inline">Create booking</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" render={<Link href="/bookings/calendar" />}>
+                <CalendarDays />
+                <span className="hidden sm:inline">Open calendar</span>
+              </Button>
+              <Button size="sm" render={<Link href="/bookings/new" />}>
+                <Plus />
+                <span className="hidden sm:inline">Create booking</span>
+              </Button>
+            </div>
           }
         />
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <Card className="h-full border-border shadow-level-1 ring-0">
+            <CardHeader className="flex-row items-start justify-between pb-3">
+              <div>
+                <p className="text-xs font-medium text-muted-foreground">Total Revenue</p>
+                <p className="mt-2 text-sm font-semibold text-primary">Live collections</p>
+              </div>
+              <CircleDollarSign className="size-5 text-emerald-600" />
+            </CardHeader>
+            <CardContent className="space-y-2 pt-0 text-sm">
+              <div className="flex items-center justify-between border-b border-border/70 pb-2">
+                <span className="text-muted-foreground">This Month</span>
+                <span className="font-semibold">{money(revenueThisMonth)}</span>
+              </div>
+              <div className="flex items-center justify-between border-b border-border/70 pb-2">
+                <span className="text-muted-foreground">This Year</span>
+                <span className="font-semibold">{money(revenueThisYear)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <span className="font-semibold">Till Now</span>
+                <span className="font-semibold text-emerald-600">{money(revenueTillNow)}</span>
+              </div>
+              <Link href="/ledger" className="inline-flex pt-1 text-xs font-medium text-primary hover:underline">
+                View revenue <ArrowRight className="ml-1 size-3.5" />
+              </Link>
+            </CardContent>
+          </Card>
           {cards.map(({ label, value, note, href, icon: Icon, tone }) => (
             <Link key={label} href={href} className="group">
               <Card className="h-full border-border shadow-level-1 ring-0 transition group-hover:-translate-y-0.5 group-hover:border-primary/35 group-hover:shadow-level-2">
@@ -361,6 +383,45 @@ export default async function DashboardPage() {
             </Link>
           ))}
         </section>
+        <Card className="border-border shadow-level-1 ring-0">
+          <CardHeader className="border-b py-4">
+            <CardTitle className="text-base">Quick access</CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">Open a core booking workspace.</p>
+          </CardHeader>
+          <CardContent className="grid gap-2 p-3 sm:grid-cols-3">
+            {[
+              ['All bookings', '/bookings', ClipboardList],
+              ['Quotes', '/quotes', FileText],
+              ['Event tracking', '/staff-portal/event-tracking', ListChecks],
+            ].map(([title, href, Icon]) => (
+              <Link key={String(title)} href={String(href)} className="group flex items-center gap-3 rounded-lg border border-border/80 px-3 py-3 transition hover:border-primary/35 hover:bg-accent/45">
+                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-primary"><Icon className="size-4" /></span>
+                <p className="flex-1 text-sm font-medium">{String(title)}</p>
+                <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
+              </Link>
+            ))}
+          </CardContent>
+        </Card>
+        <div className="space-y-3">
+          <div>
+            <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
+              <CalendarDays className="size-5 text-primary" /> Booking calendar
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">Live sales and rental bookings for this month.</p>
+          </div>
+          <Card className="border-border shadow-level-1 ring-0">
+            <CardContent className="p-4">
+            <CalendarDayGrid
+              year={calendarYear}
+              month={calendarMonth}
+              cells={calendarCells}
+              bookings={(calendarRows ?? []) as unknown as CalendarBooking[]}
+              modificationBookings={[]}
+            />
+            </CardContent>
+          </Card>
+        </div>
+        {false && <>
         <section className="grid gap-4 xl:grid-cols-[1fr_1.35fr]">
           <Card className="border-border shadow-level-1 ring-0">
             <CardHeader className="flex-row items-center justify-between border-b py-4">
@@ -507,7 +568,6 @@ export default async function DashboardPage() {
             </CardHeader>
             <CardContent className="divide-y divide-border p-0">
               {[
-                ['Pending quotations', quoteTotal ?? 0, '/quotes'],
                 [
                   'Client jobs in progress',
                   activeEventJobs,
@@ -537,6 +597,8 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </section>
+        </>}
+        {false && <>
         <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
           <CardHeader className="flex-row items-center justify-between border-b py-5">
             <div>
@@ -627,6 +689,36 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        </>}
+        {false && <>
+        {false && <>
+        <Card className="border-border shadow-level-1 ring-0">
+          <CardHeader className="flex-row items-center justify-between border-b py-4">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <CalendarDays className="size-4 text-primary" /> Calendar
+              </CardTitle>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Plan events and check availability from one view.
+              </p>
+            </div>
+            <Button variant="outline" size="sm" render={<Link href="/bookings/calendar" />}>
+              Open calendar
+            </Button>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <p className="text-sm font-semibold">Booking calendar</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Review upcoming sales and rental events by day or month.
+              </p>
+            </div>
+            <Link href="/bookings/calendar" className="text-xs font-medium text-primary hover:underline">
+              View schedule <ArrowRight className="ml-1 inline size-3.5" />
+            </Link>
+          </CardContent>
+        </Card>
+        </>}
         <Card className="border-border shadow-level-1 ring-0">
           <CardHeader className="border-b py-4">
             <CardTitle className="text-base">Quick access</CardTitle>
@@ -634,7 +726,7 @@ export default async function DashboardPage() {
               Open the next part of the booking workflow.
             </p>
           </CardHeader>
-          <CardContent className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-4">
+          <CardContent className="grid gap-2 p-3 sm:grid-cols-3">
             {[
               {
                 title: 'All bookings',
@@ -647,29 +739,9 @@ export default async function DashboardPage() {
                 icon: FileText,
               },
               {
-                title: 'Calendar',
-                href: '/bookings/calendar',
-                icon: CalendarClock,
-              },
-              {
                 title: 'Event tracking',
                 href: '/staff-portal/event-tracking',
                 icon: ListChecks,
-              },
-              {
-                title: 'Jobs to close',
-                href: '/staff-portal/booking/close-jobs',
-                icon: PackageCheck,
-              },
-              {
-                title: 'Modifications',
-                href: '/modifications',
-                icon: CheckCircle2,
-              },
-              {
-                title: 'Customers',
-                href: '/customers',
-                icon: Users,
               },
             ].map(({ title, href, icon: Icon }) => (
               <Link
@@ -686,6 +758,8 @@ export default async function DashboardPage() {
             ))}
           </CardContent>
         </Card>
+        </>}
+        {false && <>
         <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
           <CardHeader className="flex-row items-center justify-between border-b py-5">
             <div>
@@ -700,7 +774,7 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="p-0">
             {error ? (
-              <p className="p-6 text-sm text-destructive">{error.message}</p>
+              <p className="p-6 text-sm text-destructive">{error?.message}</p>
             ) : recentBookings.length ? (
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[780px] text-left text-sm">
@@ -835,6 +909,7 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
+        </>}
       </div>
     </BookingPortalShell>
   );

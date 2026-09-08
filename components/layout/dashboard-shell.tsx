@@ -40,50 +40,54 @@ import {
 
 function SidebarNavigation() {
   const pathname = usePathname();
-  const links = [
-    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { href: '/bookings', label: 'All bookings', icon: ClipboardList },
-    { href: '/quotes', label: 'Quotes', icon: FileText },
-    { href: '/bookings/new', label: 'Create booking', icon: Plus },
-    { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
-    { href: '/stylist-approvals', label: 'Stylist Approvals', icon: UserCheck },
-    { href: '/travel', label: 'Travel Manager', icon: PlaneTakeoff },
-    { href: '/performance', label: 'Performance', icon: Trophy },
-    { href: '/event-tracking', label: 'Job Tracking', icon: Route },
-    { href: '/modifications', label: 'Modifications', icon: Wrench },
-    { href: '/inventory', label: 'Inventory', icon: Boxes },
-    { href: '/packages', label: 'Package Manager', icon: Layers3 },
-    { href: '/customers', label: 'Customers', icon: ContactRound },
-    { href: '/ledger', label: 'Customer ledger', icon: Landmark },
-    { href: '/staff', label: 'Staff', icon: UsersRound },
-    { href: '/hr', label: 'HR & Staff', icon: UserCog },
-    { href: '/settings', label: 'Settings', icon: Settings },
+  const groups = [
+    { label: 'Overview', links: [
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/bookings/new', label: 'Create Booking', icon: Plus },
+    ] },
+    { label: 'Bookings & Sales', links: [
+      { href: '/bookings', label: 'All Bookings', icon: ClipboardList },
+      { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
+      { href: '/quotes', label: 'Quotes', icon: FileText },
+      { href: '/modifications', label: 'Modifications', icon: Wrench },
+    ] },
+    { label: 'Customers', links: [
+      { href: '/customers', label: 'Customers', icon: ContactRound },
+      { href: '/ledger', label: 'Customer Ledger', icon: Landmark },
+    ] },
+    { label: 'Operations', links: [
+      { href: '/stylist-approvals', label: 'Stylist Approvals', icon: UserCheck },
+      { href: '/travel', label: 'Travel Manager', icon: PlaneTakeoff },
+      { href: '/event-tracking', label: 'Job Tracking', icon: Route },
+      { href: '/inventory', label: 'Inventory', icon: Boxes },
+      { href: '/packages', label: 'Package Manager', icon: Layers3 },
+    ] },
+    { label: 'Team & HR', links: [
+      { href: '/performance', label: 'Performance', icon: Trophy },
+      { href: '/staff', label: 'Staff', icon: UsersRound },
+      { href: '/hr', label: 'HR & Staff', icon: UserCog },
+    ] },
+    { label: 'System', links: [{ href: '/settings', label: 'Settings', icon: Settings }] },
   ];
   return (
     <nav aria-label="Primary navigation" className="mt-8 space-y-1">
-      {links.map(({ href, label, icon: Icon }) => {
-        const active =
-          href === '/dashboard'
-            ? pathname === href
-            : href === '/bookings'
-              ? pathname === href
-              : pathname.startsWith(href);
-        return (
-          <Link
-            key={href}
-            href={href}
-            aria-current={active ? 'page' : undefined}
-            className={`flex h-11 items-center gap-2.5 rounded-lg border px-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? 'border-[#e4d2b6] bg-[#f5ead8] dark:bg-[#33291c] font-semibold text-[#70481c] dark:border-[#4a3c2a] dark:bg-[#33291c] dark:text-[#f0d9ad]' : 'border-transparent text-muted-foreground hover:bg-[#f7f4ef] dark:hover:bg-[#241e17] hover:text-foreground dark:hover:bg-[#241e17]'}`}
-          >
-            <span
-              className={`grid size-7 place-items-center rounded-md ${active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'}`}
-            >
-              <Icon aria-hidden="true" className="size-4" />
-            </span>
-            {label}
-          </Link>
-        );
-      })}
+      {groups.map((group) => (
+        <div key={group.label} className="pt-4 first:pt-0">
+          <p className="mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/75">{group.label}</p>
+          <div className="space-y-1">
+            {group.links.map(({ href, label, icon: Icon }) => {
+              const active = href === '/dashboard' || href === '/bookings' ? pathname === href : pathname.startsWith(href);
+              return (
+                <Link key={href} href={href} aria-current={active ? 'page' : undefined}
+                  className={`flex h-10 items-center gap-2.5 rounded-lg border px-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? 'border-[#e4d2b6] bg-[#f5ead8] font-semibold text-[#70481c]' : 'border-transparent text-muted-foreground hover:bg-[#f7f4ef] hover:text-foreground'}`}>
+                  <span className={`grid size-7 place-items-center rounded-md ${active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground'}`}><Icon aria-hidden="true" className="size-4" /></span>
+                  {label}
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </nav>
   );
 }
