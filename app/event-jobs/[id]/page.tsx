@@ -8,9 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { friendlyDate, friendlyTime, statusLabel } from '@/lib/bookings';
 import {
-  orderEventJobStages,
+  trackingTimeline,
+  TRACKING_STAGE_LABEL,
   STAGE_DEPARTMENT,
-  STAGE_LABEL,
 } from '@/lib/event-jobs/constants';
 import {
   buildJobOverview,
@@ -227,16 +227,17 @@ export default async function EventJobDetailPage({
             <CardTitle>Stages</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {orderEventJobStages(job.stages).map((stage) => (
+            {trackingTimeline(job.stages).map((stage) => (
               <div
                 key={stage.key}
                 className="flex flex-col gap-2 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between"
               >
                 <div>
-                  <p className="font-medium">{STAGE_LABEL[stage.key]}</p>
+                  <p className="font-medium">{TRACKING_STAGE_LABEL[stage.key]}</p>
                   <p className="text-xs text-muted-foreground">
-                    Department: {STAGE_DEPARTMENT[stage.key]} · Assigned:{' '}
-                    {stage.assignedStaffId ?? 'Unassigned'}
+                    {STAGE_DEPARTMENT[stage.key as keyof typeof STAGE_DEPARTMENT]
+                      ? `Department: ${STAGE_DEPARTMENT[stage.key as keyof typeof STAGE_DEPARTMENT]}`
+                      : 'Workflow milestone'}
                   </p>
                 </div>
                 <Badge variant="outline" className={stageTone(stage.status)}>

@@ -126,7 +126,7 @@ export default async function WarehouseJobDetailPage({ params }: { params: Promi
 
         <JobTracker stages={job.stages} />
 
-        {job.warehousePrep ? (
+        {job.warehousePrep && job.stages.find((stage) => stage.key === 'warehouse_pick')?.status === 'done' ? (
           <section className="rounded-2xl border border-emerald-200 bg-white dark:bg-card p-5 shadow-level-1">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div><h2 className="font-semibold text-emerald-800">Picking completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.warehousePrep.completedBy} on {friendlyDate(job.warehousePrep.completedAt ?? '')}</p></div>

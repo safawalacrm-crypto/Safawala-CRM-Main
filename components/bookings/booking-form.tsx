@@ -2112,7 +2112,7 @@ export function BookingForm({
                 </CardContent>
               </Card>
 
-              <div className="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-between">
+              <div className="flex flex-col gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-start">
                 <Button
                   type="button"
                   variant="outline"
@@ -2121,7 +2121,7 @@ export function BookingForm({
                   <ArrowLeft />
                   Back to customer details
                 </Button>
-                <Button type="button" onClick={continueFromProducts}>
+                <Button type="button" className="sm:ml-auto" onClick={continueFromProducts}>
                   Review booking
                   <ChevronRight />
                 </Button>

@@ -57,6 +57,20 @@ export async function StylistJobModal({ jobId }: { jobId: string }) {
         <div className="space-y-4 p-4 sm:p-6">
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="flex gap-3 rounded-xl border bg-white dark:bg-card p-4">
+              <UsersRound className="mt-0.5 size-4 text-[#9a6a2f]" />
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Customer</p>
+                <p className="mt-1 truncate font-medium">
+                  {job.eventSummary.customerName || 'Customer not added'}
+                </p>
+                {job.eventSummary.customerPhone ? (
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {job.eventSummary.customerPhone}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            <div className="flex gap-3 rounded-xl border bg-white dark:bg-card p-4">
               <CalendarClock className="mt-0.5 size-4 text-[#9a6a2f]" />
               <div>
                 <p className="text-xs text-muted-foreground">Date and time</p>

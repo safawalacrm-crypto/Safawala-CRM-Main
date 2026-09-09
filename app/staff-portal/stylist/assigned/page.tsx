@@ -26,7 +26,7 @@ const STATUS_LABEL: Record<StylistExecutionStatus, string> = {
   not_started: 'Not started',
   reached_venue: 'Reached venue',
   work_started: 'Work in progress',
-  work_completed: 'Work completed',
+  work_completed: 'Event completed',
 };
 
 export default async function StylistAssignedEventsPage() {
@@ -64,6 +64,9 @@ export default async function StylistAssignedEventsPage() {
                       <CardTitle>{job.eventSummary.eventName}</CardTitle>
                     </div>
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                      <span className="font-medium text-[#70481c]">
+                        Customer: {job.eventSummary.customerName || 'Customer not added'}
+                      </span>
                       <span className="flex items-center gap-1.5">
                         <CalendarClock className="size-3.5" /> {friendlyDate(job.eventSummary.eventDate)} ·{' '}
                         {friendlyTime(job.eventSummary.eventTime)}

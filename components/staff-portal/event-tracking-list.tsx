@@ -14,16 +14,16 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { friendlyDate } from '@/lib/bookings';
-import { orderEventJobStages, STAGE_LABEL } from '@/lib/event-jobs/constants';
+import { trackingTimeline, TRACKING_STAGE_LABEL } from '@/lib/event-jobs/constants';
 import type { EventJob } from '@/lib/event-jobs/types';
 
 function currentStage(job: EventJob) {
   if (job.status === 'closed') return 'Completed';
-  const active = orderEventJobStages(job.stages)
+  const active = trackingTimeline(job.stages)
     .filter(
       (stage) => stage.status === 'open' || stage.status === 'in_progress',
     )
-    .map((stage) => STAGE_LABEL[stage.key]);
+    .map((stage) => TRACKING_STAGE_LABEL[stage.key]);
   return active.length ? active.join(' + ') : 'Awaiting next stage';
 }
 
@@ -150,7 +150,7 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
             </header>
 
             <ol className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-              {orderEventJobStages(selected.stages).map(
+              {trackingTimeline(selected.stages).map(
                 (stage, index, orderedStages) => {
                   const done = stage.status === 'done';
                   const current =
@@ -183,7 +183,7 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
                       </span>
                       <div className="min-w-0">
                         <p className="text-sm font-medium">
-                          {STAGE_LABEL[stage.key]}
+                          {TRACKING_STAGE_LABEL[stage.key]}
                         </p>
                         <p
                           className={`mt-0.5 text-xs ${

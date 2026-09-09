@@ -103,6 +103,8 @@ export default async function EventJobsPage() {
     bookingNumber: booking.booking_number,
     bookingType: booking.booking_type,
     status: booking.status,
+    customerName: booking.customers?.name ?? null,
+    customerPhone: booking.customers?.phone ?? null,
     eventName: booking.event_name,
     eventDate: booking.event_date,
     eventTime: booking.event_time,

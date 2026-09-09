@@ -2,11 +2,10 @@
 
 import { useEffect, useState, type SyntheticEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, Banknote, RotateCcw } from 'lucide-react';
+import { Banknote, RotateCcw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { statusLabel } from '@/lib/bookings';
 import { createClient } from '@/lib/supabase/client';
 
 type Booking = {
@@ -17,13 +16,6 @@ type Booking = {
   paid_amount: number;
   security_deposit: number;
 };
-const nextStatus: Record<string, string> = {
-  draft: 'confirmed',
-  confirmed: 'ready',
-  ready: 'out_for_delivery',
-  out_for_delivery: 'active',
-};
-
 export function BookingActions({ booking }: { booking: Booking }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -75,9 +67,7 @@ export function BookingActions({ booking }: { booking: Booking }) {
       condition_text: form.get('condition') || null,
     });
   }
-  const next = nextStatus[booking.status];
   if (
-    !next &&
     booking.paid_amount >= booking.total &&
     !(booking.booking_type === 'rental' && booking.status === 'active')
   )
@@ -90,31 +80,9 @@ export function BookingActions({ booking }: { booking: Booking }) {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
-      <div className="grid gap-4 lg:grid-cols-3">
-        {next && (
-          <Card className="border-border py-0 shadow-level-1 ring-0">
-            <CardContent className="flex h-full items-center justify-between gap-4 p-4">
-              <div>
-                <p className="text-xs text-muted-foreground">Next stage</p>
-                <p className="mt-1 font-semibold">{statusLabel(next)}</p>
-              </div>
-              <Button
-                disabled={busy}
-                onClick={() =>
-                  invoke('change_booking_status', {
-                    booking_key: booking.id,
-                    next_status: next,
-                  })
-                }
-              >
-                Advance
-                <ArrowRight />
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+      <div className="grid gap-4">
         {booking.paid_amount < booking.total && (
-          <Card className="border-border py-0 shadow-level-1 ring-0 lg:col-span-2">
+          <Card className="border-border py-0 shadow-level-1 ring-0">
             <CardContent className="p-4">
               <form
                 onSubmit={payment}

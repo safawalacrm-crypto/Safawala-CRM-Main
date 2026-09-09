@@ -1,4 +1,5 @@
 import type { StaffDepartment } from '@/lib/staff-portal/constants';
+import type { EventJobStage } from './types';
 
 export const EVENT_JOB_STAGE_KEYS = [
   'warehouse_pick',
@@ -35,15 +36,56 @@ export const STAGE_DEPARTMENT: Record<EventJobStageKey, StaffDepartment> = {
 };
 
 export const STAGE_LABEL: Record<EventJobStageKey, string> = {
-  warehouse_pick: 'Warehouse pick',
-  stylist_opportunity: 'Stylist opportunity',
-  quality_check: 'Quality check',
-  packing: 'Packing',
+  warehouse_pick: 'Warehouse',
+  stylist_opportunity: 'Stylist',
+  quality_check: 'QC & packing',
+  packing: 'QC & packing',
   collection: 'Collection',
   return_quality_check: 'Return QC',
   return_warehouse: 'Return warehouse',
-  booking_final_check: 'Booking final check',
+  booking_final_check: 'Booking close',
 };
+
+export type TrackingStage = {
+  key: string;
+  status: EventJobStageStatus;
+};
+
+export const TRACKING_STAGE_LABEL: Record<string, string> = {
+  booking_done: 'Booking done',
+  warehouse_pick: 'Warehouse',
+  qc_packing: 'QC & packing',
+  stylist_opportunity: 'Stylist',
+  travel: 'Travel',
+  live_event: 'Live event',
+  collection: 'Collection',
+  return_quality_check: 'Return QC',
+  return_warehouse: 'Return warehouse',
+  booking_final_check: 'Booking close',
+};
+
+/** Display-only tracker sequence shared by admin and staff job views. */
+export function trackingTimeline(stages: EventJobStage[]): TrackingStage[] {
+  const find = (key: EventJobStageKey) => stages.find((stage) => stage.key === key);
+  const combine = (first: EventJobStage | undefined, second: EventJobStage | undefined): EventJobStageStatus => {
+    if (first?.status === 'in_progress' || second?.status === 'in_progress') return 'in_progress';
+    if (first?.status === 'open' || second?.status === 'open') return 'open';
+    if (first?.status === 'done' && second?.status === 'done') return 'done';
+    return 'not_started';
+  };
+  return [
+    { key: 'booking_done', status: 'done' },
+    { key: 'warehouse_pick', status: find('warehouse_pick')?.status ?? 'not_started' },
+    { key: 'qc_packing', status: combine(find('quality_check'), find('packing')) },
+    { key: 'stylist_opportunity', status: find('stylist_opportunity')?.status ?? 'not_started' },
+    { key: 'travel', status: 'not_started' },
+    { key: 'live_event', status: 'not_started' },
+    { key: 'collection', status: find('collection')?.status ?? 'not_started' },
+    { key: 'return_quality_check', status: find('return_quality_check')?.status ?? 'not_started' },
+    { key: 'return_warehouse', status: find('return_warehouse')?.status ?? 'not_started' },
+    { key: 'booking_final_check', status: find('booking_final_check')?.status ?? 'not_started' },
+  ];
+}
 
 // Stages that open together the moment a Central Event Job is created — everything
 // else starts 'not_started' until its predecessor stage completes.

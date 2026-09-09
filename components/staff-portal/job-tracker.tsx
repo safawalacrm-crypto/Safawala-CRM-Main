@@ -1,5 +1,5 @@
 import { Check, Circle, Route } from 'lucide-react';
-import { orderEventJobStages, STAGE_LABEL } from '@/lib/event-jobs/constants';
+import { trackingTimeline, TRACKING_STAGE_LABEL } from '@/lib/event-jobs/constants';
 import type { EventJobStage } from '@/lib/event-jobs/types';
 
 export function JobTracker({ stages }: { stages: EventJobStage[] }) {
@@ -14,7 +14,7 @@ export function JobTracker({ stages }: { stages: EventJobStage[] }) {
         </span>
       </summary>
       <ol className="space-y-0 border-t px-5 py-3">
-        {orderEventJobStages(stages).map((stage, index, orderedStages) => {
+        {trackingTimeline(stages).map((stage, index, orderedStages) => {
           const done = stage.status === 'done';
           const current =
             stage.status === 'open' || stage.status === 'in_progress';
@@ -40,7 +40,7 @@ export function JobTracker({ stages }: { stages: EventJobStage[] }) {
               </span>
               <span>
                 <strong className="block text-sm font-medium">
-                  {STAGE_LABEL[stage.key]}
+                  {TRACKING_STAGE_LABEL[stage.key]}
                 </strong>
                 <span
                   className={`text-xs ${current ? 'text-[#9a6a2f]' : 'text-muted-foreground'}`}

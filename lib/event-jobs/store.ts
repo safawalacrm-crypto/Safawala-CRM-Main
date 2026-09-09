@@ -512,6 +512,8 @@ export async function syncEventJobs(
   for (const booking of bookings) {
     const existing = byBookingId.get(booking.bookingId);
     const eventSummary = {
+      customerName: booking.customerName ?? null,
+      customerPhone: booking.customerPhone ?? null,
       eventName: booking.eventName,
       eventDate: booking.eventDate,
       eventTime: booking.eventTime,
@@ -852,13 +854,12 @@ export async function submitQualityCheck(
   ) {
     return { error: 'Select an issue for every product that does not pass.' };
   }
-  if (!items.some((item) => (item.goodQuantity ?? 0) > 0)) {
-    return {
-      error: 'At least one product must pass QC before packing can begin.',
-    };
-  }
-
   const now = new Date().toISOString();
+  const problems = items.reduce(
+    (sum, item) =>
+      sum + Math.max((item.checkedQuantity ?? 0) - (item.goodQuantity ?? 0), 0),
+    0,
+  );
   let updated: EventJob = {
     ...job,
     qualityCheck: { items, completedAt: now, completedBy: staffName },
@@ -868,12 +869,30 @@ export async function submitQualityCheck(
     completedAt: now,
     completedBy: staffName,
   });
-  updated = setStage(updated, 'packing', { status: 'open', openedAt: now });
-  const problems = items.reduce(
-    (sum, item) =>
-      sum + Math.max((item.checkedQuantity ?? 0) - (item.goodQuantity ?? 0), 0),
-    0,
+  updated = setStage(
+    updated,
+    'packing',
+    problems ? { status: 'not_started', openedAt: null } : { status: 'open', openedAt: now },
   );
+  if (problems) {
+    updated = setStage(updated, 'warehouse_pick', {
+      status: 'open',
+      openedAt: now,
+      completedAt: null,
+      completedBy: null,
+    });
+    updated = setStage(updated, 'quality_check', {
+      status: 'not_started',
+      openedAt: null,
+      completedAt: null,
+      completedBy: null,
+    });
+    await notifyDepartment(
+      job.id,
+      'warehouse',
+      `${job.id} — QC flagged ${problems} item(s). Please correct and repick the items.`,
+    );
+  }
   updated = {
     ...updated,
     updatedAt: now,

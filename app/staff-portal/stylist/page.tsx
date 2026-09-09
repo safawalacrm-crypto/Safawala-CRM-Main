@@ -71,6 +71,9 @@ export default async function StaffStylistPage({
                   const myInterest = job.stylistInterests.find(
                     (interest) => interest.stylistAccountId === session.id,
                   );
+                  const execution = job.stylistExecutions.find(
+                    (entry) => entry.stylistAccountId === session.id,
+                  );
                   const interestedCount = job.stylistInterests.filter(
                     (interest) => interest.status === 'interested',
                   ).length;
@@ -86,6 +89,9 @@ export default async function StaffStylistPage({
                       <div>
                         <p className="font-medium">
                           {job.eventSummary.eventName}
+                        </p>
+                        <p className="mt-0.5 truncate text-xs font-medium text-[#70481c]">
+                          Customer: {job.eventSummary.customerName || 'Customer not added'}
                         </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1.5">
@@ -120,6 +126,15 @@ export default async function StaffStylistPage({
                         </Button>
                         {myInterest ? (
                           <>
+                            {execution?.status === 'reached_venue' || execution?.status === 'work_started' ? (
+                              <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-800">
+                                Live event
+                              </Badge>
+                            ) : execution?.status === 'work_completed' ? (
+                              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">
+                                Event completed
+                              </Badge>
+                            ) : null}
                             {myInterest.status === 'interested' ? (
                               <WithdrawInterestButton jobId={job.id} />
                             ) : null}

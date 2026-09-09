@@ -83,7 +83,7 @@ export function QualityCheckForm({ jobId, items }: { jobId: string; items: QcRev
         </ul>
 
         <Button type="submit" disabled={pending || !allReviewed} className="h-11 w-full">
-          {pending ? <><LoaderCircle className="animate-spin" /> Submitting…</> : <><Check /> Submit quality check</>}
+          {pending ? <><LoaderCircle className="animate-spin" /> Submitting…</> : decisions.includes('fail') ? <><AlertCircle /> Return rejected items to warehouse</> : <><Check /> Submit quality check</>}
         </Button>
         {!allReviewed ? <p className="text-center text-xs text-muted-foreground">Review every product to continue.</p> : null}
       </div>

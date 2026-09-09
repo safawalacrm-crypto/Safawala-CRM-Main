@@ -42,6 +42,8 @@ export type RequiredItem = {
 // real `bookings` table under current RLS — see SUPABASE_CONNECTION_PENDING.md. Once
 // real Supabase staff auth exists, department pages should join this live instead.
 export type EventSummarySnapshot = {
+  customerName?: string | null;
+  customerPhone?: string | null;
   eventName: string;
   eventDate: string;
   eventTime: string | null;
@@ -293,6 +295,8 @@ export type ConfirmedBookingSummary = {
   bookingId: number;
   bookingNumber: string;
   bookingType: string;
+  customerName?: string | null;
+  customerPhone?: string | null;
   status: string;
   eventName: string;
   eventDate: string;
