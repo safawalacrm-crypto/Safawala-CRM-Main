@@ -42,6 +42,7 @@ export function QuoteActions({
   const router = useRouter();
   const [busy, setBusy] = useState<'accept' | 'reject' | null>(null);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   async function decide(
     nextStatus: 'cancelled',
@@ -63,15 +64,20 @@ export function QuoteActions({
     if (busy) return;
     setBusy('accept');
     setError('');
+    setSuccess('');
     const result = await convertQuoteToBookingAction(bookingId);
     setBusy(null);
+    const convertedId = Number(result.id);
+    if (Number.isFinite(convertedId)) {
+      setSuccess('Booking converted successfully. Opening booking…');
+      window.setTimeout(() => router.push(`/bookings/${convertedId}`), 700);
+      return;
+    }
     if (result.error) {
       setError(result.error);
       return;
     }
-    const convertedId = Number(result.id);
-    if (Number.isFinite(convertedId)) router.push(`/bookings/${convertedId}`);
-    else router.refresh();
+    router.refresh();
   }
 
   if (state === 'converted') {
@@ -135,6 +141,11 @@ export function QuoteActions({
       {error ? (
         <p className="max-w-40 text-right text-[10px] leading-tight text-destructive">
           {error}
+        </p>
+      ) : null}
+      {success ? (
+        <p className="max-w-56 text-right text-[10px] leading-tight text-emerald-700">
+          {success}
         </p>
       ) : null}
     </div>

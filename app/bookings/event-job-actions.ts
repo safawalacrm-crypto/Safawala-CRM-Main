@@ -88,6 +88,9 @@ export async function convertQuoteToBookingAction(quoteId: number) {
     await initializeEventJob(bookingId);
     return { id: bookingId, error: '' };
   } catch (initializationError) {
+    // Conversion itself has already committed. Return the booking ID so the
+    // caller can show success and open the new booking even if the optional
+    // Event Job backfill needs attention.
     return {
       id: bookingId,
       error:

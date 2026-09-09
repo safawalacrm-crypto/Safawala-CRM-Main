@@ -225,7 +225,7 @@ export function BookingForm({
   const [groomMobile, setGroomMobile] = useState('');
   const [rentalSelectionMode, setRentalSelectionMode] = useState<
     'individual' | 'packages'
-  >('individual');
+  >('packages');
   const [selectedRentalCategory, setSelectedRentalCategory] = useState(
     rentalPackages[0]?.category_name ?? '',
   );
@@ -672,6 +672,11 @@ export function BookingForm({
     };
     const bookingDate = form.get('booking_date');
     const plainNotes = readText('notes');
+    const contactDetails = [
+      brideName.trim() ? `Bride: ${brideName.trim()}${brideMobile ? ` (${brideMobile})` : ''}` : '',
+      groomName.trim() ? `Groom: ${groomName.trim()}${groomMobile ? ` (${groomMobile})` : ''}` : '',
+      contactAddress.trim() ? `Contact address: ${contactAddress.trim()}` : '',
+    ].filter(Boolean).join('\n');
     const modificationNotes =
       isSale && modificationsRequired
         ? [
@@ -715,7 +720,7 @@ export function BookingForm({
         ? (quoteCreatorStaffId ?? null)
         : form.get('assigned_staff_id'),
       notes:
-        [plainNotes, modificationNotes].filter(Boolean).join('\n\n') || null,
+        [plainNotes, modificationNotes, contactDetails].filter(Boolean).join('\n\n') || null,
       items: items.map(
         ({ key: _key, additional_safa: _additionalSafa, ...item }) => item,
       ),
@@ -772,25 +777,6 @@ export function BookingForm({
       setMessage({
         title: quote ? 'Quote was not saved' : 'Order was not created',
         text: error.message,
-      });
-      setBusy(false);
-      return;
-    }
-    const contactUpdate = {
-      bride_name: brideName.trim() || null,
-      bride_mobile: brideMobile || null,
-      groom_name: groomName.trim() || null,
-      groom_mobile: groomMobile || null,
-      contact_address: contactAddress.trim() || null,
-    };
-    const { error: contactError } = await supabase
-      .from('bookings')
-      .update(contactUpdate)
-      .eq('id', data.id);
-    if (contactError) {
-      setMessage({
-        title: 'Booking saved, but contacts were not updated',
-        text: contactError.message,
       });
       setBusy(false);
       return;
@@ -1212,21 +1198,21 @@ export function BookingForm({
                       <div className="grid grid-cols-2 gap-2 rounded-xl border bg-[#fcfaf7] dark:bg-[#241e17] p-1.5">
                         <button
                           type="button"
-                          aria-pressed={rentalSelectionMode === 'individual'}
-                          onClick={() => setRentalSelectionMode('individual')}
-                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${rentalSelectionMode === 'individual' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-white dark:hover:bg-card hover:text-foreground'}`}
-                        >
-                          <Box className="size-4" />
-                          Individual products
-                        </button>
-                        <button
-                          type="button"
                           aria-pressed={rentalSelectionMode === 'packages'}
                           onClick={() => setRentalSelectionMode('packages')}
                           className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${rentalSelectionMode === 'packages' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-white dark:hover:bg-card hover:text-foreground'}`}
                         >
                           <Package className="size-4" />
                           Packages
+                        </button>
+                        <button
+                          type="button"
+                          aria-pressed={rentalSelectionMode === 'individual'}
+                          onClick={() => setRentalSelectionMode('individual')}
+                          className={`inline-flex h-10 items-center justify-center gap-2 rounded-lg px-3 text-sm font-semibold transition ${rentalSelectionMode === 'individual' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:bg-white dark:hover:bg-card hover:text-foreground'}`}
+                        >
+                          <Box className="size-4" />
+                          Individual products
                         </button>
                       </div>
                     </fieldset>
@@ -1544,69 +1530,6 @@ export function BookingForm({
                                       </span>
                                     </span>
                                   </button>
-                                  <span className="mt-2 flex items-center gap-2">
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      className="size-7"
-                                      disabled={!packageQuantity}
-                                      onClick={() =>
-                                        adjustRentalPackageQuantity(pack, -1)
-                                      }
-                                    >
-                                      −
-                                    </Button>
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      value={packageQuantity}
-                                      onChange={(event) => {
-                                        const next = Math.max(
-                                          0,
-                                          Number(event.target.value) || 0,
-                                        );
-                                        if (next === 0) {
-                                          adjustRentalPackageQuantity(
-                                            pack,
-                                            -packageQuantity,
-                                          );
-                                        } else {
-                                          setSelectedRentalPackageId(pack.id);
-                                          setItems((current) =>
-                                            current.map((item) =>
-                                              item.package_variant_id ===
-                                              pack.id
-                                                ? { ...item, quantity: next }
-                                                : item,
-                                            ),
-                                          );
-                                        }
-                                      }}
-                                      className="h-7 min-w-0 flex-1 rounded-full border bg-white dark:bg-card px-2 text-center text-sm outline-none focus:border-ring focus:ring-2 focus:ring-ring/20"
-                                      aria-label={`Quantity for ${pack.name}`}
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      className="size-7"
-                                      onClick={() =>
-                                        packageQuantity
-                                          ? adjustRentalPackageQuantity(pack, 1)
-                                          : addRentalPackage(pack)
-                                      }
-                                    >
-                                      +
-                                    </Button>
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    className="mt-2 w-full"
-                                    onClick={() => addRentalPackage(pack)}
-                                  >
-                                    Add to Order
-                                  </Button>
                                 </div>
                               );
                             })}
@@ -1678,22 +1601,23 @@ export function BookingForm({
                                     <span className="mt-2 block truncate px-1 text-sm font-semibold">
                                       {product.name}
                                     </span>
-                                    <span className="mt-0.5 block truncate px-1 text-[11px] text-muted-foreground">
-                                      SKU:{' '}
-                                      {product.sku || product.barcode || '—'}
-                                    </span>
-                                    <span className="mt-0.5 block truncate px-1 text-[11px] text-muted-foreground">
-                                      Barcode: {product.barcode || 'Not assigned'}
-                                    </span>
-                                    <span className="mt-2 block px-1 text-xs text-muted-foreground">
-                                      Rental price
-                                    </span>
-                                    <strong className="mt-1 block px-1 text-lg">
-                                      {money(product.rental_price)}
-                                    </strong>
-                                    <span className="mt-2 block px-1 text-xs text-muted-foreground">
-                                      Stock: {product.stock_quantity}
-                                    </span>
+                                    <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 px-1">
+                                      <span className="truncate text-[11px] text-muted-foreground">
+                                        SKU: {product.sku || product.barcode || '—'}
+                                      </span>
+                                      <span className="truncate text-[11px] text-muted-foreground">
+                                        Barcode: {product.barcode || 'Not assigned'}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        Rental price
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">
+                                        Stock: {product.stock_quantity}
+                                      </span>
+                                      <strong className="col-span-2 text-lg leading-5">
+                                        {money(product.rental_price)}
+                                      </strong>
+                                    </div>
                                     <span className="mt-2 flex items-center gap-2 px-1">
                                       <Button
                                         type="button"
@@ -1802,16 +1726,17 @@ export function BookingForm({
                               used
                             </span>
                             <span className="h-4 w-px bg-border" />
-                            <button
-                              type="button"
-                              aria-pressed={bypassSafaLimit}
-                              onClick={() =>
-                                setBypassSafaLimit((current) => !current)
-                              }
-                              className={`shrink-0 rounded-full px-2.5 py-1 font-medium transition ${bypassSafaLimit ? 'bg-[#9a6728] text-white' : 'bg-muted text-muted-foreground hover:bg-muted/70'}`}
-                            >
+                            <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 font-medium">
+                              <input
+                                type="checkbox"
+                                checked={bypassSafaLimit}
+                                onChange={(event) =>
+                                  setBypassSafaLimit(event.target.checked)
+                                }
+                                className="size-4 accent-[#9a6728]"
+                              />
                               Bypass limit
-                            </button>
+                            </label>
                           </div>
                         </div>
                         <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-[minmax(220px,1fr)_180px]">
@@ -1893,18 +1818,23 @@ export function BookingForm({
                                   <span className="mt-3 block truncate px-1 text-sm font-semibold">
                                     {product.name}
                                   </span>
-                                  <span className="mt-1 block px-1 text-xs text-muted-foreground">
-                                    SKU: {product.sku || product.barcode || '—'}
-                                  </span>
-                                  <span className="mt-2 block px-1 text-xs text-muted-foreground">
-                                    Rental price
-                                  </span>
-                                  <strong className="mt-1 block px-1 text-lg text-foreground">
-                                    {money(product.rental_price)}
-                                  </strong>
-                                  <span className="mt-2 block px-1 text-xs text-muted-foreground">
-                                    Stock: {product.stock_quantity}
-                                  </span>
+                                  <div className="mt-1 grid grid-cols-2 gap-x-2 gap-y-1 px-1">
+                                    <span className="truncate text-xs text-muted-foreground">
+                                      SKU: {product.sku || product.barcode || '—'}
+                                    </span>
+                                    <span className="truncate text-xs text-muted-foreground">
+                                      Barcode: {product.barcode || 'Not assigned'}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      Rental price
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                      Stock: {product.stock_quantity}
+                                    </span>
+                                    <strong className="col-span-2 text-lg leading-5 text-foreground">
+                                      {money(product.rental_price)}
+                                    </strong>
+                                  </div>
                                   <span className="mt-2 flex items-center gap-2 px-1">
                                     <Button
                                       type="button"

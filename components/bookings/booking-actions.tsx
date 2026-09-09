@@ -75,10 +75,7 @@ export function BookingActions({ booking }: { booking: Booking }) {
       condition_text: form.get('condition') || null,
     });
   }
-  const next =
-    booking.booking_type === 'sale' && booking.status === 'confirmed'
-      ? 'completed'
-      : nextStatus[booking.status];
+  const next = nextStatus[booking.status];
   if (
     !next &&
     booking.paid_amount >= booking.total &&
