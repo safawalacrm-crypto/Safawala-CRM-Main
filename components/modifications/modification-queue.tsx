@@ -538,6 +538,9 @@ function ModificationRow({
         </p>
       </td>
       <td className="max-w-[320px] px-5 py-4">
+        <Badge variant="outline" className="mb-2 border-[#dfc9a6] bg-[#fbf3e7] text-primary">
+          {row.details.type}
+        </Badge>
         <p className="line-clamp-2 text-xs leading-5">
           {row.details.instructions}
         </p>
@@ -682,7 +685,10 @@ function ModificationDialog({
         <div className="max-h-[calc(92dvh-160px)] space-y-5 overflow-y-auto p-5 sm:p-6">
           <Card className="gap-0 border-[#dfc9a6] py-0 shadow-none ring-0">
             <CardHeader className="border-b bg-[#fbf3e7] dark:bg-[#241e17] px-4 py-3">
-              <CardTitle className="text-sm">Work instructions</CardTitle>
+              <div className="flex items-center justify-between gap-3">
+                <CardTitle className="text-sm">Work instructions</CardTitle>
+                <Badge variant="outline">{details.type}</Badge>
+              </div>
             </CardHeader>
             <CardContent className="p-4">
               <p className="whitespace-pre-wrap text-sm leading-6">

@@ -99,6 +99,13 @@ type Item = {
 const inputClass =
   'h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 const uid = () => Math.random().toString(36).slice(2);
+const MODIFICATION_OPTIONS = [
+  'Stitching',
+  'Standard stitching',
+  'Ironing',
+  'Laundry',
+  'Other',
+] as const;
 
 export function BookingForm({
   ownerId,
@@ -177,7 +184,7 @@ export function BookingForm({
             if (cancelled || !cameraRef.current) return;
             const found = await detector.detect(cameraRef.current);
             if (found[0]?.rawValue) {
-              setProductSearch(found[0].rawValue);
+              handleProductScan(found[0].rawValue);
               setCameraOpen(false);
             } else window.setTimeout(scan, 250);
           };
@@ -203,6 +210,7 @@ export function BookingForm({
   const [taxEnabled, setTaxEnabled] = useState(false);
   const [paid, setPaid] = useState(0);
   const [modificationsRequired, setModificationsRequired] = useState(false);
+  const [modificationType, setModificationType] = useState<string>('');
   const [eventType, setEventType] = useState('Wedding');
   const [eventFor, setEventFor] = useState('Groom Only');
   const [eventDate, setEventDate] = useState('');
@@ -229,6 +237,7 @@ export function BookingForm({
     title: string;
     text: string;
   } | null>(null);
+  const [addedToast, setAddedToast] = useState('');
 
   const isSale = type === 'sale';
   const subtotal = useMemo(
@@ -333,13 +342,18 @@ export function BookingForm({
         .includes(additionalSafaSearch.trim().toLowerCase());
     return inBaratiSafa && matchesPackage && matchesSearch;
   });
-  function addProduct(product: Product) {
+  function addProduct(product: Product, quantity = 1) {
+    const requestedQuantity = Math.max(1, Math.floor(quantity));
     setItems((current) => {
       const existing = current.find((item) => item.product_id === product.id);
+      const maxQuantity = product.stock_quantity || 999;
       if (existing)
         return current.map((item) =>
           item.key === existing.key
-            ? { ...item, quantity: item.quantity + 1 }
+            ? {
+                ...item,
+                quantity: Math.min(maxQuantity, item.quantity + requestedQuantity),
+              }
             : item,
         );
       return [
@@ -348,7 +362,7 @@ export function BookingForm({
           key: uid(),
           product_id: product.id,
           item_name: product.name,
-          quantity: 1,
+          quantity: Math.min(maxQuantity, requestedQuantity),
           unit_price: Number(
             isSale ? product.sale_price : product.rental_price,
           ),
@@ -356,6 +370,43 @@ export function BookingForm({
         },
       ];
     });
+    setAddedToast(`${product.name} added to order`);
+    window.setTimeout(() => setAddedToast(''), 2400);
+  }
+
+  function handleProductScan(rawValue: string) {
+    const scanned = rawValue.trim().toLowerCase();
+    const product = products.find(
+      (item) =>
+        item.barcode?.trim().toLowerCase() === scanned ||
+        item.sku?.trim().toLowerCase() === scanned,
+    );
+    if (product) {
+      addProduct(product);
+      setProductSearch('');
+      setMessage(null);
+      return;
+    }
+    setProductSearch(rawValue);
+    setMessage({
+      title: 'Product not found',
+      text: `No inventory product matches barcode ${rawValue}.`,
+    });
+  }
+
+  function handleProductSearchInput(value: string) {
+    setProductSearch(value);
+    const scanned = value.trim().toLowerCase();
+    if (!scanned) return;
+    const exact = products.find(
+      (item) =>
+        item.barcode?.trim().toLowerCase() === scanned ||
+        item.sku?.trim().toLowerCase() === scanned,
+    );
+    if (exact) {
+      addProduct(exact);
+      setProductSearch('');
+    }
   }
 
   function addPackage(pack: PackageRow) {
@@ -475,7 +526,21 @@ export function BookingForm({
 
   function updateItem(key: string, patch: Partial<Item>) {
     setItems((current) =>
-      current.map((item) => (item.key === key ? { ...item, ...patch } : item)),
+      current.map((item) => {
+        if (item.key !== key) return item;
+        if (patch.quantity === undefined || !item.product_id) {
+          return { ...item, ...patch };
+        }
+        const product = products.find((row) => row.id === item.product_id);
+        const stockLimit = product && product.stock_quantity > 0
+          ? product.stock_quantity
+          : 999;
+        return {
+          ...item,
+          ...patch,
+          quantity: Math.min(stockLimit, Math.max(1, Math.floor(patch.quantity))),
+        };
+      }),
     );
   }
 
@@ -497,40 +562,40 @@ export function BookingForm({
       });
       return;
     }
-    if (!eventType || !eventFor || !eventDate || !venue.trim()) {
+    if (!eventType || !eventFor || !eventDate || (!isSale && !venue.trim())) {
       setMessage({
         title: 'Complete the event details',
-        text: 'Event type, booking for, event date and venue are required.',
+        text: isSale ? 'Event type and event date are required.' : 'Event type, booking for, event date and venue are required.',
       });
       return;
     }
-    if (
+    if (!isSale && (
       eventFor === 'Bride Only' &&
       (!brideName.trim() || !/^\d{10}$/.test(brideMobile))
-    ) {
+    )) {
       setMessage({
         title: 'Complete bride contact details',
         text: 'Bride name and a valid 10-digit mobile number are required.',
       });
       return;
     }
-    if (
+    if (!isSale && (
       eventFor === 'Groom Only' &&
       (!groomName.trim() || !/^\d{10}$/.test(groomMobile))
-    ) {
+    )) {
       setMessage({
         title: 'Complete groom contact details',
         text: 'Groom name and a valid 10-digit mobile number are required.',
       });
       return;
     }
-    if (
+    if (!isSale && (
       eventFor === 'Bride & Groom' &&
       (!brideName.trim() ||
         !/^\d{10}$/.test(brideMobile) ||
         !groomName.trim() ||
         !/^\d{10}$/.test(groomMobile))
-    ) {
+    )) {
       setMessage({
         title: 'Complete contact details',
         text: 'Enter a name and valid 10-digit mobile number for both bride and groom.',
@@ -611,36 +676,38 @@ export function BookingForm({
       isSale && modificationsRequired
         ? [
             'SALE MODIFICATION REQUIRED',
+            `Type: ${readText('modification_type')}`,
             `Details: ${readText('modification_details')}`,
-            `Modification date: ${readText('modification_date')}`,
-            `Modification time: ${readText('modification_time')}`,
           ].join('\n')
         : '';
     const payload = {
       booking_type: type,
       customer_id: selectedCustomer?.id ?? null,
       customer: null,
-      event_name: `${eventType} - ${eventFor}`,
+      event_name: isSale ? eventType : `${eventType} - ${eventFor}`,
       event_date: eventDate,
       event_time: form.get('event_time'),
-      event_location: venue,
-      contact_name:
+      event_location: isSale ? null : venue,
+      contact_name: isSale
+        ? null
+        : (
         (eventFor === 'Bride Only'
           ? brideName
           : eventFor === 'Groom Only'
             ? groomName
             : brideName || groomName
-        ).trim() || null,
-      alternate_mobile:
-        eventFor === 'Bride Only'
+        ).trim() || null),
+      alternate_mobile: isSale
+        ? null
+        : (eventFor === 'Bride Only'
           ? brideMobile
           : eventFor === 'Groom Only'
             ? groomMobile
-            : brideMobile || groomMobile || null,
-      bride_name: brideName.trim() || null,
-      bride_mobile: brideMobile || null,
-      groom_name: groomName.trim() || null,
-      groom_mobile: groomMobile || null,
+            : brideMobile || groomMobile || null),
+      bride_name: isSale ? null : brideName.trim() || null,
+      bride_mobile: isSale ? null : brideMobile || null,
+      groom_name: isSale ? null : groomName.trim() || null,
+      groom_mobile: isSale ? null : groomMobile || null,
       contact_address: contactAddress.trim() || null,
       pickup_date: type === 'rental' ? form.get('pickup_date') : null,
       due_date: type === 'rental' ? form.get('due_date') : null,
@@ -838,7 +905,9 @@ export function BookingForm({
           <div className="bg-[#fbfaf8] dark:bg-[#241e17] p-4 lg:p-6">
             <div hidden={step !== 1} className="space-y-5">
               <div className="grid gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
-                <Card className="gap-0 border-border py-0 shadow-none ring-0">
+                <Card
+                  className={`relative gap-0 border-border py-0 shadow-none ring-0 ${quoteOnly ? 'overflow-hidden' : ''}`}
+                >
                   <CardHeader className="gap-3 border-b bg-[#fcfaf7] dark:bg-[#241e17] px-4 py-4">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent text-primary ring-1 ring-[#e4d2b6]">
@@ -875,7 +944,7 @@ export function BookingForm({
                         className={`${inputClass} pl-9`}
                       />
                     </label>
-                    <div className="mt-3 space-y-2">
+                    <div className="mt-3 max-h-[12rem] space-y-2 overflow-y-auto pr-1">
                       {visibleCustomers.length ? (
                         visibleCustomers.map((customer) => (
                           <button
@@ -969,7 +1038,7 @@ export function BookingForm({
                         <option>Other</option>
                       </select>
                     </label>
-                    <label className="block text-sm">
+                    {!isSale && <label className="block text-sm">
                       <span className="mb-1.5 block text-muted-foreground">
                         For
                       </span>
@@ -984,7 +1053,7 @@ export function BookingForm({
                         <option>Bride Only</option>
                         <option>Bride &amp; Groom</option>
                       </select>
-                    </label>
+                    </label>}
                     <label className="block text-sm">
                       <span className="mb-1.5 block text-muted-foreground">
                         Event date <span className="text-red-600">*</span>
@@ -999,7 +1068,7 @@ export function BookingForm({
                       />
                     </label>
                     <TimeField label="Event time" name="event_time" />
-                    <label className="block pt-1 text-sm sm:col-span-2">
+                    {!isSale && <label className="block pt-1 text-sm sm:col-span-2">
                       <span className="mb-1.5 flex items-center gap-1.5 text-muted-foreground">
                         <MapPin className="size-3.5 text-primary" />
                         Venue <span className="text-red-600">*</span>
@@ -1012,8 +1081,8 @@ export function BookingForm({
                         className={inputClass}
                         required
                       />
-                    </label>
-                    {eventFor !== 'Groom Only' && (
+                    </label>}
+                    {!isSale && eventFor !== 'Groom Only' && (
                       <>
                         <label className="block text-sm">
                           <span className="mb-1.5 block text-muted-foreground">
@@ -1045,7 +1114,7 @@ export function BookingForm({
                         </label>
                       </>
                     )}
-                    {eventFor !== 'Bride Only' && (
+                    {!isSale && eventFor !== 'Bride Only' && (
                       <>
                         <label className="block text-sm">
                           <span className="mb-1.5 block text-muted-foreground">
@@ -1169,7 +1238,22 @@ export function BookingForm({
                           <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
                           <input
                             value={productSearch}
-                            onChange={(e) => setProductSearch(e.target.value)}
+                            onChange={(e) => handleProductSearchInput(e.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key !== 'Enter') return;
+                              event.preventDefault();
+                              const value = productSearch.trim().toLowerCase();
+                              const exact = products.find((item) =>
+                                [item.barcode, item.sku]
+                                  .filter(Boolean)
+                                  .some((code) => code?.trim().toLowerCase() === value),
+                              );
+                              if (exact) {
+                                addProduct(exact);
+                                setProductSearch('');
+                                setMessage(null);
+                              }
+                            }}
                             placeholder="Search products or barcode…"
                             inputMode="search"
                             className={`${inputClass} pl-9 pr-12`}
@@ -1224,7 +1308,7 @@ export function BookingForm({
                           {visibleProducts.map((product) => (
                             <div
                               key={product.id}
-                              className="group overflow-hidden rounded-xl border bg-white dark:bg-card p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
+                              className="group overflow-hidden rounded-xl border bg-white p-1.5 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 dark:bg-card"
                             >
                               <span className="relative grid aspect-square overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
                                 {product.image_urls?.[0] ? (
@@ -1247,25 +1331,26 @@ export function BookingForm({
                                   </Badge>
                                 ) : null}
                               </span>
-                              <span className="mt-3 block truncate px-1 text-sm font-semibold">
-                                {product.name}
-                              </span>
-                              <span className="mt-1 block px-1 text-xs text-muted-foreground">
-                                SKU: {product.sku || product.barcode || '—'}
-                              </span>
-                              <span className="mt-2 block px-1 text-xs text-muted-foreground">
-                                {isSale ? 'Sale price' : 'Rental price'}
-                              </span>
-                              <strong className="mt-1 block px-1 text-lg text-foreground">
-                                {money(
-                                  isSale
-                                    ? product.sale_price
-                                    : product.rental_price,
-                                )}
-                              </strong>
-                              <span className="mt-2 block px-1 text-xs text-muted-foreground">
-                                Stock: {product.stock_quantity}
-                              </span>
+                              <div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 px-1">
+                                <span className="col-span-2 block truncate text-sm font-semibold">
+                                  {product.name}
+                                </span>
+                                <span className="truncate text-[11px] text-muted-foreground">
+                                  SKU: {product.sku || product.barcode || '—'}
+                                </span>
+                                <span className="truncate text-[11px] text-muted-foreground">
+                                  Barcode: {product.barcode || 'Not assigned'}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  {isSale ? 'Sale price' : 'Rental price'}
+                                </span>
+                                <span className="text-[11px] text-muted-foreground">
+                                  Stock: {product.stock_quantity}
+                                </span>
+                                <strong className="col-span-2 text-lg leading-5 text-foreground">
+                                  {money(isSale ? product.sale_price : product.rental_price)}
+                                </strong>
+                              </div>
                               <span className="mt-2 flex items-center gap-2 px-1">
                                 <Button
                                   type="button"
@@ -1326,14 +1411,10 @@ export function BookingForm({
                                 type="button"
                                 className="mt-2 w-full"
                                 onClick={() => {
-                                  const quantity =
-                                    catalogQuantities[product.id] ?? 1;
-                                  for (
-                                    let index = 0;
-                                    index < quantity;
-                                    index += 1
-                                  )
-                                    addProduct(product);
+                                  addProduct(
+                                    product,
+                                    catalogQuantities[product.id] ?? 1,
+                                  );
                                 }}
                               >
                                 Add to Order
@@ -1343,30 +1424,6 @@ export function BookingForm({
                         </div>
                       ) : (
                         <EmptyCatalog />
-                      )}
-                      {isSale && packages.length > 0 && (
-                        <div>
-                          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            Packages
-                          </p>
-                          <div className="flex flex-wrap gap-2">
-                            {packages.map((pack) => (
-                              <Button
-                                key={pack.id}
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() => addPackage(pack)}
-                              >
-                                <Plus />
-                                {pack.name} ·{' '}
-                                {money(
-                                  isSale ? pack.sale_price : pack.rental_price,
-                                )}
-                              </Button>
-                            ))}
-                          </div>
-                        </div>
                       )}
                     </>
                   ) : rentalPackages.length ? (
@@ -1595,7 +1652,7 @@ export function BookingForm({
                                 return (
                                   <div
                                     key={product.id}
-                                    className="group overflow-hidden rounded-xl border bg-white dark:bg-card p-2 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1"
+                                    className="group overflow-hidden rounded-xl border bg-white p-1.5 text-left transition hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-level-1 dark:bg-card"
                                   >
                                     <span className="relative grid aspect-square overflow-hidden rounded-lg bg-[radial-gradient(circle_at_top,#f4eadb,#ece5db)] text-primary">
                                       {product.image_urls?.[0] ? (
@@ -1618,12 +1675,15 @@ export function BookingForm({
                                           'Product'}
                                       </Badge>
                                     </span>
-                                    <span className="mt-3 block truncate px-1 text-sm font-semibold">
+                                    <span className="mt-2 block truncate px-1 text-sm font-semibold">
                                       {product.name}
                                     </span>
-                                    <span className="mt-1 block px-1 text-xs text-muted-foreground">
+                                    <span className="mt-0.5 block truncate px-1 text-[11px] text-muted-foreground">
                                       SKU:{' '}
                                       {product.sku || product.barcode || '—'}
+                                    </span>
+                                    <span className="mt-0.5 block truncate px-1 text-[11px] text-muted-foreground">
+                                      Barcode: {product.barcode || 'Not assigned'}
                                     </span>
                                     <span className="mt-2 block px-1 text-xs text-muted-foreground">
                                       Rental price
@@ -2028,6 +2088,11 @@ export function BookingForm({
                                 <input
                                   type="number"
                                   min="1"
+                                  max={
+                                    item.product_id
+                                      ? products.find((product) => product.id === item.product_id)?.stock_quantity || undefined
+                                      : undefined
+                                  }
                                   value={item.quantity}
                                   onChange={(e) =>
                                     updateItem(item.key, {
@@ -2158,9 +2223,11 @@ export function BookingForm({
                     label="Event date & time"
                     value={`${formatReviewDate(eventDate)}${eventTime ? ` · ${formatReviewTime(eventTime)}` : ''}`}
                   />
-                  <div className="sm:col-span-2 lg:col-span-4">
-                    <ReviewDetail label="Venue" value={venue || 'Not added'} />
-                  </div>
+                  {!isSale && (
+                    <div className="sm:col-span-2 lg:col-span-4">
+                      <ReviewDetail label="Venue" value={venue || 'Not added'} />
+                    </div>
+                  )}
                   {!isSale ? (
                     <>
                       <ReviewDetail
@@ -2209,32 +2276,38 @@ export function BookingForm({
                       Modifications required
                     </label>
                     {modificationsRequired && (
-                      <div className="mt-4 rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] dark:bg-[#241e17] p-4">
-                        <label className="block text-sm">
+                      <div className="mt-4 rounded-xl border border-[#e4d2b6] bg-[#fcfaf7] p-3 dark:bg-[#241e17] sm:p-4">
+                        <div className="grid gap-4 lg:grid-cols-[minmax(180px,0.8fr)_minmax(0,1.5fr)]">
+                          <label className="block text-sm">
+                            <span className="mb-1.5 block font-medium">
+                              Select modification <span className="text-red-600">*</span>
+                            </span>
+                            <select
+                              name="modification_type"
+                              value={modificationType}
+                              onChange={(event) => setModificationType(event.target.value)}
+                              required
+                              className={inputClass}
+                            >
+                              <option value="">Choose an option</option>
+                              {MODIFICATION_OPTIONS.map((option) => (
+                                <option key={option} value={option}>{option}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label className="block text-sm">
                           <span className="mb-1.5 block font-medium">
-                            Modification details{' '}
+                            {modificationType || 'Modification'} details{' '}
                             <span className="text-red-600">*</span>
                           </span>
                           <textarea
                             name="modification_details"
                             required
-                            rows={3}
+                            rows={7}
                             placeholder="Describe the colour change, size adjustment, embroidery or other work required…"
                             className="w-full rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                           />
-                        </label>
-                        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-                          <Field
-                            label="Modification date"
-                            name="modification_date"
-                            type="date"
-                            required
-                          />
-                          <TimeField
-                            label="Modification time"
-                            name="modification_time"
-                            required
-                          />
+                          </label>
                         </div>
                       </div>
                     )}
@@ -2286,14 +2359,18 @@ export function BookingForm({
 
               <div className="grid gap-5 lg:grid-cols-2">
                 <Card className="gap-0 border-border py-0 shadow-none ring-0">
-                  <CardHeader className="border-b px-4 py-4">
+                  <CardHeader
+                    className={`border-b px-4 py-4 ${quoteOnly ? 'blur-[2px]' : ''}`}
+                  >
                     <CardTitle className="text-sm font-semibold">
                       {quoteOnly
                         ? 'Payment details · Main ID only'
                         : 'Payment method & discounts'}
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-3 p-4">
+                  <CardContent
+                    className={`space-y-3 p-4 ${quoteOnly ? 'blur-[2px]' : ''}`}
+                  >
                     <label className="block text-sm">
                       <span className="mb-1.5 block text-muted-foreground">
                         Payment method
@@ -2374,6 +2451,18 @@ export function BookingForm({
                       />
                       Apply GST (5%)
                     </label>
+                    {quoteOnly && (
+                      <div className="absolute inset-0 z-10 grid place-items-center bg-[#fffdf9]/65 backdrop-blur-[2px] dark:bg-[#241e17]/65">
+                        <div className="rounded-xl border border-[#dec39b] bg-[#fffdf9]/95 px-4 py-3 text-center shadow-level-1 dark:bg-[#241e17]/95">
+                          <p className="text-sm font-semibold text-primary">
+                            Payment access restricted
+                          </p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            A Main ID can enter payment details.
+                          </p>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
                 <Card className="gap-0 border-[#dfc9a6] py-0 shadow-none ring-0">
@@ -2472,6 +2561,15 @@ export function BookingForm({
           </div>
         </section>
       </form>
+      {addedToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-5 left-1/2 z-[70] -translate-x-1/2 rounded-xl border border-[#dec39b] bg-[#fffdf9] px-4 py-3 text-sm font-medium text-primary shadow-[0_12px_30px_rgb(47_37_27_/.18)] dark:bg-[#241e17]"
+        >
+          {addedToast}
+        </div>
+      )}
       {customProductOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
           <Card className="w-full max-w-md shadow-level-3">
@@ -2516,34 +2614,36 @@ export function BookingForm({
                       ? [publicFile.publicUrl]
                       : [];
                   }
-                  const { data: created, error } = await supabase
-                    .from('products')
-                    .insert({
-                      owner_id: ownerId,
-                      name: String(form.get('name')),
-                      sku: String(form.get('sku') || '') || null,
-                      category: String(form.get('category')),
+                  const response = await fetch('/api/booking-products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      ownerId,
+                      name: String(form.get('name') ?? ''),
+                      sku: String(form.get('sku') ?? ''),
+                      category: String(form.get('category') ?? ''),
                       sale_price: Number(form.get('sale_price') || 0),
                       rental_price: Number(form.get('rental_price') || 0),
                       stock_quantity: Number(form.get('stock_quantity') || 0),
                       image_urls: imageUrls,
-                    })
-                    .select(
-                      'id,sku,barcode,name,category,subcategory,sale_price,rental_price,security_deposit,stock_quantity,image_urls',
-                    )
-                    .single();
+                    }),
+                  });
+                  const result = await response.json().catch(() => ({}));
                   setCustomProductBusy(false);
-                  if (error) {
+                  if (!response.ok || !result.product) {
                     setMessage({
                       title: 'Product was not saved',
-                      text: error.message,
+                      text: result.error ?? 'Please try again.',
                     });
                     return;
                   }
-                  if (created) {
-                    addProduct(created as Product);
-                    setCustomProductOpen(false);
-                  }
+                  // Close the dialog as soon as the server confirms the row.
+                  // Adding it to local order state happens in the same render,
+                  // so the new product is already selected when the dialog disappears.
+                  setCustomProductOpen(false);
+                  setMessage(null);
+                  addProduct(result.product as Product);
+                  event.currentTarget.reset();
                 }}
               >
                 <label className="block text-sm">
@@ -2811,7 +2911,7 @@ function TypeChooser({
           <Choice
             icon={<Package />}
             title="Rental"
-            note="With pickup and return"
+            note="Flexible Rental with Return"
             onClick={() => onChoose('rental')}
           />
         </div>
