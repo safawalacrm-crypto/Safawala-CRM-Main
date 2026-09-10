@@ -382,6 +382,7 @@ export function InventoryDirectory({
       <DashboardHeader
         title="Inventory"
         subtitle="Products, pricing, stock & existing printed barcodes"
+        backHref="/dashboard"
         actions={
           <>
             <Button

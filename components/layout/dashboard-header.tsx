@@ -1,6 +1,9 @@
-import type { ReactNode } from 'react';
+'use client';
+
+import { useContext, useLayoutEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { DashboardHeaderContext } from './dashboard-header-context';
 
 export function DashboardHeader({
   title,
@@ -13,8 +16,15 @@ export function DashboardHeader({
   actions?: ReactNode;
   backHref?: string;
 }) {
+  const setHeader = useContext(DashboardHeaderContext);
+  useLayoutEffect(() => {
+    if (!setHeader) return;
+    setHeader({ title, subtitle, actions, backHref });
+    return () => setHeader(null);
+  }, [setHeader, title, subtitle, actions, backHref]);
+  if (setHeader) return null;
   return (
-    <div className="pointer-events-none fixed left-0 right-0 top-0 z-30 flex h-16 min-w-0 items-center gap-3 border-b border-border/80 bg-white/95 pl-16 pr-16 backdrop-blur print:hidden dark:bg-card/95 sm:pl-20 sm:pr-20 lg:left-64 lg:pl-8 lg:pr-20">
+    <div className="relative z-10 mb-5 flex min-w-0 flex-1 flex-wrap items-center gap-3 border-b border-border/80 py-1 print:hidden sm:flex-nowrap">
       {backHref ? <Link href={backHref} aria-label="Back" className="pointer-events-auto grid size-9 shrink-0 place-items-center rounded-lg border border-border text-muted-foreground transition hover:bg-[#f5ead8] dark:hover:bg-[#33291c] hover:text-[#70481c] dark:hover:bg-[#33291c] dark:hover:text-[#f0d9ad]"><ArrowLeft className="size-4" /></Link> : null}
       <div className={`min-w-0 flex-1 ${actions ? 'hidden sm:block' : ''}`}>
         <h1 className="truncate text-lg font-semibold leading-5 tracking-[-0.025em]">

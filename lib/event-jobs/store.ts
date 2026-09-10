@@ -1584,12 +1584,20 @@ export async function stylistJobsForAccount(
   });
 }
 
+// The Stylist Main ID can supervise the complete stylist queue. It sees every
+// active rental event that requires styling, while individual stylist IDs only
+// see opportunities relevant to themselves.
+export async function stylistJobsForMainAccount(): Promise<EventJob[]> {
+  return stylistJobsForAdmin();
+}
+
 export async function stylistJobForAccount(
   jobId: string,
   stylistAccountId: string,
+  viewAll = false,
 ): Promise<EventJob | null> {
   return (
-    (await stylistJobsForAccount(stylistAccountId)).find(
+    (await (viewAll ? stylistJobsForMainAccount() : stylistJobsForAccount(stylistAccountId))).find(
       (job) => job.id === jobId,
     ) ?? null
   );

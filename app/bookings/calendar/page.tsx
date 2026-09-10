@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import {
   CalendarDayGrid,
   type CalendarBooking,
+  type LockedDate,
 } from '@/components/bookings/calendar-day-grid';
 import { createClient } from '@/lib/supabase/server';
 
@@ -58,6 +59,18 @@ export default async function BookingCalendar({
     )
     .ilike('notes', '%SALE MODIFICATION REQUIRED%');
 
+  // Dates locked from the Leads Center (see app/leads/actions.ts) block a date
+  // from being double-booked. If the leads_center migration hasn't been applied
+  // yet the table won't exist — data comes back null/empty and the calendar
+  // just renders with no locked dates rather than failing.
+  const { data: lockedDatesRaw } = await supabase
+    .from('lead_locked_dates')
+    .select('id,locked_date,label,notes')
+    .eq('owner_id', auth.user.id)
+    .gte('locked_date', start)
+    .lte('locked_date', end);
+  const lockedDates = (lockedDatesRaw ?? []) as unknown as LockedDate[];
+
   const cells = Array.from(
     { length: first.getDay() + last.getDate() },
     (_, i) => (i < first.getDay() ? null : i - first.getDay() + 1),
@@ -106,6 +119,7 @@ export default async function BookingCalendar({
             modificationBookings={
               (modificationBookings ?? []) as unknown as CalendarBooking[]
             }
+            lockedDates={lockedDates}
           />
         )}
       </div>

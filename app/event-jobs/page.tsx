@@ -60,6 +60,7 @@ export default async function EventJobsPage() {
                 ? 'Rental collection jobs and live department progress'
                 : 'Confirmed booking jobs and live department progress'
             }
+            backHref="/staff-portal"
           />
           <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1 ring-0">
             <CardContent className="p-0">
@@ -137,6 +138,7 @@ export default async function EventJobsPage() {
         <DashboardHeader
           title="Event Jobs"
           subtitle="One Central Event Job per confirmed booking — tracked across every department"
+          backHref="/dashboard"
         />
 
         {error ? (

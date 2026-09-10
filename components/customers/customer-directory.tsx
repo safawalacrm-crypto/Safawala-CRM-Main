@@ -128,6 +128,7 @@ export function CustomerDirectory({
       <DashboardHeader
         title="Customers"
         subtitle="Customer details, booking history and outstanding balances"
+        backHref="/dashboard"
         actions={
           <Button type="button" size="sm" onClick={() => setEditing(null)}>
             <Plus />
@@ -432,7 +433,7 @@ function CustomerDialog({
     };
     const payload = {
       name: text('name'),
-      phone: text('phone'),
+      phone: `${text('country_code')}${text('phone').replace(/^\+/, '').replace(/^\d{1,3}(?=\d{10}$)/, '')}`,
       address: text('address') || null,
       email: customer?.email ?? null,
       notes: customer?.notes ?? null,
@@ -515,16 +516,9 @@ function CustomerDialog({
                 className={inputClass}
               />
             </label>
-            <label className="block text-sm">
+            <label className="block text-sm sm:col-span-2">
               <span className="font-medium">Phone number</span>
-              <input
-                name="phone"
-                type="tel"
-                minLength={7}
-                required
-                defaultValue={customer?.phone ?? ''}
-                className={inputClass}
-              />
+              <div className="mt-1.5 flex max-w-md gap-2"><select name="country_code" defaultValue="+91" className="h-10 w-24 shrink-0 rounded-lg border border-input bg-white px-2 text-sm dark:bg-card"><option>+91</option><option>+1</option><option>+44</option><option>+61</option><option>+971</option><option>+65</option></select><input name="phone" type="tel" inputMode="numeric" pattern="[0-9]{7,15}" maxLength={15} required defaultValue={customer?.phone?.replace(/^\+\d{1,3}/, '') ?? ''} className={`${inputClass} mt-0 min-w-0 flex-1`} /></div>
             </label>
             <label className="block text-sm sm:col-span-2">
               <span className="font-medium">City / address</span>

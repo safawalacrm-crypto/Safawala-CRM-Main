@@ -109,6 +109,7 @@ export default async function BookingsPage({ searchParams }: Props) {
         <DashboardHeader
           title="All bookings"
           subtitle="Sales, rentals, payments and events"
+          backHref="/dashboard"
           actions={
             <Button size="sm" render={<Link href="/bookings/new" />}>
               <Plus />

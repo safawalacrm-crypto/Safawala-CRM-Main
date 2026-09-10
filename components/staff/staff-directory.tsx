@@ -161,6 +161,7 @@ export function StaffDirectory({
       <DashboardHeader
         title="Staff"
         subtitle="Team directory, department access and portal logins in one place"
+        backHref="/dashboard"
         actions={
           <Button type="button" size="sm" onClick={() => setEditing(null)}>
             <Plus />

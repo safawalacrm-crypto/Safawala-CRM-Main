@@ -103,6 +103,7 @@ export function CustomerLedgerDirectory({
       <DashboardHeader
         title="Customer Ledger"
         subtitle="Customer-wise billing, receipts and outstanding balances"
+        backHref="/dashboard"
       />
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

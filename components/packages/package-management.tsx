@@ -305,6 +305,7 @@ export function PackageManagement({
       <DashboardHeader
         title="Package Manager"
         subtitle="Category-based package system"
+        backHref="/dashboard"
       />
 
       <section className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-stretch">

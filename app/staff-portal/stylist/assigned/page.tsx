@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
-import { assignedJobsForStylist } from '@/lib/event-jobs/store';
+import { assignedJobsForStylist, stylistJobsForMainAccount } from '@/lib/event-jobs/store';
 import { unreadCountForSession } from '@/lib/notifications/store';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { ExecutionAction } from '@/lib/event-jobs/store';
@@ -34,7 +34,9 @@ const STATUS_LABEL: Record<StylistExecutionStatus, string> = {
 
 export default async function StylistAssignedEventsPage() {
   const session = await requireStylistSession();
-  const jobs = await assignedJobsForStylist(session.id);
+  const jobs = session.isMainId
+    ? await stylistJobsForMainAccount()
+    : await assignedJobsForStylist(session.id);
   const activeDepartments = session.departments.filter((grant) => grant.active).map((grant) => grant.department);
   const notificationCount = await unreadCountForSession(session.id, activeDepartments);
 
@@ -71,14 +73,16 @@ export default async function StylistAssignedEventsPage() {
             <ArrowLeft className="size-4" /> Back to opportunities
           </Link>
         </div>
-        <DashboardHeader title="My Assigned Events" subtitle="Approved assignments and clearly marked backup events" />
+        <DashboardHeader title={session.isMainId ? 'All Stylist Events' : 'My Assigned Events'} subtitle={session.isMainId ? 'Overview of every stylist assignment and event status' : 'Approved assignments and clearly marked backup events'} />
 
         {jobs.length ? (
           <div className="space-y-6">
             {jobs.map((job) => {
-              const interest = job.stylistInterests.find((entry) => entry.stylistAccountId === session.id);
+              const interest = job.stylistInterests.find((entry) => entry.stylistAccountId === session.id && entry.status === 'approved')
+                ?? (session.isMainId ? job.stylistInterests.find((entry) => entry.status === 'approved') : undefined);
               const plan = job.travelPlans.find((entry) => entry.interestId === interest?.id);
-              const execution = job.stylistExecutions.find((entry) => entry.stylistAccountId === session.id);
+              const execution = job.stylistExecutions.find((entry) => entry.stylistAccountId === session.id)
+                ?? (session.isMainId ? job.stylistExecutions.find((entry) => entry.stylistAccountId === interest?.stylistAccountId) : undefined);
               const status: StylistExecutionStatus = execution?.status ?? 'not_started';
               const next = NEXT_ACTION[status];
 
@@ -99,6 +103,11 @@ export default async function StylistAssignedEventsPage() {
                       {job.eventSummary.venue ? (
                         <span className="flex items-center gap-1.5">
                           <MapPin className="size-3.5" /> {job.eventSummary.venue}
+                        </span>
+                      ) : null}
+                      {session.isMainId ? (
+                        <span className="basis-full text-xs text-muted-foreground">
+                          Stylists: {job.stylistInterests.filter((entry) => entry.status === 'approved').map((entry) => entry.stylistName).join(', ') || 'Not assigned'}
                         </span>
                       ) : null}
                     </p>

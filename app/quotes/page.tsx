@@ -226,6 +226,7 @@ export default async function QuotesPage({ searchParams }: Props) {
         <DashboardHeader
           title="Quote Management"
           subtitle="Generate and manage customer quotes"
+          backHref="/dashboard"
           actions={
             <>
               <Button

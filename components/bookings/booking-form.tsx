@@ -44,6 +44,8 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { initializeBookingEventJobAction } from '@/app/bookings/event-job-actions';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
+import { BarcodeScannerModal } from '@/components/bookings/barcode-scanner-modal';
+import { useHardwareScannerListener } from '@/lib/hooks/use-hardware-scanner';
 
 type Customer = {
   id: number;
@@ -157,58 +159,6 @@ export function BookingForm({
   const [customProductOpen, setCustomProductOpen] = useState(false);
   const [customProductBusy, setCustomProductBusy] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
-  const cameraRef = useRef<HTMLVideoElement>(null);
-  const cameraStreamRef = useRef<MediaStream | null>(null);
-
-  useEffect(() => {
-    if (!cameraOpen) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: 'environment' },
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        cameraStreamRef.current = stream;
-        if (cameraRef.current) cameraRef.current.srcObject = stream;
-        const Detector = (
-          window as Window & {
-            BarcodeDetector?: new () => {
-              detect: (
-                video: HTMLVideoElement,
-              ) => Promise<{ rawValue?: string }[]>;
-            };
-          }
-        ).BarcodeDetector;
-        if (Detector) {
-          const detector = new Detector();
-          const scan = async () => {
-            if (cancelled || !cameraRef.current) return;
-            const found = await detector.detect(cameraRef.current);
-            if (found[0]?.rawValue) {
-              handleProductScan(found[0].rawValue);
-              setCameraOpen(false);
-            } else window.setTimeout(scan, 250);
-          };
-          window.setTimeout(scan, 500);
-        }
-      } catch {
-        setMessage({
-          title: 'Camera unavailable',
-          text: 'Allow camera access or use the product search field.',
-        });
-        setCameraOpen(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-      cameraStreamRef.current?.getTracks().forEach((track) => track.stop());
-      cameraStreamRef.current = null;
-    };
-  }, [cameraOpen]);
   const [discount, setDiscount] = useState(0);
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [overrideTotal, setOverrideTotal] = useState(0);
@@ -513,6 +463,11 @@ export function BookingForm({
       text: `No inventory product matches barcode ${rawValue}.`,
     });
   }
+
+  // A physical USB/Bluetooth barcode scanner "types" the code and an Enter
+  // key anywhere on the page — this catches that even when the product
+  // search box isn't the focused field.
+  useHardwareScannerListener(handleProductScan);
 
   function handleProductSearchInput(value: string) {
     setProductSearch(value);
@@ -1458,16 +1413,27 @@ export function BookingForm({
                             }}
                             placeholder="Search products or barcode…"
                             inputMode="search"
-                            className={`${inputClass} pl-9 pr-12`}
+                            className={`${inputClass} pl-9 pr-20`}
                           />
-                          <button
-                            type="button"
-                            aria-label="Clear product search"
-                            onClick={() => setCameraOpen(true)}
-                            className="absolute right-2 top-1.5 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
-                          >
-                            <Camera className="size-4" />
-                          </button>
+                          <div className="absolute right-2 top-1.5 flex items-center gap-1">
+                            <button
+                              type="button"
+                              aria-label="Add product by barcode"
+                              title="Add"
+                              onClick={() => handleProductScan(productSearch)}
+                              className="grid size-7 place-items-center rounded-md text-primary hover:bg-muted"
+                            >
+                              <Plus className="size-4" />
+                            </button>
+                            <button
+                              type="button"
+                              aria-label="Scan barcode with camera"
+                              onClick={() => setCameraOpen(true)}
+                              className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                            >
+                              <Camera className="size-4" />
+                            </button>
+                          </div>
                         </div>
                         <label>
                           <span className="sr-only">
@@ -1969,7 +1935,7 @@ export function BookingForm({
                             />
                             <button
                               type="button"
-                              aria-label="Clear additional Safa search"
+                              aria-label="Scan barcode with camera"
                               onClick={() => setCameraOpen(true)}
                               className="absolute right-2 top-1.5 grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
                             >
@@ -2894,44 +2860,14 @@ export function BookingForm({
           </Card>
         </div>
       )}
-      {cameraOpen && (
-        <div className="fixed inset-0 z-[60] grid place-items-center bg-black/50 p-4">
-          <Card className="w-full max-w-md">
-            <CardHeader className="flex flex-row items-center justify-between border-b px-5 py-4">
-              <CardTitle className="text-lg">Scan product barcode</CardTitle>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                onClick={() => setCameraOpen(false)}
-              >
-                <X />
-              </Button>
-            </CardHeader>
-            <CardContent className="space-y-4 p-5">
-              <video
-                ref={cameraRef}
-                autoPlay
-                muted
-                playsInline
-                className="aspect-video w-full rounded-xl bg-black object-cover"
-              />
-              <p className="text-center text-sm text-muted-foreground">
-                Point the camera at a product barcode. The scanned code will
-                fill the search field.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={() => setCameraOpen(false)}
-              >
-                Close camera
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <BarcodeScannerModal
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onDetected={(value) => {
+          setCameraOpen(false);
+          handleProductScan(value);
+        }}
+      />
     </div>
   );
 }

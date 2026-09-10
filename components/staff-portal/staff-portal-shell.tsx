@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { DashboardHeaderContext, type PageHeader } from '@/components/layout/dashboard-header-context';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { BrandMark } from '@/components/brand-mark';
@@ -13,6 +14,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet';
+import { ArrowLeft } from 'lucide-react';
 import { staffLogoutAction } from '@/lib/staff-portal/logout-action';
 import { DEPARTMENT_META } from '@/lib/staff-portal/constants';
 import type { StaffDepartmentGrant } from '@/lib/staff-portal/types';
@@ -90,6 +92,7 @@ function SidebarNavigation({
   const isStylistStaff = departments.some(
     (grant) => grant.active && grant.department === 'stylist',
   );
+  const isStylistMain = isMainId && isStylistStaff;
   const seen = new Set<string>();
   const links = isBookingPortal
     ? [
@@ -144,6 +147,19 @@ function SidebarNavigation({
                   icon: PackageCheck,
                 },
               ]
+            : isStylistMain
+              ? [
+                  {
+                    href: '/staff-portal/stylist',
+                    label: 'Stylist dashboard',
+                    icon: LayoutDashboard,
+                  },
+                  {
+                    href: '/staff-portal/stylist/assigned',
+                    label: 'All assigned events',
+                    icon: CalendarDays,
+                  },
+                ]
             : isStylistStaff
               ? [
                   {
@@ -321,8 +337,9 @@ export function StaffPortalShell({
   isMainId?: boolean;
 }) {
   const effectiveModules = accessModules ?? [];
+  const [pageHeader, setPageHeader] = useState<PageHeader>(null);
   return (
-    <div className="min-h-dvh bg-surface">
+    <DashboardHeaderContext.Provider value={setPageHeader}><div className="min-h-dvh bg-surface">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-white dark:bg-card px-4 py-6 dark:bg-card lg:flex">
         <BrandMark className="px-2" />
         <BrandDivider />
@@ -343,8 +360,8 @@ export function StaffPortalShell({
       </aside>
 
       <div className="lg:pl-64">
-        <header className="pointer-events-none sticky top-0 z-20 flex h-16 items-center justify-between border-b border-border/80 bg-white/95 px-4 shadow-[0_1px_0_rgba(98,68,38,0.03)] backdrop-blur dark:bg-card/95 sm:px-6 lg:px-8">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
+        <header className="pointer-events-none sticky top-0 z-20 flex min-h-16 flex-wrap items-center justify-between gap-y-1 border-b border-border/80 bg-white/95 px-4 py-1 shadow-[0_1px_0_rgba(98,68,38,0.03)] backdrop-blur dark:bg-card/95 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
             <Sheet>
               <SheetTrigger
                 aria-label="Open navigation"
@@ -377,11 +394,11 @@ export function StaffPortalShell({
                 </div>
               </SheetContent>
             </Sheet>
-            <div className="min-w-0 flex-1" />
+            {pageHeader ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 pl-12 lg:pl-0"><div className="flex min-w-0 flex-1 basis-[220px] items-center"><Link href={pageHeader.backHref ?? '/staff-portal'} aria-label="Back" className="pointer-events-auto mr-3 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted"><ArrowLeft className="size-4" strokeWidth={3} /></Link><div className="min-w-0"><span className="block truncate text-base font-semibold leading-5">{pageHeader.title}</span><span className="hidden truncate text-[11px] text-muted-foreground sm:block">{pageHeader.subtitle}</span></div></div>{pageHeader.actions ? <div className="pointer-events-auto ml-auto flex shrink-0 items-center gap-1.5 [&_[data-slot=button]]:h-8 [&_[data-slot=button]]:px-3 [&_[data-slot=button]]:text-xs">{pageHeader.actions}</div> : null}</div> : <div className="min-w-0 flex-1" />}
             <Link
               href="/staff-portal/notifications"
               aria-label="Notifications"
-              className="pointer-events-auto absolute right-4 top-1/2 z-50 inline-flex size-9 -translate-y-1/2 items-center justify-center rounded-lg border border-[#dfd3c3] bg-[#fcfaf7] dark:bg-[#241e17] text-[#70481c] shadow-sm transition hover:bg-[#f5ead8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-[#3a2f22] dark:bg-[#241e17] dark:text-[#f0d9ad] dark:hover:bg-[#33291c] sm:right-6 lg:right-8"
+              className="pointer-events-auto relative ml-2 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-[#dfd3c3] bg-[#fcfaf7] text-[#70481c] shadow-sm transition hover:bg-[#f5ead8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:border-[#3a2f22] dark:bg-[#241e17] dark:text-[#f0d9ad] dark:hover:bg-[#33291c]"
             >
               <Bell aria-hidden="true" className="size-4" />
               {notificationCount > 0 ? (
@@ -399,6 +416,6 @@ export function StaffPortalShell({
           {children}
         </main>
       </div>
-    </div>
+    </div></DashboardHeaderContext.Provider>
   );
 }

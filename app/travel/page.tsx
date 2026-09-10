@@ -25,7 +25,7 @@ export default async function TravelPage() {
 
   return <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
     <div className="mx-auto max-w-[1180px] space-y-5">
-      <DashboardHeader title="Travel Manager" subtitle="Confirm tickets for staff selected for rental events" />
+      <DashboardHeader title="Travel Manager" subtitle="Confirm tickets for staff selected for rental events" backHref="/dashboard" />
 
       <div className="grid gap-3 sm:grid-cols-3">
         <Metric icon={<UserRound />} label="Selected staff" value={rows.length} />

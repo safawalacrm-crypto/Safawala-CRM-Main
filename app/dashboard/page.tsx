@@ -17,7 +17,7 @@ import {
   Route,
 } from 'lucide-react';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
-import { CalendarDayGrid, type CalendarBooking } from '@/components/bookings/calendar-day-grid';
+import { CalendarDayGrid, type CalendarBooking, type LockedDate } from '@/components/bookings/calendar-day-grid';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -146,6 +146,15 @@ export default async function DashboardPage() {
     { length: calendarFirst.getDay() + calendarLast.getDate() },
     (_, index) => (index < calendarFirst.getDay() ? null : index - calendarFirst.getDay() + 1),
   );
+  // Locked dates from the Leads Center should show as blocked here too — if the
+  // leads_center migration isn't applied yet this just comes back empty.
+  const { data: calendarLockedRaw } = await supabase
+    .from('lead_locked_dates')
+    .select('id,locked_date,label,notes')
+    .eq('owner_id', auth.user.id)
+    .gte('locked_date', calendarStart)
+    .lte('locked_date', calendarEnd);
+  const calendarLockedDates = (calendarLockedRaw ?? []) as unknown as LockedDate[];
   const jobsToClose = (eventJobs ?? []).filter((row) => {
     const state = row.state as {
       bookingType?: string;
@@ -417,6 +426,7 @@ export default async function DashboardPage() {
               cells={calendarCells}
               bookings={(calendarRows ?? []) as unknown as CalendarBooking[]}
               modificationBookings={[]}
+              lockedDates={calendarLockedDates}
             />
             </CardContent>
           </Card>

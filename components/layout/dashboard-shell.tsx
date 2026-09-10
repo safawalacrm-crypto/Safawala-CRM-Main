@@ -1,10 +1,11 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { ThemeToggle } from '@/components/theme-toggle';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BrandMark } from '@/components/brand-mark';
+import { DashboardHeaderContext, type PageHeader } from '@/components/layout/dashboard-header-context';
+import { AdminNotificationPopover } from '@/components/layout/admin-notification-popover';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
@@ -17,6 +18,7 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import {
   Boxes,
+  ArrowLeft,
   CalendarDays,
   ChevronUp,
   ClipboardList,
@@ -36,6 +38,8 @@ import {
   UsersRound,
   Wrench,
   UserCog,
+  Tag,
+  Truck,
 } from 'lucide-react';
 
 function SidebarNavigation() {
@@ -50,9 +54,11 @@ function SidebarNavigation() {
       { href: '/bookings/calendar', label: 'Calendar', icon: CalendarDays },
       { href: '/quotes', label: 'Quotes', icon: FileText },
       { href: '/modifications', label: 'Modifications', icon: Wrench },
+      { href: '/coupons', label: 'Coupons & Offers', icon: Tag },
     ] },
     { label: 'Customers', links: [
       { href: '/customers', label: 'Customers', icon: ContactRound },
+      { href: '/leads', label: 'Leads', icon: UserCheck },
       { href: '/ledger', label: 'Customer Ledger', icon: Landmark },
     ] },
     { label: 'Operations', links: [
@@ -61,6 +67,7 @@ function SidebarNavigation() {
       { href: '/event-tracking', label: 'Job Tracking', icon: Route },
       { href: '/inventory', label: 'Inventory', icon: Boxes },
       { href: '/packages', label: 'Package Manager', icon: Layers3 },
+      { href: '/vendors', label: 'Vendors', icon: Truck },
     ] },
     { label: 'Team & HR', links: [
       { href: '/performance', label: 'Performance', icon: Trophy },
@@ -156,31 +163,32 @@ function BrandDivider() {
 export function DashboardShell({
   email,
   children,
+  notificationCount = 0,
 }: {
   email: string;
   children: ReactNode;
+  notificationCount?: number;
 }) {
-  const themeRootRef = useRef<HTMLDivElement>(null);
-
-  // Applies the saved theme preference on every mount (hard page loads and
-  // client-side/SPA navigations alike -- each route's page.tsx mounts its
-  // own DashboardShell instance). Runs synchronously before the browser
-  // paints, so there's no visible flash, and since it fires strictly after
-  // hydration commits there's no hydration-mismatch warning either.
-  useLayoutEffect(() => {
-    const root = themeRootRef.current;
-    if (!root) return;
-    try {
-      const stored = localStorage.getItem('safawala-theme');
-      const shouldBeDark = stored
-        ? stored === 'dark'
-        : window.matchMedia('(prefers-color-scheme: dark)').matches;
-      root.classList.toggle('dark', shouldBeDark);
-    } catch {}
-  }, []);
+  const pathname = usePathname();
+  const fallbackHeader = (path: string): PageHeader => {
+    if (path.startsWith('/bookings')) return { title: path === '/bookings' ? 'All bookings' : 'Bookings', subtitle: 'Sales, rentals, payments and events', backHref: path === '/bookings' ? undefined : '/bookings' };
+    if (path.startsWith('/leads')) return { title: 'Leads Center', subtitle: 'Track package enquiries, manage manual leads, and follow up.', backHref: '/dashboard' };
+    if (path.startsWith('/customers')) return { title: 'Customers', subtitle: 'Customer details, booking history and outstanding balances' };
+    if (path.startsWith('/ledger')) return { title: 'Customer Ledger', subtitle: 'Customer-wise billing, receipts and outstanding balances' };
+    if (path.startsWith('/notifications')) return { title: 'Notifications', subtitle: 'Updates about leads, locked dates and your account', backHref: '/dashboard' };
+    if (path.startsWith('/inventory')) return { title: 'Inventory', subtitle: 'Products, pricing, stock and barcodes' };
+    if (path.startsWith('/packages')) return { title: 'Package Manager', subtitle: 'Category-based package system' };
+    if (path.startsWith('/coupons')) return { title: 'Manage Offers', subtitle: 'Create, edit, and manage discount codes for bookings', backHref: '/dashboard' };
+    if (path.startsWith('/vendors')) return { title: 'Vendor Management', subtitle: 'Suppliers, contacts and vendor records for your business', backHref: '/dashboard' };
+    if (path.startsWith('/staff')) return { title: 'Staff', subtitle: 'Manage staff accounts and access' };
+    if (path.startsWith('/settings')) return { title: 'Settings', subtitle: 'Manage your CRM preferences' };
+    return path === '/dashboard' ? { title: 'Booking Dashboard', subtitle: 'Bookings, quotations and jobs waiting for closure' } : null;
+  };
+  const [pageHeader, setPageHeader] = useState<PageHeader>(() => fallbackHeader(pathname));
+  useLayoutEffect(() => setPageHeader(fallbackHeader(pathname)), [pathname]);
 
   return (
-    <div ref={themeRootRef} data-theme-root className="min-h-dvh bg-surface text-foreground">
+    <DashboardHeaderContext.Provider value={setPageHeader}><div className="min-h-dvh bg-surface text-foreground">
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-64 flex-col border-r border-border bg-white dark:bg-card px-4 py-6 dark:bg-card lg:flex">
         <BrandMark className="px-2" />
         <BrandDivider />
@@ -196,12 +204,12 @@ export function DashboardShell({
       </aside>
 
       <div className="lg:pl-64">
-        <header className="pointer-events-none sticky top-0 z-40 flex h-16 items-center justify-between border-b border-transparent bg-transparent px-4 sm:px-6 lg:px-8">
+        <header className="pointer-events-none sticky top-0 z-40 flex min-h-16 flex-wrap items-center justify-between gap-y-1 border-b border-border bg-white px-4 py-1 dark:bg-card sm:px-6 lg:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-3">
             <Sheet>
               <SheetTrigger
                 aria-label="Open navigation"
-                className="pointer-events-auto fixed left-4 top-4 z-40 inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white dark:bg-card text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-card lg:hidden"
+                className="pointer-events-auto fixed left-4 top-3 z-40 inline-flex size-9 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-card lg:hidden"
               >
                 <Menu aria-hidden="true" className="size-5" />
               </SheetTrigger>
@@ -225,14 +233,16 @@ export function DashboardShell({
                 </div>
               </SheetContent>
             </Sheet>
-            <div className="min-w-0 flex-1" />
-          <ThemeToggle className="pointer-events-auto inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-white text-foreground shadow-sm transition hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring dark:bg-card" />
+            {pageHeader ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pl-12 lg:pl-0"><div className="flex min-w-0 flex-1 basis-[220px] items-center">{pageHeader.backHref ? <Link href={pageHeader.backHref} className="pointer-events-auto mr-3 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label="Back"><ArrowLeft aria-hidden="true" className="size-4" strokeWidth={3} /></Link> : null}<span className="min-w-0 align-middle"><span className="block truncate text-base font-semibold leading-5">{pageHeader.title}</span><span className="hidden truncate text-[11px] text-muted-foreground sm:block">{pageHeader.subtitle}</span></span></div>{pageHeader.actions ? <div className="pointer-events-auto ml-auto flex max-w-full flex-wrap items-center justify-end gap-1.5 [&_[data-slot=button]]:h-8 [&_[data-slot=button]]:px-3 [&_[data-slot=button]]:text-xs">{pageHeader.actions}</div> : null}</div> : <div className="min-w-0 flex-1" />}
+          <div className="pointer-events-auto flex items-center gap-2">
+            <AdminNotificationPopover />
+          </div>
           </div>
         </header>
-        <main className="bg-surface px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <main className="bg-surface px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
           {children}
         </main>
       </div>
-    </div>
+    </div></DashboardHeaderContext.Provider>
   );
 }

@@ -243,6 +243,7 @@ export function SettingsPanel({
       <DashboardHeader
         title="Settings"
         subtitle="Manage account access and document numbering"
+        backHref="/dashboard"
       />
 
       {error ? (

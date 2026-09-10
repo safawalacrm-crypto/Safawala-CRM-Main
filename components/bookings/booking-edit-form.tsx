@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import {
   ArrowLeft,
   Box,
+  Camera,
   Check,
   Pencil,
   Plus,
@@ -13,6 +14,7 @@ import {
   ShieldCheck,
   Trash2,
 } from 'lucide-react';
+import { BarcodeScannerModal } from '@/components/bookings/barcode-scanner-modal';
 import { TimeField } from '@/components/bookings/booking-form';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -20,6 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { displayQuoteNumber, money, statusLabel } from '@/lib/bookings';
+import { useHardwareScannerListener } from '@/lib/hooks/use-hardware-scanner';
 import { createClient } from '@/lib/supabase/client';
 
 type BookingItem = {
@@ -242,6 +245,49 @@ export function BookingEditForm({
       .toLowerCase()
       .includes(productSearch.toLowerCase()),
   );
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [productMessage, setProductMessage] = useState('');
+
+  function handleBarcodeSubmit(rawValue: string) {
+    const scanned = rawValue.trim().toLowerCase();
+    if (!scanned) return;
+    const match = products.find(
+      (item) =>
+        item.barcode?.trim().toLowerCase() === scanned ||
+        item.sku?.trim().toLowerCase() === scanned,
+    );
+    if (match) {
+      addProduct(match);
+      setProductSearch('');
+      setProductMessage('');
+      return;
+    }
+    setProductMessage(`No product matches barcode "${rawValue}".`);
+  }
+
+  // A physical USB/Bluetooth barcode scanner "types" the code and an Enter
+  // key anywhere on the page — this catches that even when the product
+  // search box isn't the focused field.
+  useHardwareScannerListener(handleBarcodeSubmit, editableItems);
+
+  function handleProductSearchChange(value: string) {
+    setProductSearch(value);
+    const scanned = value.trim().toLowerCase();
+    if (!scanned) {
+      setProductMessage('');
+      return;
+    }
+    const exact = products.find(
+      (item) =>
+        item.barcode?.trim().toLowerCase() === scanned ||
+        item.sku?.trim().toLowerCase() === scanned,
+    );
+    if (exact) {
+      addProduct(exact);
+      setProductSearch('');
+      setProductMessage('');
+    }
+  }
 
   function updateItem(key: string, patch: Partial<Item>) {
     if (patch.quantity !== undefined) {
@@ -584,11 +630,38 @@ export function BookingEditForm({
                   <Search className="absolute left-3 top-3 size-4 text-muted-foreground" />
                   <input
                     value={productSearch}
-                    onChange={(e) => setProductSearch(e.target.value)}
+                    onChange={(e) => handleProductSearchChange(e.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter') return;
+                      event.preventDefault();
+                      handleBarcodeSubmit(productSearch);
+                    }}
                     placeholder="Search product, barcode or SKU…"
-                    className={`${fieldClass} !mt-0 pl-9`}
+                    className={`${fieldClass} !mt-0 pl-9 pr-20`}
                   />
+                  <div className="absolute right-2 top-1.5 flex items-center gap-1">
+                    <button
+                      type="button"
+                      aria-label="Add product by barcode"
+                      title="Add"
+                      onClick={() => handleBarcodeSubmit(productSearch)}
+                      className="grid size-7 place-items-center rounded-md text-primary hover:bg-muted"
+                    >
+                      <Plus className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      aria-label="Scan barcode with camera"
+                      onClick={() => setCameraOpen(true)}
+                      className="grid size-7 place-items-center rounded-md text-muted-foreground hover:bg-muted"
+                    >
+                      <Camera className="size-4" />
+                    </button>
+                  </div>
                 </div>
+                {productMessage ? (
+                  <p className="text-sm text-destructive">{productMessage}</p>
+                ) : null}
                 {visibleProducts.length ? (
                   <div className="grid max-h-[280px] gap-2 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-3">
                     {visibleProducts.map((product) => (
@@ -871,6 +944,14 @@ export function BookingEditForm({
           </Button>
         </div>
       </form>
+      <BarcodeScannerModal
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onDetected={(value) => {
+          setCameraOpen(false);
+          handleBarcodeSubmit(value);
+        }}
+      />
     </div>
   );
 }

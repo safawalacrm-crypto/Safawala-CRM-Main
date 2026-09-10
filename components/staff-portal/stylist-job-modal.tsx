@@ -17,7 +17,7 @@ import {
 
 export async function StylistJobModal({ jobId }: { jobId: string }) {
   const session = await requireStylistSession();
-  const job = await stylistJobForAccount(jobId, session.id);
+  const job = await stylistJobForAccount(jobId, session.id, session.isMainId);
   if (!job) return null;
   const interest = job.stylistInterests.find(
     (item) => item.stylistAccountId === session.id,
@@ -111,9 +111,13 @@ export async function StylistJobModal({ jobId }: { jobId: string }) {
           <div className="flex items-center justify-between rounded-xl border border-[#e4d2b6] bg-[#fffaf2] p-4">
             <div>
               <p className="font-semibold">
-                {interest ? 'Your response' : 'Available for this event?'}
+                {session.isMainId ? 'Stylist assignment overview' : interest ? 'Your response' : 'Available for this event?'}
               </p>
-              {interest ? (
+              {session.isMainId ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {job.stylistInterests.filter((item) => item.status === 'approved').length} approved of {job.stylistsRequiredCount} required · {interested} interested
+                </p>
+              ) : interest ? (
                 <Badge
                   variant="outline"
                   className="mt-1 border-emerald-200 bg-emerald-50 text-emerald-700"

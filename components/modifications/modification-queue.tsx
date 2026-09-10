@@ -258,6 +258,7 @@ export function ModificationQueue({
       <DashboardHeader
         title="Modifications"
         subtitle="Delivery-first workshop queue for Sale bookings"
+        backHref="/dashboard"
         actions={
           <Button
             size="sm"

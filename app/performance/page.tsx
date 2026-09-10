@@ -33,6 +33,7 @@ export default async function PerformancePage() {
         <DashboardHeader
           title="Performance"
           subtitle="Completed-event counts per participant — credited only once an Event Job is closed"
+          backHref="/dashboard"
         />
 
         <Card className="border-border shadow-level-1">

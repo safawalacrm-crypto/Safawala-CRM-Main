@@ -5,6 +5,7 @@ import Link from 'next/link';
 import {
   Calendar,
   Eye,
+  Lock,
   Pencil,
   Printer,
   Search,
@@ -26,6 +27,13 @@ import { importantWeddingDaysForMonth } from '@/lib/important-wedding-dates';
 export type CalendarBooking = PdfBooking & {
   id: number;
   payment_status: string;
+  notes: string | null;
+};
+
+export type LockedDate = {
+  id: number;
+  locked_date: string;
+  label: string;
   notes: string | null;
 };
 
@@ -100,12 +108,14 @@ export function CalendarDayGrid({
   cells,
   bookings,
   modificationBookings,
+  lockedDates = [],
 }: {
   year: number;
   month: number;
   cells: (number | null)[];
   bookings: CalendarBooking[];
   modificationBookings: CalendarBooking[];
+  lockedDates?: LockedDate[];
 }) {
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
   const [tab, setTab] = useState<'events' | 'mod'>('events');
@@ -138,8 +148,18 @@ export function CalendarDayGrid({
     return map;
   }, [modificationBookings, year, month]);
 
+  const lockedByDay = useMemo(() => {
+    const map = new Map<number, LockedDate[]>();
+    lockedDates.forEach((entry) => {
+      const day = dayOfMonth(entry.locked_date);
+      map.set(day, [...(map.get(day) ?? []), entry]);
+    });
+    return map;
+  }, [lockedDates]);
+
   const dayEvents = selectedDay ? (eventsByDay.get(selectedDay) ?? []) : [];
   const dayMods = selectedDay ? (modsByDay.get(selectedDay) ?? []) : [];
+  const dayLocked = selectedDay ? (lockedByDay.get(selectedDay) ?? []) : [];
   const activeRows = tab === 'events' ? dayEvents : dayMods;
   const filteredRows = search.trim()
     ? activeRows.filter((row) =>
@@ -200,15 +220,21 @@ export function CalendarDayGrid({
           {cells.map((day, index) => {
             const events = day ? (eventsByDay.get(day) ?? []) : [];
             const mods = day ? (modsByDay.get(day) ?? []) : [];
+            const locked = day ? (lockedByDay.get(day) ?? []) : [];
             const isImportant = day !== null && importantDays.includes(day);
+            const isLocked = locked.length > 0;
             const hasDetail =
               day !== null &&
-              (events.length > 0 || mods.length > 0 || isImportant);
+              (events.length > 0 || mods.length > 0 || isImportant || isLocked);
             return (
               <div
                 key={index}
                 className={`min-h-32 border-b border-r p-2 ${
-                  isImportant ? 'bg-[#fff8eb] dark:bg-[#241e17]' : ''
+                  isLocked
+                    ? 'bg-[#fdf0ef] dark:bg-[#2a1c1c]'
+                    : isImportant
+                      ? 'bg-[#fff8eb] dark:bg-[#241e17]'
+                      : ''
                 }`}
               >
                 {hasDetail ? (
@@ -220,7 +246,11 @@ export function CalendarDayGrid({
                       setSearch('');
                     }}
                     className={`rounded px-1 text-xs font-semibold hover:underline ${
-                      isImportant ? 'text-[#9a6124]' : 'text-primary'
+                      isLocked
+                        ? 'text-[#9c2f2a]'
+                        : isImportant
+                          ? 'text-[#9a6124]'
+                          : 'text-primary'
                     }`}
                   >
                     {day}
@@ -230,6 +260,21 @@ export function CalendarDayGrid({
                     {day}
                   </p>
                 )}
+                {isLocked ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedDay(day);
+                      setTab('events');
+                      setSearch('');
+                    }}
+                    className="mt-2 flex w-fit items-center gap-1 rounded-full bg-[#f7d4d2] dark:bg-[#3a2020] px-2 py-1 text-left text-[10px] font-semibold text-[#9c2f2a] transition hover:bg-[#f0b8b4] dark:hover:bg-[#4a2828]"
+                    title={locked.map((l) => l.label).join(', ')}
+                  >
+                    <Lock className="size-3" />
+                    Locked
+                  </button>
+                ) : null}
                 {isImportant ? (
                   <button
                     type="button"
@@ -343,6 +388,25 @@ export function CalendarDayGrid({
                 </span>
               </button>
             </div>
+
+            {dayLocked.length > 0 ? (
+              <div className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-[#f0b8b4] bg-[#fdf0ef] dark:bg-[#2a1c1c] px-4 py-3 text-[#8a2c27]">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-[#c94a42] text-white">
+                  <Lock className="size-4" />
+                </span>
+                <div>
+                  <p className="text-sm font-semibold">
+                    Date locked — {dayLocked.map((l) => l.label).join(', ')}
+                  </p>
+                  <p className="text-xs text-[#a3564f]">
+                    Blocked from the Leads Center. Avoid double-booking this date.
+                    {dayLocked.some((l) => l.notes)
+                      ? ` ${dayLocked.map((l) => l.notes).filter(Boolean).join(' · ')}`
+                      : ''}
+                  </p>
+                </div>
+              </div>
+            ) : null}
 
             {importantDays.includes(selectedDay) ? (
               <div className="mx-5 mt-4 flex items-center gap-3 rounded-xl border border-[#e5c58f] bg-[#fff8eb] dark:bg-[#241e17] px-4 py-3 text-[#71481e]">

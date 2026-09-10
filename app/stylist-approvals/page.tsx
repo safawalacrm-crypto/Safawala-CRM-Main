@@ -30,7 +30,7 @@ export default async function StylistApprovalsPage() {
   return (
     <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <div className="mx-auto max-w-[1180px] space-y-5">
-        <DashboardHeader title="Stylist Approvals" subtitle="Assign interested stylists to rental events" />
+        <DashboardHeader title="Stylist Approvals" subtitle="Assign interested stylists to rental events" backHref="/dashboard" />
         <div className="grid gap-3 sm:grid-cols-3">
           <Summary icon={<CalendarClock />} label="Rental events" value={jobs.length} />
           <Summary icon={<UsersRound />} label="Awaiting decision" value={awaiting} />

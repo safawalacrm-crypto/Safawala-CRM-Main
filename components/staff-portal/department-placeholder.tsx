@@ -13,7 +13,7 @@ export function DepartmentPlaceholder({
 }) {
   return (
     <div className="mx-auto max-w-[1440px] space-y-6">
-      <DashboardHeader title={title} subtitle={subtitle} />
+      <DashboardHeader title={title} subtitle={subtitle} backHref="/staff-portal" />
       <Card className="border-border shadow-level-1">
         <CardContent className="grid min-h-72 place-items-center p-8 text-center">
           <div>
