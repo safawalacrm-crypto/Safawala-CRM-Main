@@ -99,6 +99,11 @@ type Item = {
 const inputClass =
   'h-10 w-full rounded-lg border border-input bg-white dark:bg-card px-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20';
 const uid = () => Math.random().toString(36).slice(2);
+function shiftIsoDate(value: string, days: number) {
+  const date = new Date(`${value}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
 const MODIFICATION_OPTIONS = [
   'Stitching',
   'Standard stitching',
@@ -238,6 +243,54 @@ export function BookingForm({
     text: string;
   } | null>(null);
   const [addedToast, setAddedToast] = useState('');
+  const [inventoryToast, setInventoryToast] = useState('');
+  const [pickupDate, setPickupDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [availabilityByProduct, setAvailabilityByProduct] = useState<
+    Record<number, { totalStock: number; reserved: number; available: number }>
+  >({});
+
+  // Rentals default to a separate handling window around the event. Staff can
+  // still adjust either date for the real warehouse hand-off/return schedule.
+  useEffect(() => {
+    if (!eventDate) return;
+    setPickupDate((current) => current || shiftIsoDate(eventDate, -1));
+    setDueDate((current) => current || shiftIsoDate(eventDate, 1));
+  }, [eventDate]);
+
+  // Whenever the rental window or product list changes, refresh how many
+  // units of each product are actually free (total stock minus whatever
+  // other rental bookings already hold for an overlapping window).
+  useEffect(() => {
+    if (type !== 'rental' || !pickupDate || !dueDate || products.length === 0) {
+      setAvailabilityByProduct({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch('/api/product-availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ownerId,
+            pickupDate,
+            dueDate,
+            productIds: products.map((product) => product.id),
+          }),
+        });
+        const data = await response.json();
+        if (!cancelled && data?.availability) {
+          setAvailabilityByProduct(data.availability);
+        }
+      } catch {
+        // Best-effort: quantity caps fall back to flat stock if this fails.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [type, pickupDate, dueDate, products, ownerId]);
 
   const isSale = type === 'sale';
   const subtotal = useMemo(
@@ -342,11 +395,78 @@ export function BookingForm({
         .includes(additionalSafaSearch.trim().toLowerCase());
     return inBaratiSafa && matchesPackage && matchesSearch;
   });
+  // The real cap for a product: for rentals with both dates chosen, this is
+  // whatever's left after other overlapping rental bookings' reservations
+  // are subtracted from total stock; otherwise it falls back to flat stock.
+  function getAvailableQuantity(product: Product): number {
+    if (type === 'rental' && pickupDate && dueDate) {
+      const info = availabilityByProduct[product.id];
+      if (info) return info.available;
+    }
+    return product.stock_quantity || 999;
+  }
+
+  function availabilityLabel(product: Product): string {
+    if (type === 'rental' && pickupDate && dueDate) {
+      const info = availabilityByProduct[product.id];
+      if (info) return `Available: ${info.available} / ${info.totalStock} in stock`;
+    }
+    return `Stock: ${product.stock_quantity}`;
+  }
+
+  async function warnIfOverCapacity(
+    product: Product,
+    requestedQuantity: number,
+    available: number,
+  ) {
+    if (requestedQuantity <= available) return;
+    const isRentalWindow = Boolean(type === 'rental' && pickupDate && dueDate);
+    setMessage({
+      title: 'Not enough stock for these dates',
+      text: isRentalWindow
+        ? `Only ${available} of "${product.name}" are free from ${pickupDate} to ${dueDate}. Added the maximum available instead.`
+        : `Only ${available} of "${product.name}" are in stock. Added the maximum available instead.`,
+    });
+    if (!isRentalWindow) return;
+    try {
+      const response = await fetch('/api/product-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ownerId,
+          pickupDate,
+          dueDate,
+          productIds: [product.id],
+          checkQuantity: { productId: product.id, quantity: requestedQuantity },
+        }),
+      });
+      const data = await response.json();
+      if (data?.nextAvailable) {
+        setMessage({
+          title: 'Not enough stock for these dates',
+          text: `Only ${available} of "${product.name}" are free from ${pickupDate} to ${dueDate}. ${requestedQuantity} will next be fully available from ${data.nextAvailable.pickupDate} to ${data.nextAvailable.dueDate}.`,
+        });
+      } else if (data && data.nextAvailable === null) {
+        setMessage({
+          title: 'Not enough stock for these dates',
+          text: `Only ${available} of "${product.name}" are free from ${pickupDate} to ${dueDate}, and ${requestedQuantity} won't become available in the next 60 days either. Try a smaller quantity or different dates.`,
+        });
+      }
+    } catch {
+      // Best-effort — the clamp message above already covers the essentials.
+    }
+  }
+
   function addProduct(product: Product, quantity = 1) {
     const requestedQuantity = Math.max(1, Math.floor(quantity));
+    const maxQuantity = getAvailableQuantity(product);
+    const existingItem = items.find((item) => item.product_id === product.id);
+    const totalWanted = (existingItem?.quantity ?? 0) + requestedQuantity;
+    if (totalWanted > maxQuantity) {
+      warnIfOverCapacity(product, totalWanted, maxQuantity);
+    }
     setItems((current) => {
       const existing = current.find((item) => item.product_id === product.id);
-      const maxQuantity = product.stock_quantity || 999;
       if (existing)
         return current.map((item) =>
           item.key === existing.key
@@ -498,6 +618,14 @@ export function BookingForm({
       return;
     }
     setMessage(null);
+    const maxQuantity = getAvailableQuantity(product);
+    const existingItem = items.find(
+      (item) => item.additional_safa && item.product_id === product.id,
+    );
+    const totalWanted = (existingItem?.quantity ?? 0) + quantity;
+    if (totalWanted > maxQuantity) {
+      warnIfOverCapacity(product, totalWanted, maxQuantity);
+    }
     setItems((current) => {
       const existing = current.find(
         (item) => item.additional_safa && item.product_id === product.id,
@@ -505,7 +633,7 @@ export function BookingForm({
       if (existing) {
         return current.map((item) =>
           item.key === existing.key
-            ? { ...item, quantity: item.quantity + quantity }
+            ? { ...item, quantity: Math.min(maxQuantity, item.quantity + quantity) }
             : item,
         );
       }
@@ -516,7 +644,7 @@ export function BookingForm({
           product_id: product.id,
           additional_safa: true,
           item_name: `Additional Safa · ${product.name}`,
-          quantity,
+          quantity: Math.min(maxQuantity, quantity),
           unit_price: Number(selectedRentalPackage.extra_safa_price),
           security_deposit: 0,
         },
@@ -525,6 +653,19 @@ export function BookingForm({
   }
 
   function updateItem(key: string, patch: Partial<Item>) {
+    if (patch.quantity !== undefined) {
+      const current = items.find((row) => row.key === key);
+      const product = current?.product_id
+        ? products.find((row) => row.id === current.product_id)
+        : undefined;
+      if (product) {
+        const stockLimit = getAvailableQuantity(product);
+        const requested = Math.max(1, Math.floor(patch.quantity));
+        if (requested > stockLimit) {
+          warnIfOverCapacity(product, requested, stockLimit);
+        }
+      }
+    }
     setItems((current) =>
       current.map((item) => {
         if (item.key !== key) return item;
@@ -532,9 +673,7 @@ export function BookingForm({
           return { ...item, ...patch };
         }
         const product = products.find((row) => row.id === item.product_id);
-        const stockLimit = product && product.stock_quantity > 0
-          ? product.stock_quantity
-          : 999;
+        const stockLimit = product ? getAvailableQuantity(product) : 999;
         return {
           ...item,
           ...patch,
@@ -566,6 +705,20 @@ export function BookingForm({
       setMessage({
         title: 'Complete the event details',
         text: isSale ? 'Event type and event date are required.' : 'Event type, booking for, event date and venue are required.',
+      });
+      return;
+    }
+    if (!isSale && (!pickupDate || !dueDate)) {
+      setMessage({
+        title: 'Add pickup and due dates',
+        text: 'Pickup date and return due date are required for rental bookings.',
+      });
+      return;
+    }
+    if (!isSale && dueDate < pickupDate) {
+      setMessage({
+        title: 'Check the rental dates',
+        text: 'Return due date cannot be before the pickup date.',
       });
       return;
     }
@@ -714,8 +867,8 @@ export function BookingForm({
       groom_name: isSale ? null : groomName.trim() || null,
       groom_mobile: isSale ? null : groomMobile || null,
       contact_address: contactAddress.trim() || null,
-      pickup_date: type === 'rental' ? form.get('pickup_date') : null,
-      due_date: type === 'rental' ? form.get('due_date') : null,
+      pickup_date: type === 'rental' ? pickupDate : null,
+      due_date: type === 'rental' ? dueDate : null,
       assigned_staff_id: quoteOnly
         ? (quoteCreatorStaffId ?? null)
         : form.get('assigned_staff_id'),
@@ -739,6 +892,40 @@ export function BookingForm({
       });
       setBusy(false);
       return;
+    }
+    // Re-check the complete rental order immediately before saving. The list
+    // can become stale if another booking was confirmed while this form was open.
+    if (!isSale && pickupDate && dueDate) {
+      const productIds = payload.items
+        .map((item) => item.product_id)
+        .filter((id): id is number => typeof id === 'number');
+      if (productIds.length > 0) {
+        try {
+          const availabilityResponse = await fetch('/api/product-availability', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ownerId, pickupDate, dueDate, productIds }),
+          });
+          const availabilityData = await availabilityResponse.json();
+          const unavailableItem = payload.items.find((item) => {
+            if (typeof item.product_id !== 'number') return false;
+            const available = Number(availabilityData?.availability?.[item.product_id]?.available);
+            return Number.isFinite(available) && item.quantity > available;
+          });
+          if (unavailableItem) {
+            const available = availabilityData.availability[unavailableItem.product_id!]?.available ?? 0;
+            setMessage({
+              title: 'Product is no longer available',
+              text: `Only ${available} unit(s) of "${unavailableItem.item_name}" are free from ${pickupDate} to ${dueDate}. Please reduce the quantity or choose different dates.`,
+            });
+            setBusy(false);
+            return;
+          }
+        } catch {
+          // The database booking procedure remains authoritative if this
+          // best-effort freshness check cannot reach the availability endpoint.
+        }
+      }
     }
     // RLS requires newly-created inventory rows to belong to the authenticated
     // user. The booking RPC applies its own caller ownership separately.
@@ -1053,6 +1240,37 @@ export function BookingForm({
                         required
                       />
                     </label>
+                    {!isSale && (
+                      <>
+                        <label className="block text-sm">
+                          <span className="mb-1.5 block text-muted-foreground">
+                            Pickup date <span className="text-red-600">*</span>
+                          </span>
+                          <input
+                            name="pickup_date"
+                            type="date"
+                            value={pickupDate}
+                            onChange={(event) => setPickupDate(event.target.value)}
+                            className={inputClass}
+                            required
+                          />
+                        </label>
+                        <label className="block text-sm">
+                          <span className="mb-1.5 block text-muted-foreground">
+                            Return due date <span className="text-red-600">*</span>
+                          </span>
+                          <input
+                            name="due_date"
+                            type="date"
+                            value={dueDate}
+                            min={pickupDate || undefined}
+                            onChange={(event) => setDueDate(event.target.value)}
+                            className={inputClass}
+                            required
+                          />
+                        </label>
+                      </>
+                    )}
                     <TimeField label="Event time" name="event_time" />
                     {!isSale && <label className="block pt-1 text-sm sm:col-span-2">
                       <span className="mb-1.5 flex items-center gap-1.5 text-muted-foreground">
@@ -1176,18 +1394,16 @@ export function BookingForm({
                         : `${visibleRentalPackages.length} packages`}
                     </Badge>
                   </div>
-                  {(isSale || rentalSelectionMode === 'individual') && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="w-full justify-center sm:w-72"
-                      onClick={() => setCustomProductOpen(true)}
-                    >
-                      <Plus />
-                      Quick custom product
-                    </Button>
-                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-center sm:w-72"
+                    onClick={() => setCustomProductOpen(true)}
+                  >
+                    <Plus />
+                    Quick custom product
+                  </Button>
                 </CardHeader>
                 <CardContent className="space-y-4 p-4">
                   {!isSale ? (
@@ -1331,7 +1547,7 @@ export function BookingForm({
                                   {isSale ? 'Sale price' : 'Rental price'}
                                 </span>
                                 <span className="text-[11px] text-muted-foreground">
-                                  Stock: {product.stock_quantity}
+                                  {availabilityLabel(product)}
                                 </span>
                                 <strong className="col-span-2 text-lg leading-5 text-foreground">
                                   {money(isSale ? product.sale_price : product.rental_price)}
@@ -1358,7 +1574,7 @@ export function BookingForm({
                                 <input
                                   type="number"
                                   min="1"
-                                  max={product.stock_quantity || undefined}
+                                  max={getAvailableQuantity(product) || undefined}
                                   value={catalogQuantities[product.id] ?? 1}
                                   onChange={(event) =>
                                     setCatalogQuantities((q) => ({
@@ -1366,7 +1582,7 @@ export function BookingForm({
                                       [product.id]: Math.max(
                                         1,
                                         Math.min(
-                                          product.stock_quantity || 999,
+                                          getAvailableQuantity(product),
                                           Number(event.target.value) || 1,
                                         ),
                                       ),
@@ -1384,7 +1600,7 @@ export function BookingForm({
                                     setCatalogQuantities((q) => ({
                                       ...q,
                                       [product.id]: Math.min(
-                                        product.stock_quantity || 999,
+                                        getAvailableQuantity(product),
                                         (q[product.id] ?? 1) + 1,
                                       ),
                                     }))
@@ -1612,7 +1828,7 @@ export function BookingForm({
                                         Rental price
                                       </span>
                                       <span className="text-xs text-muted-foreground">
-                                        Stock: {product.stock_quantity}
+                                        {availabilityLabel(product)}
                                       </span>
                                       <strong className="col-span-2 text-lg leading-5">
                                         {money(product.rental_price)}
@@ -1640,7 +1856,7 @@ export function BookingForm({
                                         type="number"
                                         min="1"
                                         max={
-                                          product.stock_quantity || undefined
+                                          getAvailableQuantity(product) || undefined
                                         }
                                         value={quantity}
                                         onChange={(event) =>
@@ -1649,7 +1865,7 @@ export function BookingForm({
                                             [product.id]: Math.max(
                                               1,
                                               Math.min(
-                                                product.stock_quantity || 999,
+                                                getAvailableQuantity(product),
                                                 Number(event.target.value) || 1,
                                               ),
                                             ),
@@ -1667,7 +1883,7 @@ export function BookingForm({
                                           setCatalogQuantities((current) => ({
                                             ...current,
                                             [product.id]: Math.min(
-                                              product.stock_quantity || 999,
+                                              getAvailableQuantity(product),
                                               quantity + 1,
                                             ),
                                           }))
@@ -1829,7 +2045,7 @@ export function BookingForm({
                                       Rental price
                                     </span>
                                     <span className="text-xs text-muted-foreground">
-                                      Stock: {product.stock_quantity}
+                                      {availabilityLabel(product)}
                                     </span>
                                     <strong className="col-span-2 text-lg leading-5 text-foreground">
                                       {money(product.rental_price)}
@@ -1857,7 +2073,7 @@ export function BookingForm({
                                     <input
                                       type="number"
                                       min="1"
-                                      max={product.stock_quantity || undefined}
+                                      max={getAvailableQuantity(product) || undefined}
                                       value={quantity}
                                       onChange={(event) => {
                                         event.stopPropagation();
@@ -1866,7 +2082,7 @@ export function BookingForm({
                                           [product.id]: Math.max(
                                             1,
                                             Math.min(
-                                              product.stock_quantity || 999,
+                                              getAvailableQuantity(product),
                                               Number(event.target.value) || 1,
                                             ),
                                           ),
@@ -1888,7 +2104,7 @@ export function BookingForm({
                                         setCatalogQuantities((current) => ({
                                           ...current,
                                           [product.id]: Math.min(
-                                            product.stock_quantity || 999,
+                                            getAvailableQuantity(product),
                                             quantity + 1,
                                           ),
                                         }));
@@ -2020,7 +2236,14 @@ export function BookingForm({
                                   min="1"
                                   max={
                                     item.product_id
-                                      ? products.find((product) => product.id === item.product_id)?.stock_quantity || undefined
+                                      ? (() => {
+                                          const product = products.find(
+                                            (row) => row.id === item.product_id,
+                                          );
+                                          return product
+                                            ? getAvailableQuantity(product) || undefined
+                                            : undefined;
+                                        })()
                                       : undefined
                                   }
                                   value={item.quantity}
@@ -2154,6 +2377,18 @@ export function BookingForm({
                     value={`${formatReviewDate(eventDate)}${eventTime ? ` · ${formatReviewTime(eventTime)}` : ''}`}
                   />
                   {!isSale && (
+                    <>
+                      <ReviewDetail
+                        label="Pickup date"
+                        value={formatReviewDate(pickupDate)}
+                      />
+                      <ReviewDetail
+                        label="Return due date"
+                        value={formatReviewDate(dueDate)}
+                      />
+                    </>
+                  )}
+                  {!isSale && (
                     <div className="sm:col-span-2 lg:col-span-4">
                       <ReviewDetail label="Venue" value={venue || 'Not added'} />
                     </div>
@@ -2183,12 +2418,6 @@ export function BookingForm({
                 </CardContent>
               </Card>
 
-              {!isSale && (
-                <>
-                  <input type="hidden" name="pickup_date" value={eventDate} />
-                  <input type="hidden" name="due_date" value={eventDate} />
-                </>
-              )}
 
               {isSale && (
                 <Card className="gap-0 border-border py-0 shadow-none ring-0">
@@ -2500,6 +2729,15 @@ export function BookingForm({
           {addedToast}
         </div>
       )}
+      {inventoryToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-20 left-1/2 z-[70] -translate-x-1/2 rounded-lg border border-[#dec39b] bg-[#fffdf9] px-3 py-2 text-xs font-medium text-primary shadow-[0_8px_24px_rgb(47_37_27_/.16)] dark:bg-[#241e17]"
+        >
+          {inventoryToast}
+        </div>
+      )}
       {customProductOpen && (
         <div className="fixed inset-0 z-50 grid place-items-center bg-black/35 p-4">
           <Card className="w-full max-w-md shadow-level-3">
@@ -2519,61 +2757,51 @@ export function BookingForm({
                 className="space-y-3"
                 onSubmit={async (event) => {
                   event.preventDefault();
+                  // Capture the form element before the first `await`: React (and
+                  // the DOM spec) clear a SyntheticEvent's `currentTarget` once the
+                  // synchronous dispatch phase ends, so reading `event.currentTarget`
+                  // after an `await` returns null. Using it directly below used to
+                  // throw "Cannot read properties of null (reading 'reset')" on every
+                  // *successful* save -- right after the product was already created,
+                  // added to the order and the modal closed -- which made a real
+                  // success look like a failure because the throw was caught by the
+                  // catch block below and overwrote the UI with an error message.
+                  const formEl = event.currentTarget;
                   setCustomProductBusy(true);
-                  const form = new FormData(event.currentTarget);
-                  const supabase = createClient();
-                  const imageFile = form.get('image') as File | null;
-                  let imageUrls: string[] = [];
-                  if (imageFile && imageFile.size > 0) {
-                    const path = `${ownerId}/${Date.now()}-${imageFile.name.replace(/[^a-zA-Z0-9._-]/g, '-')}`;
-                    const upload = await supabase.storage
-                      .from('product-images')
-                      .upload(path, imageFile, { upsert: false });
-                    if (upload.error) {
-                      setCustomProductBusy(false);
+                  try {
+                    const form = new FormData(formEl);
+                    // Staff sessions belong to the business owner, so persist the
+                    // product under the same owner as the catalog being displayed.
+                    form.set('ownerId', ownerId);
+                    const response = await fetch('/api/booking-products', {
+                      method: 'POST',
+                      body: form,
+                    });
+                    const result = await response.json().catch(() => ({}));
+                    if (!response.ok || !result.product) {
                       setMessage({
-                        title: 'Image was not uploaded',
-                        text: upload.error.message,
+                        title: 'Product was not saved',
+                        text: result.error ?? `Save failed (HTTP ${response.status}). Please try again.`,
                       });
                       return;
                     }
-                    const { data: publicFile } = supabase.storage
-                      .from('product-images')
-                      .getPublicUrl(path);
-                    imageUrls = publicFile.publicUrl
-                      ? [publicFile.publicUrl]
-                      : [];
-                  }
-                  const response = await fetch('/api/booking-products', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      ownerId,
-                      name: String(form.get('name') ?? ''),
-                      sku: String(form.get('sku') ?? ''),
-                      category: String(form.get('category') ?? ''),
-                      sale_price: Number(form.get('sale_price') || 0),
-                      rental_price: Number(form.get('rental_price') || 0),
-                      stock_quantity: Number(form.get('stock_quantity') || 0),
-                      image_urls: imageUrls,
-                    }),
-                  });
-                  const result = await response.json().catch(() => ({}));
-                  setCustomProductBusy(false);
-                  if (!response.ok || !result.product) {
+                    // Close the dialog as soon as the server confirms the row.
+                    // Adding it to local order state happens in the same render,
+                    // so the new product is already selected when the dialog disappears.
+                    setCustomProductOpen(false);
+                    setMessage(null);
+                    addProduct(result.product as Product);
+                    setInventoryToast(`${result.product.name} added to inventory`);
+                    window.setTimeout(() => setInventoryToast(''), 2600);
+                    formEl.reset();
+                  } catch (error) {
                     setMessage({
                       title: 'Product was not saved',
-                      text: result.error ?? 'Please try again.',
+                      text: error instanceof Error ? error.message : 'Please check your connection and try again.',
                     });
-                    return;
+                  } finally {
+                    setCustomProductBusy(false);
                   }
-                  // Close the dialog as soon as the server confirms the row.
-                  // Adding it to local order state happens in the same render,
-                  // so the new product is already selected when the dialog disappears.
-                  setCustomProductOpen(false);
-                  setMessage(null);
-                  addProduct(result.product as Product);
-                  event.currentTarget.reset();
                 }}
               >
                 <label className="block text-sm">

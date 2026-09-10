@@ -47,6 +47,7 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
   const qcStage = job.stages.find((stage) => stage.key === 'quality_check');
   const packingStage = job.stages.find((stage) => stage.key === 'packing');
   const returnQcStage = job.stages.find((stage) => stage.key === 'return_quality_check');
+  const warehousePickStage = job.stages.find((stage) => stage.key === 'warehouse_pick');
   if (!qcStage || !packingStage || !returnQcStage) notFound();
 
   const qcOpen = qcStage.status === 'open' || qcStage.status === 'in_progress';
@@ -111,6 +112,13 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
     itemName: item.itemName,
     returnedQuantity: item.returnedQuantity ?? 0,
   }));
+  const qcSentBackToWarehouse =
+    Boolean(job.qualityCheck) &&
+    qcStage.status === 'not_started' &&
+    warehousePickStage?.status !== 'done';
+  const qcRejectedItemsCount = (job.qualityCheck?.items ?? []).filter(
+    (item) => (item.goodQuantity ?? 0) < (item.checkedQuantity ?? 0),
+  ).length;
 
   return (
     <StaffPortalShell
@@ -145,8 +153,8 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
         </section>
 
         <div className="grid grid-cols-2 gap-2 rounded-xl border bg-white dark:bg-card p-2 shadow-level-1">
-          <div className={`rounded-lg px-3 py-2.5 text-center text-sm font-medium ${job.qualityCheck ? 'bg-emerald-50 text-emerald-700' : qcOpen ? 'bg-[#a86f2c] text-white' : 'bg-muted text-muted-foreground'}`}>
-            {job.qualityCheck ? '✓ QC passed' : 'Quality check'}
+          <div className={`rounded-lg px-3 py-2.5 text-center text-sm font-medium ${qcSentBackToWarehouse ? 'bg-amber-100 text-amber-900' : job.qualityCheck ? 'bg-emerald-50 text-emerald-700' : qcOpen ? 'bg-[#a86f2c] text-white' : 'bg-muted text-muted-foreground'}`}>
+            {qcSentBackToWarehouse ? '↩ Sent to Warehouse' : job.qualityCheck ? '✓ QC passed' : 'Quality check'}
           </div>
           <div className={`rounded-lg px-3 py-2.5 text-center text-sm font-medium ${job.packingChecklist ? 'bg-emerald-50 text-emerald-700' : packingOpen ? 'bg-[#a86f2c] text-white' : 'bg-muted text-muted-foreground'}`}>
             {job.packingChecklist ? '✓ Packed' : 'Packing'}
@@ -156,12 +164,24 @@ export default async function QcJobDetailPage({ params }: { params: Promise<{ jo
         <JobTracker stages={job.stages} />
 
         {job.qualityCheck ? (
-          <section className="rounded-2xl border border-emerald-200 bg-white dark:bg-card p-5 shadow-level-1">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h2 className="font-semibold text-emerald-800">Quality check completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.qualityCheck.completedBy} on {friendlyDate(job.qualityCheck.completedAt ?? '')}</p></div>
-              <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{packedItems.length} passed</Badge>
-            </div>
-          </section>
+          qcSentBackToWarehouse ? (
+            <section className="rounded-2xl border border-amber-300 bg-amber-50 p-5 shadow-level-1">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h2 className="font-semibold text-amber-900">Sent back to Warehouse</h2>
+                  <p className="mt-1 text-sm text-amber-800">Checked by {job.qualityCheck.completedBy} on {friendlyDate(job.qualityCheck.completedAt ?? '')} — flagged for correction, now with Warehouse.</p>
+                </div>
+                <Badge variant="outline" className="border-amber-300 bg-amber-100 text-amber-900">{qcRejectedItemsCount} flagged</Badge>
+              </div>
+            </section>
+          ) : (
+            <section className="rounded-2xl border border-emerald-200 bg-white dark:bg-card p-5 shadow-level-1">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h2 className="font-semibold text-emerald-800">Quality check completed</h2><p className="mt-1 text-sm text-muted-foreground">Completed by {job.qualityCheck.completedBy} on {friendlyDate(job.qualityCheck.completedAt ?? '')}</p></div>
+                <Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700">{packedItems.length} passed</Badge>
+              </div>
+            </section>
+          )
         ) : qcOpen ? <QualityCheckForm jobId={job.id} items={qcItems} /> : null}
 
         {job.qualityCheck && !job.packingChecklist && packingOpen ? <PackingChecklistForm jobId={job.id} details={slipDetails} items={packedItems} /> : null}

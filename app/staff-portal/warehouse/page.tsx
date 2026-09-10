@@ -148,6 +148,15 @@ export default async function StaffWarehousePage({
                           (returnStage.status === 'open' ||
                             returnStage.status === 'in_progress'),
                         );
+                        const warehousePickStage = job.stages.find(
+                          (stage) => stage.key === 'warehouse_pick',
+                        );
+                        const hasRejection =
+                          !isReturn &&
+                          warehousePickStage?.status !== 'done' &&
+                          (job.qualityCheck?.items ?? []).some(
+                            (item) => (item.goodQuantity ?? 0) < (item.checkedQuantity ?? 0),
+                          );
                         return (
                           <li key={job.id}>
                             <Link
@@ -165,13 +174,19 @@ export default async function StaffWarehousePage({
                                   </strong>
                                   <Badge
                                     variant="outline"
-                                    className="border-[#e4d2b6] bg-white dark:bg-card text-[#70481c]"
+                                    className={
+                                      hasRejection
+                                        ? 'border-amber-300 bg-amber-100 text-amber-900'
+                                        : 'border-[#e4d2b6] bg-white dark:bg-card text-[#70481c]'
+                                    }
                                   >
                                     {isReturn
                                       ? 'Return'
-                                      : view === 'closed'
-                                        ? 'Completed'
-                                        : 'Picking'}
+                                      : hasRejection
+                                        ? 'Repick needed'
+                                        : view === 'closed'
+                                          ? 'Completed'
+                                          : 'Picking'}
                                   </Badge>
                                 </span>
                                 <span className="mt-1 block truncate text-sm text-muted-foreground">

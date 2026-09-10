@@ -41,12 +41,21 @@ export default async function StaffQcPage({
         ) &&
         (stage.status === 'open' || stage.status === 'in_progress'),
     );
+  // A job QC rejected is handed back to Warehouse for correction — it should
+  // disappear from QC's queues entirely (not linger under "Closed" looking
+  // finished) until Warehouse re-picks and reopens Quality Check.
+  const isAwaitingRepick = (job: (typeof rentalJobs)[number]) => {
+    const qcStageStatus = job.stages.find((stage) => stage.key === 'quality_check')?.status;
+    const warehouseStageStatus = job.stages.find((stage) => stage.key === 'warehouse_pick')?.status;
+    return Boolean(job.qualityCheck) && qcStageStatus === 'not_started' && warehouseStageStatus !== 'done';
+  };
   const openJobs = rentalJobs.filter(
     (job) => job.status === 'active' && hasOpenQcStage(job),
   );
   const closedJobs = rentalJobs.filter(
     (job) =>
       !hasOpenQcStage(job) &&
+      !isAwaitingRepick(job) &&
       Boolean(
         job.qualityCheck || job.packingChecklist || job.returnQualityCheck,
       ),

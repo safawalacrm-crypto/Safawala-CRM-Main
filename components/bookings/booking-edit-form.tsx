@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -104,6 +104,7 @@ export function BookingEditForm({
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
   const isSale = booking.booking_type === 'sale';
   const editableItems = booking.paid_amount === 0;
   const isQuote = booking.is_quote && booking.status === 'draft';
@@ -111,6 +112,102 @@ export function BookingEditForm({
   const documentNumber = booking.is_quote
     ? displayQuoteNumber(booking.booking_number, booking.booking_type)
     : booking.booking_number;
+
+  const [pickupDate, setPickupDate] = useState(booking.pickup_date ?? '');
+  const [dueDate, setDueDate] = useState(booking.due_date ?? '');
+  const [availabilityByProduct, setAvailabilityByProduct] = useState<
+    Record<number, { totalStock: number; reserved: number; available: number }>
+  >({});
+
+  // Refresh how many units of each product are free for the chosen rental
+  // window, counting every OTHER rental booking's overlapping reservation
+  // (this booking's own items are excluded so editing it doesn't self-block).
+  useEffect(() => {
+    if (isSale || !editableItems || !pickupDate || !dueDate || products.length === 0) {
+      setAvailabilityByProduct({});
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const response = await fetch('/api/product-availability', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            pickupDate,
+            dueDate,
+            productIds: products.map((product) => product.id),
+            excludeBookingId: booking.id,
+          }),
+        });
+        const data = await response.json();
+        if (!cancelled && data?.availability) {
+          setAvailabilityByProduct(data.availability);
+        }
+      } catch {
+        // Best-effort: quantity caps fall back to flat stock if this fails.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isSale, editableItems, pickupDate, dueDate, products, booking.id]);
+
+  function getAvailableQuantity(product: Product): number {
+    if (!isSale && pickupDate && dueDate) {
+      const info = availabilityByProduct[product.id];
+      if (info) return info.available;
+    }
+    return product.stock_quantity || 999;
+  }
+
+  function availabilityLabel(product: Product): string {
+    if (!isSale && pickupDate && dueDate) {
+      const info = availabilityByProduct[product.id];
+      if (info) return `Available: ${info.available} / ${info.totalStock} in stock`;
+    }
+    return `${product.stock_quantity} in stock`;
+  }
+
+  async function warnIfOverCapacity(
+    product: Product,
+    requestedQuantity: number,
+    available: number,
+  ) {
+    if (requestedQuantity <= available) return;
+    const isRentalWindow = !isSale && Boolean(pickupDate && dueDate);
+    setNotice(
+      isRentalWindow
+        ? `Only ${available} of "${product.name}" are free from ${pickupDate} to ${dueDate}. Using the maximum available instead.`
+        : `Only ${available} of "${product.name}" are in stock. Using the maximum available instead.`,
+    );
+    if (!isRentalWindow) return;
+    try {
+      const response = await fetch('/api/product-availability', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          pickupDate,
+          dueDate,
+          productIds: [product.id],
+          excludeBookingId: booking.id,
+          checkQuantity: { productId: product.id, quantity: requestedQuantity },
+        }),
+      });
+      const data = await response.json();
+      if (data?.nextAvailable) {
+        setNotice(
+          `Only ${available} of "${product.name}" are free from ${pickupDate} to ${dueDate}. ${requestedQuantity} will next be fully available from ${data.nextAvailable.pickupDate} to ${data.nextAvailable.dueDate}.`,
+        );
+      } else if (data && data.nextAvailable === null) {
+        setNotice(
+          `Only ${available} of "${product.name}" are free from ${pickupDate} to ${dueDate}, and ${requestedQuantity} won't become available in the next 60 days either.`,
+        );
+      }
+    } catch {
+      // Best-effort — the clamp notice above already covers the essentials.
+    }
+  }
 
   const [items, setItems] = useState<Item[]>(() =>
     booking.booking_items.map((row) => ({
@@ -147,17 +244,50 @@ export function BookingEditForm({
   );
 
   function updateItem(key: string, patch: Partial<Item>) {
+    if (patch.quantity !== undefined) {
+      const current = items.find((row) => row.key === key);
+      const product = current?.product_id
+        ? products.find((row) => row.id === current.product_id)
+        : undefined;
+      if (product) {
+        const stockLimit = getAvailableQuantity(product);
+        const requested = Math.max(1, Math.floor(patch.quantity));
+        if (requested > stockLimit) {
+          warnIfOverCapacity(product, requested, stockLimit);
+        }
+      }
+    }
     setItems((current) =>
-      current.map((item) => (item.key === key ? { ...item, ...patch } : item)),
+      current.map((item) => {
+        if (item.key !== key) return item;
+        if (patch.quantity === undefined || !item.product_id) {
+          return { ...item, ...patch };
+        }
+        const product = products.find((row) => row.id === item.product_id);
+        const stockLimit = product ? getAvailableQuantity(product) : 999;
+        return {
+          ...item,
+          ...patch,
+          quantity: Math.min(stockLimit, Math.max(1, Math.floor(patch.quantity))),
+        };
+      }),
     );
   }
   function addProduct(product: Product) {
+    const maxQuantity = getAvailableQuantity(product);
+    const existingItem = items.find((item) => item.product_id === product.id);
+    const totalWanted = (existingItem?.quantity ?? 0) + 1;
+    if (totalWanted > maxQuantity) {
+      warnIfOverCapacity(product, totalWanted, maxQuantity);
+    } else {
+      setNotice('');
+    }
     setItems((current) => {
       const existing = current.find((item) => item.product_id === product.id);
       if (existing)
         return current.map((item) =>
           item.key === existing.key
-            ? { ...item, quantity: item.quantity + 1 }
+            ? { ...item, quantity: Math.min(maxQuantity, item.quantity + 1) }
             : item,
         );
       return [
@@ -166,7 +296,7 @@ export function BookingEditForm({
           key: uid(),
           product_id: product.id,
           item_name: product.name,
-          quantity: 1,
+          quantity: Math.min(maxQuantity, 1),
           unit_price: Number(
             isSale ? product.sale_price : product.rental_price,
           ),
@@ -383,20 +513,27 @@ export function BookingEditForm({
                   pattern="[0-9]{10}"
                   maxLength={10}
                 />
-                <Input
-                  label="Pickup date"
-                  name="pickup_date"
-                  type="date"
-                  defaultValue={booking.pickup_date ?? ''}
-                  required
-                />
-                <Input
-                  label="Return due date"
-                  name="due_date"
-                  type="date"
-                  defaultValue={booking.due_date ?? ''}
-                  required
-                />
+                <Field label="Pickup date" required>
+                  <input
+                    name="pickup_date"
+                    type="date"
+                    value={pickupDate}
+                    onChange={(event) => setPickupDate(event.target.value)}
+                    className={fieldClass}
+                    required
+                  />
+                </Field>
+                <Field label="Return due date" required>
+                  <input
+                    name="due_date"
+                    type="date"
+                    value={dueDate}
+                    min={pickupDate || undefined}
+                    onChange={(event) => setDueDate(event.target.value)}
+                    className={fieldClass}
+                    required
+                  />
+                </Field>
               </>
             ) : null}
             <label className="block text-sm sm:col-span-2">
@@ -466,7 +603,7 @@ export function BookingEditForm({
                             {product.name}
                           </span>
                           <span className="text-xs text-muted-foreground">
-                            {product.stock_quantity} in stock
+                            {availabilityLabel(product)}
                           </span>
                         </span>
                         <strong className="shrink-0 text-sm text-foreground">
@@ -550,6 +687,18 @@ export function BookingEditForm({
                               <input
                                 type="number"
                                 min="1"
+                                max={
+                                  item.product_id
+                                    ? (() => {
+                                        const product = products.find(
+                                          (row) => row.id === item.product_id,
+                                        );
+                                        return product
+                                          ? getAvailableQuantity(product) || undefined
+                                          : undefined;
+                                      })()
+                                    : undefined
+                                }
                                 value={item.quantity}
                                 onChange={(e) =>
                                   updateItem(item.key, {
@@ -695,6 +844,13 @@ export function BookingEditForm({
           </Alert>
         )}
 
+        {notice ? (
+          <Alert className="border-[#e4d2b6] bg-[#fcfaf7] dark:bg-[#241e17] text-[#6e471f]">
+            <ShieldCheck className="size-4" />
+            <AlertTitle>Not enough stock for these dates</AlertTitle>
+            <AlertDescription>{notice}</AlertDescription>
+          </Alert>
+        ) : null}
         {error ? (
           <Alert variant="destructive">
             <AlertTitle>Booking was not updated</AlertTitle>

@@ -170,6 +170,12 @@ export type StylistTravelPlan = {
   accommodation: StylistAccommodation | null;
   ticketConfirmedAt?: string | null;
   ticketConfirmedBy?: string | null;
+  // Storage path (in the private 'stylist-tickets' bucket) and original file
+  // name for the ticket document an admin uploaded. Null until an admin
+  // actually uploads a file -- ticketConfirmedAt alone can also be set by the
+  // older "confirmed & sent on WhatsApp" flow with no file attached.
+  ticketFilePath?: string | null;
+  ticketFileName?: string | null;
   updatedAt: string;
   updatedBy: string;
 };

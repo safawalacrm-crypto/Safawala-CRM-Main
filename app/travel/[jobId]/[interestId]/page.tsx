@@ -1,15 +1,18 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, CalendarClock, CheckCircle2, MapPin, MessageCircle, Phone, UserRound } from 'lucide-react';
-import { confirmTicketSentAction } from '@/app/travel/actions';
+import { ArrowLeft, CalendarClock, CheckCircle2, FileText, MapPin, MessageCircle, Phone, Upload, UserRound } from 'lucide-react';
+import { confirmTicketSentAction, uploadTicketAction } from '@/app/travel/actions';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { getJob } from '@/lib/event-jobs/store';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+
+const TICKET_BUCKET = 'stylist-tickets';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,6 +40,17 @@ export default async function TravelPlanPage({
     .select('name,phone,login_id')
     .eq('user_id', interest.stylistAccountId)
     .maybeSingle();
+
+  // The bucket is private, so the only way to view an uploaded ticket is a
+  // short-lived signed URL generated with the service-role client -- never a
+  // public link. 30 minutes is plenty for an admin to open and check it.
+  let ticketSignedUrl: string | null = null;
+  if (plan?.ticketFilePath) {
+    const { data: signed } = await admin.storage
+      .from(TICKET_BUCKET)
+      .createSignedUrl(plan.ticketFilePath, 1800);
+    ticketSignedUrl = signed?.signedUrl ?? null;
+  }
 
   return (
     <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
@@ -76,9 +90,55 @@ export default async function TravelPlanPage({
         </div>
 
         <Card className="border-[#dfc6a4] bg-[#fcfaf7] dark:bg-[#241e17] shadow-level-1">
-          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
-            <div className="flex items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f5ead8] dark:bg-[#33291c] text-primary"><MessageCircle className="size-5" /></span><div><p className="font-semibold">Ticket confirmation</p><p className="mt-1 max-w-xl text-sm text-muted-foreground">After sending the ticket to {selectedStaff?.name ?? interest.stylistName} on WhatsApp, confirm it here. Only this selected staff account receives the notification.</p></div></div>
-            {plan?.ticketConfirmedAt ? <div className="text-left sm:text-right"><Badge variant="outline" className="border-emerald-200 bg-emerald-50 text-emerald-700"><CheckCircle2 /> Confirmed & sent</Badge><p className="mt-1 text-xs text-muted-foreground">{friendlyDate(plan.ticketConfirmedAt)}</p></div> : <form action={confirmTicketSentAction}><input type="hidden" name="jobId" value={job.id} /><input type="hidden" name="interestId" value={interest.id} /><Button type="submit" className="w-full sm:w-auto"><MessageCircle /> Ticket confirmed & sent on WhatsApp</Button></form>}
+          <CardContent className="space-y-4 p-5 sm:p-6">
+            <div className="flex items-start gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#f5ead8] dark:bg-[#33291c] text-primary"><Upload className="size-5" /></span>
+              <div>
+                <p className="font-semibold">Ticket upload</p>
+                <p className="mt-1 max-w-xl text-sm text-muted-foreground">Upload the travel ticket for {selectedStaff?.name ?? interest.stylistName}. As soon as it&apos;s uploaded, only this selected staff account is notified in the Stylist Portal and can open it.</p>
+              </div>
+            </div>
+
+            {plan?.ticketConfirmedAt ? (
+              <div className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2 text-sm text-emerald-700">
+                  <CheckCircle2 className="size-4 shrink-0" />
+                  <span>{plan.ticketFileName ? <>Ticket <span className="font-medium">&quot;{plan.ticketFileName}&quot;</span> uploaded — stylist notified.</> : 'Confirmed & sent on WhatsApp (no file attached).'}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-emerald-700/80">{friendlyDate(plan.ticketConfirmedAt)}</p>
+                  {ticketSignedUrl ? (
+                    <a href={ticketSignedUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-700 underline underline-offset-2 hover:text-emerald-800">
+                      <FileText className="size-4" /> View ticket
+                    </a>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
+
+            <form action={uploadTicketAction} encType="multipart/form-data" className="flex flex-col gap-3 rounded-xl border border-border bg-white dark:bg-card p-4 sm:flex-row sm:items-end">
+              <input type="hidden" name="jobId" value={job.id} />
+              <input type="hidden" name="interestId" value={interest.id} />
+              <label className="block flex-1 text-sm">
+                {plan?.ticketFilePath ? 'Replace ticket file (PDF, JPG, PNG or WEBP)' : 'Ticket file (PDF, JPG, PNG or WEBP)'}
+                <Input type="file" name="ticket" accept="application/pdf,image/png,image/jpeg,image/webp" required className="mt-1" />
+              </label>
+              <Button type="submit" className="sm:shrink-0">
+                <Upload /> {plan?.ticketFilePath ? 'Upload new ticket' : 'Upload ticket & notify stylist'}
+              </Button>
+            </form>
+
+            {!plan?.ticketConfirmedAt ? (
+              <div className="border-t border-border pt-3">
+                <form action={confirmTicketSentAction}>
+                  <input type="hidden" name="jobId" value={job.id} />
+                  <input type="hidden" name="interestId" value={interest.id} />
+                  <Button type="submit" variant="outline" size="sm">
+                    <MessageCircle /> Or just confirm it was sent on WhatsApp (no file)
+                  </Button>
+                </form>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
       </div>

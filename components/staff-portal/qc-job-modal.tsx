@@ -33,6 +33,9 @@ export async function QcJobModal({
   const returnStage = job.stages.find(
     (stage) => stage.key === 'return_quality_check',
   );
+  const warehousePickStage = job.stages.find(
+    (stage) => stage.key === 'warehouse_pick',
+  );
   if (!qcStage || !packingStage || !returnStage) return null;
   const admin = createAdminClient();
   const { data } = await admin
@@ -90,6 +93,13 @@ export async function QcJobModal({
     itemName: item.itemName,
     returnedQuantity: item.returnedQuantity ?? 0,
   }));
+  const qcSentBackToWarehouse =
+    Boolean(job.qualityCheck) &&
+    qcStage.status === 'not_started' &&
+    warehousePickStage?.status !== 'done';
+  const qcRejectedItemsCount = (job.qualityCheck?.items ?? []).filter(
+    (item) => (item.goodQuantity ?? 0) < (item.checkedQuantity ?? 0),
+  ).length;
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-3 sm:p-6"
@@ -169,9 +179,9 @@ export async function QcJobModal({
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2 rounded-xl border bg-white dark:bg-card p-2">
             <div
-              className={`rounded-lg px-3 py-2.5 text-center text-sm font-medium ${job.qualityCheck ? 'bg-emerald-50 text-emerald-700' : qcOpen ? 'bg-[#a86f2c] text-white' : 'bg-muted text-muted-foreground'}`}
+              className={`rounded-lg px-3 py-2.5 text-center text-sm font-medium ${qcSentBackToWarehouse ? 'bg-amber-100 text-amber-900' : job.qualityCheck ? 'bg-emerald-50 text-emerald-700' : qcOpen ? 'bg-[#a86f2c] text-white' : 'bg-muted text-muted-foreground'}`}
             >
-              {job.qualityCheck ? '✓ QC passed' : 'Quality check'}
+              {qcSentBackToWarehouse ? '↩ Sent to Warehouse' : job.qualityCheck ? '✓ QC passed' : 'Quality check'}
             </div>
             <div
               className={`rounded-lg px-3 py-2.5 text-center text-sm font-medium ${job.packingChecklist ? 'bg-emerald-50 text-emerald-700' : packingOpen ? 'bg-[#a86f2c] text-white' : 'bg-muted text-muted-foreground'}`}
@@ -180,15 +190,32 @@ export async function QcJobModal({
             </div>
           </div>
           {job.qualityCheck ? (
-            <section className="mt-4 rounded-xl border border-emerald-200 bg-white dark:bg-card p-4">
-              <h3 className="font-semibold text-emerald-800">
-                Quality check completed
-              </h3>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Completed by {job.qualityCheck.completedBy} on{' '}
-                {friendlyDate(job.qualityCheck.completedAt ?? '')}
-              </p>
-            </section>
+            qcSentBackToWarehouse ? (
+              <section className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-semibold text-amber-900">
+                    Sent back to Warehouse
+                  </h3>
+                  <Badge variant="outline" className="border-amber-300 bg-amber-100 text-amber-900">
+                    {qcRejectedItemsCount} flagged
+                  </Badge>
+                </div>
+                <p className="mt-1 text-sm text-amber-800">
+                  Checked by {job.qualityCheck.completedBy} on{' '}
+                  {friendlyDate(job.qualityCheck.completedAt ?? '')} — flagged for correction, now with Warehouse.
+                </p>
+              </section>
+            ) : (
+              <section className="mt-4 rounded-xl border border-emerald-200 bg-white dark:bg-card p-4">
+                <h3 className="font-semibold text-emerald-800">
+                  Quality check completed
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Completed by {job.qualityCheck.completedBy} on{' '}
+                  {friendlyDate(job.qualityCheck.completedAt ?? '')}
+                </p>
+              </section>
+            )
           ) : qcOpen ? (
             <div className="mt-4">
               <QualityCheckForm jobId={job.id} items={qcItems} />

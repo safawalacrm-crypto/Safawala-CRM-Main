@@ -5,6 +5,7 @@ import {
 } from '@/components/inventory/inventory-directory';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { createClient } from '@/lib/supabase/server';
+import { getUpcomingReservations } from '@/lib/inventory-availability';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,16 +17,23 @@ export default async function InventoryPage() {
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
 
-  const { data, error } = await supabase
-    .from('products')
-    .select(inventoryFields)
-    .order('created_at', { ascending: false });
+  const [{ data, error }, reservations] = await Promise.all([
+    supabase
+      .from('products')
+      .select(inventoryFields)
+      .order('created_at', { ascending: false }),
+    getUpcomingReservations({
+      ownerId: auth.user.id,
+      fromDate: new Date().toISOString().slice(0, 10),
+    }).catch(() => []),
+  ]);
 
   return (
     <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <InventoryDirectory
         initialProducts={(data ?? []) as InventoryProduct[]}
         loadError={error?.message ?? ''}
+        reservations={reservations}
       />
     </BookingPortalShell>
   );

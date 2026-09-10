@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ArrowLeft, CalendarClock, CheckCircle2, MapPin } from 'lucide-react';
+import { ArrowLeft, CalendarClock, CheckCircle2, FileText, MapPin } from 'lucide-react';
 import { requireStylistSession } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
@@ -9,11 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { assignedJobsForStylist } from '@/lib/event-jobs/store';
 import { unreadCountForSession } from '@/lib/notifications/store';
+import { createAdminClient } from '@/lib/supabase/admin';
 import type { ExecutionAction } from '@/lib/event-jobs/store';
 import type { StylistExecutionStatus } from '@/lib/event-jobs/types';
 import { recordExecutionAction } from '@/app/staff-portal/stylist/execution-actions';
 
 export const dynamic = 'force-dynamic';
+
+const TICKET_BUCKET = 'stylist-tickets';
 
 const NEXT_ACTION: Record<StylistExecutionStatus, { action: ExecutionAction; label: string } | null> = {
   not_started: { action: 'reached_venue', label: 'Reached Venue' },
@@ -34,6 +37,28 @@ export default async function StylistAssignedEventsPage() {
   const jobs = await assignedJobsForStylist(session.id);
   const activeDepartments = session.departments.filter((grant) => grant.active).map((grant) => grant.department);
   const notificationCount = await unreadCountForSession(session.id, activeDepartments);
+
+  // Signed URLs for any uploaded ticket documents, keyed by interestId. The
+  // bucket is private, so this is the only way a stylist ever sees the file --
+  // there's no public link, and it's scoped to exactly the assignments shown
+  // on this page (i.e. this stylist's own approved events).
+  const admin = createAdminClient();
+  const ticketUrlByInterestId = new Map<string, string>();
+  await Promise.all(
+    jobs.flatMap((job) => {
+      const interest = job.stylistInterests.find((entry) => entry.stylistAccountId === session.id);
+      const plan = job.travelPlans.find((entry) => entry.interestId === interest?.id);
+      if (!plan?.ticketFilePath || !interest) return [];
+      return [
+        admin.storage
+          .from(TICKET_BUCKET)
+          .createSignedUrl(plan.ticketFilePath, 1800)
+          .then(({ data }) => {
+            if (data?.signedUrl) ticketUrlByInterestId.set(interest.id, data.signedUrl);
+          }),
+      ];
+    }),
+  );
 
   return (
     <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} accessModules={session.accessModules} isMainId={session.isMainId} notificationCount={notificationCount}>
@@ -80,8 +105,23 @@ export default async function StylistAssignedEventsPage() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     {plan?.ticketConfirmedAt ? (
-                      <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-                        <CheckCircle2 className="size-4" /> Your ticket is confirmed and has been sent to you on WhatsApp.
+                      <div className="flex flex-col gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700 sm:flex-row sm:items-center sm:justify-between">
+                        <span className="flex items-center gap-2">
+                          <CheckCircle2 className="size-4 shrink-0" />
+                          {plan.ticketFileName
+                            ? 'Your travel ticket has been uploaded.'
+                            : 'Your ticket is confirmed and has been sent to you on WhatsApp.'}
+                        </span>
+                        {interest && ticketUrlByInterestId.get(interest.id) ? (
+                          <a
+                            href={ticketUrlByInterestId.get(interest.id)}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 font-medium underline underline-offset-2 hover:text-emerald-800"
+                          >
+                            <FileText className="size-4" /> View / download ticket
+                          </a>
+                        ) : null}
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">
@@ -98,7 +138,7 @@ export default async function StylistAssignedEventsPage() {
                             status === 'work_completed'
                               ? 'mt-1 border-emerald-200 bg-emerald-50 text-emerald-700'
                               : status === 'not_started'
-                                ? 'mt-1 border-stone-200 bg-stone-50 text-stone-600'
+                                ? 'mt-1 border-stone-200 bg-stone-50 text-stone-600 dark:border-border dark:bg-muted dark:text-muted-foreground'
                                 : 'mt-1 border-amber-200 bg-amber-50 text-amber-800'
                           }
                         >

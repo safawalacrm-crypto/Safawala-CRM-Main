@@ -12,6 +12,21 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(new URL('/login', request.url));
     return response;
   }
+  // API routes authenticate and authorize themselves (see app/api/*/route.ts,
+  // which calls supabase.auth.getUser() directly) and must never be redirected
+  // like a page: a staff account hitting a path with no mapped access module
+  // (accessModuleForPath returns null for every /api/* path, since that map only
+  // covers human-facing pages) would otherwise be redirected to /staff-portal by
+  // the staff-module gate below. Redirects preserve the method for a POST, so the
+  // browser replays the request as POST /staff-portal, which isn't a route built to
+  // accept POST bodies and crashes with an opaque framework 500 -- exactly the
+  // "Save failed (HTTP 500)" a staff account hit from the Quick custom product
+  // dialog, even though the same request works fine for an admin/Main ID account
+  // (admins skip the staff-module gate entirely). Returning early here also skips
+  // the profile/staff-account/RPC lookups below on every API call.
+  if (path.startsWith('/api/')) {
+    return response;
+  }
   const supabase = createServerClient(supabaseConfig.url, supabaseConfig.key, {
     cookies: {
       getAll: () => request.cookies.getAll(),

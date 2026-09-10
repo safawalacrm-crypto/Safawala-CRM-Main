@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { X, CalendarDays, MapPin, UserRound } from 'lucide-react';
+import { X, AlertTriangle, CalendarDays, MapPin, UserRound } from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
 import { Badge } from '@/components/ui/badge';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
@@ -33,6 +33,14 @@ type BookingContext = {
 function firstRelation<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
 }
+
+const QC_ISSUE_LABEL: Record<string, string> = {
+  stain: 'Stain',
+  tear: 'Tear',
+  missing_part: 'Missing part',
+  other: 'Other',
+  none: 'Issue',
+};
 
 export async function WarehouseJobModal({
   jobId,
@@ -83,6 +91,9 @@ export async function WarehouseJobModal({
   const isOpen = stage.status === 'open' || stage.status === 'in_progress';
   const returnIsOpen =
     returnStage.status === 'open' || returnStage.status === 'in_progress';
+  const qcRejectedItems = (job.qualityCheck?.items ?? []).filter(
+    (item) => (item.goodQuantity ?? 0) < (item.checkedQuantity ?? 0),
+  );
   const returnItems = (job.returnQualityCheck?.items ?? []).map((item) => {
     const collected = job.collectionCheck?.items.find(
       (entry) => entry.itemName === item.itemName,
@@ -179,7 +190,7 @@ export async function WarehouseJobModal({
             <JobTracker stages={job.stages} />
           </div>
 
-          {job.warehousePrep ? (
+          {job.warehousePrep && stage.status === 'done' ? (
             <section className="mt-4 rounded-xl border border-emerald-200 bg-white dark:bg-card p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -227,7 +238,36 @@ export async function WarehouseJobModal({
               </ul>
             </section>
           ) : isOpen ? (
-            <div className="mt-4">
+            <div className="mt-4 space-y-4">
+              {qcRejectedItems.length ? (
+                <section className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="size-5 text-amber-700" />
+                    <h3 className="font-semibold text-amber-900">
+                      Sent back by Quality Check
+                    </h3>
+                  </div>
+                  <p className="mt-1 text-sm text-amber-800">
+                    Quality Check flagged {qcRejectedItems.length} item
+                    {qcRejectedItems.length === 1 ? '' : 's'}. Correct these before sending back to QC.
+                  </p>
+                  <ul className="mt-3 divide-y divide-amber-200 overflow-hidden rounded-lg border border-amber-200 bg-white/70">
+                    {qcRejectedItems.map((item) => (
+                      <li key={item.itemName} className="px-3 py-2.5 text-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <strong className="font-medium text-amber-900">{item.itemName}</strong>
+                          <Badge variant="outline" className="border-amber-300 bg-amber-100 text-amber-900">
+                            {QC_ISSUE_LABEL[item.issueType] ?? 'Issue'}
+                          </Badge>
+                        </div>
+                        {item.remarks ? (
+                          <p className="mt-1 text-xs text-amber-700">{item.remarks}</p>
+                        ) : null}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ) : null}
               <WarehousePrepForm
                 jobId={job.id}
                 items={items}

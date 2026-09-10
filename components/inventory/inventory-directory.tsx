@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ChangeEvent, type SyntheticEvent } from 'react';
+import { useMemo, useState, type ChangeEvent, type SyntheticEvent } from 'react';
 import Image from 'next/image';
 import {
   AlertTriangle,
@@ -37,6 +37,17 @@ import {
 } from '@/lib/inventory-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
+import type { ProductReservation } from '@/lib/inventory-availability';
+
+function shortDate(value: string) {
+  const [year, month, day] = value.split('-');
+  const monthNames = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  const index = Number(month) - 1;
+  return `${Number(day)} ${monthNames[index] ?? month}${year ? ` '${year.slice(2)}` : ''}`;
+}
 
 export type InventoryProduct = {
   id: number;
@@ -166,11 +177,20 @@ function draftFromProduct(product: InventoryProduct): Draft {
 export function InventoryDirectory({
   initialProducts,
   loadError,
+  reservations = [],
 }: {
   initialProducts: InventoryProduct[];
   loadError: string;
+  reservations?: ProductReservation[];
 }) {
   const [products, setProducts] = useState(initialProducts);
+  const reservationsByProduct = useMemo(() => {
+    const map: Record<number, ProductReservation[]> = {};
+    for (const reservation of reservations) {
+      (map[reservation.productId] ??= []).push(reservation);
+    }
+    return map;
+  }, [reservations]);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
   const [subcategory, setSubcategory] = useState('all');
@@ -528,6 +548,7 @@ export function InventoryDirectory({
             <ProductCard
               key={product.id}
               product={product}
+              reservations={reservationsByProduct[product.id] ?? []}
               onEdit={() => openEditProduct(product)}
             />
           ))}
@@ -606,22 +627,31 @@ function Metric({
 
 function ProductCard({
   product,
+  reservations = [],
   onEdit,
 }: {
   product: InventoryProduct;
+  reservations?: ProductReservation[];
   onEdit: () => void;
 }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const reservedToday = reservations
+    .filter((reservation) => reservation.pickupDate <= today && reservation.dueDate >= today)
+    .reduce((sum, reservation) => sum + reservation.quantity, 0);
+  const availableToday = Math.max(product.stock_quantity - reservedToday, 0);
   const low =
     product.stock_quantity > 0 &&
     product.stock_quantity <= product.reorder_level;
   const status =
     product.stock_quantity === 0
       ? 'Out of stock'
-      : low
-        ? 'Low stock'
-        : 'In stock';
+      : availableToday === 0
+        ? 'Booked out'
+        : low
+          ? 'Low stock'
+          : 'In stock';
   const statusClass =
-    product.stock_quantity === 0
+    product.stock_quantity === 0 || availableToday === 0
       ? 'border-red-200 bg-red-50 text-red-700'
       : low
         ? 'border-amber-200 bg-amber-50 text-amber-700'
@@ -685,6 +715,24 @@ function ProductCard({
             {money(Number(product.sale_price) * product.stock_quantity)}
           </strong>
         </div>
+        {reservations.length > 0 && (
+          <div className="space-y-1.5 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs dark:border-amber-900/40 dark:bg-amber-950/20">
+            <p className="font-semibold text-amber-800 dark:text-amber-400">
+              {availableToday} of {product.stock_quantity} free right now
+            </p>
+            <ul className="space-y-1 text-amber-700 dark:text-amber-500">
+              {reservations.slice(0, 3).map((reservation, index) => (
+                <li key={`${reservation.bookingNumber}-${index}`} className="truncate">
+                  {shortDate(reservation.pickupDate)} – {shortDate(reservation.dueDate)} ·
+                  {' '}Qty {reservation.quantity} · {reservation.bookingNumber}
+                </li>
+              ))}
+              {reservations.length > 3 && (
+                <li>+{reservations.length - 3} more booking(s)</li>
+              )}
+            </ul>
+          </div>
+        )}
         <div className="flex items-center gap-2 rounded-lg bg-[#f7f4ef] dark:bg-[#241e17] px-3 py-2 font-mono text-xs text-[#70481c]">
           <Barcode className="size-4 shrink-0" />
           <span className="truncate">

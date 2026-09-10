@@ -59,6 +59,8 @@ function normalizeJob(job: EventJob): EventJob {
       ...plan,
       ticketConfirmedAt: plan.ticketConfirmedAt ?? null,
       ticketConfirmedBy: plan.ticketConfirmedBy ?? null,
+      ticketFilePath: plan.ticketFilePath ?? null,
+      ticketFileName: plan.ticketFileName ?? null,
     })),
     stylistExecutions: job.stylistExecutions ?? [],
     collectionCheck: job.collectionCheck ?? null,
@@ -80,7 +82,7 @@ function normalizeJob(job: EventJob): EventJob {
   };
 }
 
-async function readAll(id?: string): Promise<EventJob[]> {
+async function readAllRaw(id?: string): Promise<EventJob[]> {
   const supabase = await createClient();
   const query = supabase.from('event_jobs').select('state');
   const { data, error } = id
@@ -94,7 +96,120 @@ async function readAll(id?: string): Promise<EventJob[]> {
   return jobs;
 }
 
+// Self-healing pass: an `event_jobs` row is created the instant a booking is
+// confirmed by a database trigger (open_event_job() in the Supabase
+// migrations), but that trigger only ever inserts the bare row -- it never
+// builds the JSON `state` column, which is the ONLY place bookingType,
+// eventSummary (including customerName), requiredItems etc. actually live.
+// That JSON was previously only ever filled in by syncEventJobs(), which only
+// ran when someone opened the "Event Jobs" page -- so a job nobody had opened
+// that page for yet showed up everywhere else (Stylist Portal included) with
+// a blank "Customer not added" and no real event data. Running this before
+// every job read means a job is fully populated the moment it exists, with no
+// dependency on which page anyone visits first.
+async function syncMissingJobs(): Promise<void> {
+  const admin = createAdminClient();
+  const { data: rows, error } = await admin
+    .from('event_jobs')
+    .select('booking_id,status,state');
+  if (error) throw new Error(error.message);
+  const missingBookingIds = (rows ?? [])
+    .filter((row) => {
+      const state = row.state as EventJob | null;
+      // Truly never-synced: the trigger-created row still has its default
+      // '{}' state, with no id at all. Safe to build from scratch -- there is
+      // no history to lose. IMPORTANT: a row that has an id but somehow fails
+      // the stricter Array.isArray(stages) check is deliberately treated as
+      // "not eligible" here rather than "missing" -- syncEventJobs() would
+      // otherwise treat it as brand new and silently OVERWRITE a real job's
+      // stages/travelPlans/status with a freshly-initialized one. That
+      // shape should never come up in practice, but must never be
+      // auto-"healed" by recreating the job from the current booking alone.
+      const hasId = Boolean(state?.id);
+      if (!hasId) return true;
+      const looksValid = Array.isArray(state?.stages);
+      return looksValid && !state?.eventSummary?.customerName;
+    })
+    .map((row) => Number(row.booking_id));
+  if (!missingBookingIds.length) return;
+
+  type MissingBookingRow = {
+    id: number;
+    booking_number: string;
+    booking_type: string;
+    status: string;
+    event_name: string;
+    event_date: string;
+    event_time: string | null;
+    event_location: string | null;
+    customers: { name: string; phone: string } | null;
+    total: number;
+    paid_amount: number;
+    balance_amount: number;
+    security_deposit: number;
+    payment_status: string;
+  };
+
+  const { data: bookingsRaw, error: bookingError } = await admin
+    .from('bookings')
+    .select(
+      'id,booking_number,booking_type,status,event_name,event_date,event_time,event_location,customers(name,phone),total,paid_amount,balance_amount,security_deposit,payment_status',
+    )
+    .in('id', missingBookingIds);
+  if (bookingError) throw new Error(bookingError.message);
+  const bookings = (bookingsRaw ?? []) as unknown as MissingBookingRow[];
+  if (!bookings.length) return;
+  const bookingIds = bookings.map((booking) => booking.id);
+
+  const { data: itemsRaw } = await admin
+    .from('booking_items')
+    .select('booking_id,item_name,quantity')
+    .in('booking_id', bookingIds);
+  const itemsByBookingId = new Map<
+    number,
+    { itemName: string; quantity: number }[]
+  >();
+  for (const item of (itemsRaw ?? []) as {
+    booking_id: number;
+    item_name: string;
+    quantity: number;
+  }[]) {
+    const list = itemsByBookingId.get(item.booking_id) ?? [];
+    list.push({ itemName: item.item_name, quantity: item.quantity });
+    itemsByBookingId.set(item.booking_id, list);
+  }
+
+  const summaries: ConfirmedBookingSummary[] = bookings.map((booking) => ({
+    bookingId: booking.id,
+    bookingNumber: booking.booking_number,
+    bookingType: booking.booking_type,
+    status: booking.status,
+    customerName: booking.customers?.name ?? null,
+    customerPhone: booking.customers?.phone ?? null,
+    eventName: booking.event_name,
+    eventDate: booking.event_date,
+    eventTime: booking.event_time,
+    eventLocation: booking.event_location,
+    items: itemsByBookingId.get(booking.id) ?? [],
+    payment: {
+      totalAmount: booking.total,
+      amountReceived: booking.paid_amount,
+      pendingBalance: booking.balance_amount,
+      depositAmount: booking.security_deposit,
+      paymentStatus: booking.payment_status,
+    },
+  }));
+
+  await syncEventJobs(summaries);
+}
+
+async function readAll(id?: string): Promise<EventJob[]> {
+  await syncMissingJobs();
+  return readAllRaw(id);
+}
+
 async function readAllForStylistWorkflow(jobId?: string): Promise<EventJob[]> {
+  await syncMissingJobs();
   const admin = createAdminClient();
   const jobQuery = admin.from('event_jobs').select('state');
   const interestQuery = admin
@@ -454,6 +569,7 @@ export const listJobs = cache(async (): Promise<EventJob[]> => {
 });
 
 export const listActiveJobs = cache(async (): Promise<EventJob[]> => {
+  await syncMissingJobs();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('event_jobs')
@@ -468,6 +584,7 @@ export const listActiveJobs = cache(async (): Promise<EventJob[]> => {
 });
 
 export const getJob = cache(async (id: string): Promise<EventJob | null> => {
+  await syncMissingJobs();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('event_jobs')
@@ -481,6 +598,7 @@ export const getJob = cache(async (id: string): Promise<EventJob | null> => {
 
 export const getJobByBookingId = cache(
   async (bookingId: number): Promise<EventJob | null> => {
+    await syncMissingJobs();
     const supabase = await createClient();
     const { data, error } = await supabase
       .from('event_jobs')
@@ -504,8 +622,28 @@ export const getJobByBookingId = cache(
 export async function syncEventJobs(
   bookings: ConfirmedBookingSummary[],
 ): Promise<EventJob[]> {
-  const jobs = await readAll();
+  const jobs = await readAllRaw();
   const byBookingId = new Map(jobs.map((job) => [job.bookingId, job] as const));
+
+  // Guards against a rare but serious failure mode: if an event_jobs row
+  // already exists for a booking but its `state` JSON doesn't parse as a
+  // valid EventJob (missing id, or stages isn't an array), readAllRaw()
+  // above quietly filters that row out -- which would otherwise make the
+  // loop below believe no job exists yet for this booking and create a
+  // brand new one, silently overwriting whatever real history that row
+  // held (stages, travelPlans, closed status, etc). Checking which
+  // booking_ids already have an event_jobs row at all -- regardless of
+  // whether its state currently parses -- lets the loop below leave those
+  // alone instead of destroying them.
+  const admin = createAdminClient();
+  const { data: rawRows, error: rawError } = await admin
+    .from('event_jobs')
+    .select('booking_id');
+  if (rawError) throw new Error(rawError.message);
+  const existingRawBookingIds = new Set(
+    (rawRows ?? []).map((row) => Number(row.booking_id)),
+  );
+
   const now = new Date().toISOString();
   const changedJobs: EventJob[] = [];
 
@@ -559,7 +697,33 @@ export async function syncEventJobs(
           updatedAt: now,
         };
         changedJobs.push(jobs[index]);
+      } else if (
+        !existing.eventSummary.customerName &&
+        eventSummary.customerName
+      ) {
+        // A closed/non-active job is otherwise left alone (its stages,
+        // payment snapshot etc. are historical and shouldn't drift), but a
+        // blank customer name is purely a display bug -- fill in just that
+        // one field so old jobs stop showing "Customer not added" forever.
+        const index = jobs.findIndex((job) => job.id === existing.id);
+        jobs[index] = {
+          ...jobs[index],
+          eventSummary: {
+            ...jobs[index].eventSummary,
+            customerName: eventSummary.customerName,
+            customerPhone: eventSummary.customerPhone,
+          },
+          updatedAt: now,
+        };
+        changedJobs.push(jobs[index]);
       }
+      continue;
+    }
+
+    if (existingRawBookingIds.has(booking.bookingId)) {
+      // A row exists for this booking but its state didn't parse cleanly
+      // above -- do not treat that as "no job yet" and recreate one. Leave
+      // it untouched; this needs a human look, not an automatic rewrite.
       continue;
     }
 
@@ -1512,6 +1676,12 @@ export async function confirmStylistTicketSent(
   jobId: string,
   interestId: string,
   confirmedBy: string,
+  // When set, an admin has actually uploaded a ticket document (see
+  // uploadTicketAction in app/travel/actions.ts) -- otherwise this is the
+  // older manual "I sent it on WhatsApp" confirmation with no file attached.
+  // A new upload always re-notifies (even if a ticket was already confirmed
+  // before), since it means there's a new document for the stylist to see.
+  ticketFile?: { path: string; name: string },
 ): Promise<TravelPlanResult> {
   const jobs = await readAll(jobId);
   const index = jobs.findIndex((job) => job.id === jobId);
@@ -1532,7 +1702,7 @@ export async function confirmStylistTicketSent(
   const existingPlan = job.travelPlans.find(
     (plan) => plan.interestId === interestId,
   );
-  if (existingPlan?.ticketConfirmedAt) return { job };
+  if (existingPlan?.ticketConfirmedAt && !ticketFile) return { job };
 
   const now = new Date().toISOString();
   const plan = {
@@ -1543,6 +1713,8 @@ export async function confirmStylistTicketSent(
     accommodation: existingPlan?.accommodation ?? null,
     ticketConfirmedAt: now,
     ticketConfirmedBy: confirmedBy,
+    ticketFilePath: ticketFile?.path ?? existingPlan?.ticketFilePath ?? null,
+    ticketFileName: ticketFile?.name ?? existingPlan?.ticketFileName ?? null,
     updatedAt: now,
     updatedBy: confirmedBy,
   };
@@ -1560,7 +1732,9 @@ export async function confirmStylistTicketSent(
         confirmedBy,
         'admin',
         'stylist_ticket_confirmed',
-        `Ticket confirmed and sent on WhatsApp to ${interest.stylistName}.`,
+        ticketFile
+          ? `Ticket "${ticketFile.name}" uploaded and sent to ${interest.stylistName}.`
+          : `Ticket confirmed and sent on WhatsApp to ${interest.stylistName}.`,
       ),
       ...job.activity,
     ],
@@ -1570,7 +1744,9 @@ export async function confirmStylistTicketSent(
   await notifyAccount(
     job.id,
     interest.stylistAccountId,
-    `Your ticket for ${job.eventSummary.eventName} (${job.id}) is confirmed and has been sent to you on WhatsApp.`,
+    ticketFile
+      ? `You're selected for ${job.eventSummary.eventName} (${job.id}). Your travel ticket has been uploaded — open Travel & Tickets in your portal to view it.`
+      : `Your ticket for ${job.eventSummary.eventName} (${job.id}) is confirmed and has been sent to you on WhatsApp.`,
   );
   return { job: updated };
 }
