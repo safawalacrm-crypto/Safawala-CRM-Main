@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, type SyntheticEvent } from 'react';
+import { useActionState, useState } from 'react';
+import { login, type LoginState } from '@/app/login/actions';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { createClient } from '@/lib/supabase/client';
 import {
   AlertCircle,
-  CheckCircle2,
   Eye,
   EyeOff,
   LoaderCircle,
@@ -19,77 +18,19 @@ export function LoginForm({ configured }: { configured: boolean }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [showHelp, setShowHelp] = useState(false);
-
-  async function handleSubmit(event: SyntheticEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setError('');
-    setSuccess('');
-
-    if (!EMAIL_PATTERN.test(email)) {
-      setError('Enter a valid email address.');
-      return;
-    }
-    if (!password) {
-      setError('Enter your password.');
-      return;
-    }
-    if (!configured) {
-      setError(
-        'Authentication is not configured yet. Add the Supabase public environment variables to continue.',
-      );
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const supabase = createClient();
-      const { data, error: authError } = await supabase.auth.signInWithPassword(
-        { email, password },
-      );
-      if (authError) {
-        setError('The email or password is incorrect. Please try again.');
-        return;
-      }
-      if (!data.user || !data.session) {
-        setError(
-          'We could not create a secure login session. Please try again.',
-        );
-        return;
-      }
-      setSuccess('Login successful. Opening your dashboard…');
-      await new Promise((resolve) => setTimeout(resolve, 350));
-      window.location.assign('/dashboard');
-    } catch (authError) {
-      if (process.env.NODE_ENV === 'development')
-        console.error('Safawala CRM sign-in failed', authError);
-      setError('We could not connect to the login service. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const [state, formAction, pending] = useActionState<LoginState, FormData>(
+    login,
+    { error: '' },
+  );
+  const error = state.error;
 
   return (
-    <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
+    <form className="mt-8 space-y-5" action={formAction} noValidate>
       {error && (
         <Alert variant="destructive" className="px-3 py-3" aria-live="polite">
           <AlertCircle aria-hidden="true" />
           <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
-      {success && (
-        <Alert
-          className="border-[#b9dfcf] bg-[#eff9f4] dark:bg-[#241e17] px-3 py-3 text-[#246b50]"
-          aria-live="polite"
-        >
-          <CheckCircle2 aria-hidden="true" />
-          <AlertDescription className="text-[#246b50]">
-            {success}
-          </AlertDescription>
         </Alert>
       )}
 
@@ -160,15 +101,11 @@ export function LoginForm({ configured }: { configured: boolean }) {
 
       <Button
         type="submit"
-        disabled={loading || Boolean(success) || !configured}
+        disabled={pending || !configured}
         className="h-11 w-full rounded-md"
         aria-describedby={!configured ? 'setup-note' : undefined}
       >
-        {success ? (
-          <>
-            <CheckCircle2 aria-hidden="true" /> Login successful
-          </>
-        ) : loading ? (
+        {pending ? (
           <>
             <LoaderCircle aria-hidden="true" className="animate-spin" /> Signing
             in...

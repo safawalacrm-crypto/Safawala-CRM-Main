@@ -27,6 +27,14 @@ export async function updateSession(request: NextRequest) {
   if (path.startsWith('/api/')) {
     return response;
   }
+  // Public login pages must stay completely unauthenticated. Calling
+  // getUser()/RPCs here for an anonymous request adds a slow network round trip
+  // before the form can render and can race the browser sign-in request on a
+  // fresh local session. The login actions perform the real authentication;
+  // protected pages below still validate the resulting session normally.
+  if (path === '/login' || path === '/staff-portal/login') {
+    return response;
+  }
   const supabase = createServerClient(supabaseConfig.url, supabaseConfig.key, {
     cookies: {
       getAll: () => request.cookies.getAll(),
