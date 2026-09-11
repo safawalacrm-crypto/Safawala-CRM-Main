@@ -638,10 +638,20 @@ export async function syncEventJobs(
   const admin = createAdminClient();
   const { data: rawRows, error: rawError } = await admin
     .from('event_jobs')
-    .select('booking_id');
+    .select('booking_id,state');
   if (rawError) throw new Error(rawError.message);
+  // The database trigger creates an active event_jobs row with state `{}`
+  // before the application can project the full workflow. Treat that empty
+  // placeholder as missing so syncMissingJobs() can initialize it. Preserve
+  // the guard for non-empty malformed state, where overwriting real history
+  // would be unsafe.
   const existingRawBookingIds = new Set(
-    (rawRows ?? []).map((row) => Number(row.booking_id)),
+    (rawRows ?? [])
+      .filter((row) => {
+        const state = row.state as Record<string, unknown> | null;
+        return Boolean(state && Object.keys(state).length > 0);
+      })
+      .map((row) => Number(row.booking_id)),
   );
 
   const now = new Date().toISOString();
