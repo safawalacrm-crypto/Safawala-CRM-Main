@@ -124,6 +124,7 @@ export function BookingForm({
   staff,
   quoteOnly = false,
   quoteCreatorStaffId,
+  initialType,
 }: {
   ownerId: string;
   customers: Customer[];
@@ -133,10 +134,11 @@ export function BookingForm({
   staff: Staff[];
   quoteOnly?: boolean;
   quoteCreatorStaffId?: number;
+  initialType?: 'sale' | 'rental';
 }) {
   const router = useRouter();
   const formRef = useRef<HTMLFormElement>(null);
-  const [type, setType] = useState<'sale' | 'rental' | null>(null);
+  const [type, setType] = useState<'sale' | 'rental' | null>(initialType ?? null);
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [customerList, setCustomerList] = useState(customers);
   const [customerSearch, setCustomerSearch] = useState('');

@@ -217,12 +217,16 @@ export function BookingPdfButton({ booking, label = 'PDF' }: { booking: PdfBooki
         uniqueImageUrls.map((url, index) => [url, roundedProductImages[index]]),
       );
 
+      const ownerPassword =
+        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+          ? crypto.randomUUID().replaceAll('-', '')
+          : `safawala-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       const doc = new jsPDF({
         unit: 'mm',
         format: 'a4',
         encryption: {
           userPassword: '',
-          ownerPassword: crypto.randomUUID().replaceAll('-', ''),
+          ownerPassword,
           userPermissions: ['print', 'copy'],
         },
       });
@@ -669,6 +673,9 @@ export function BookingPdfButton({ booking, label = 'PDF' }: { booking: PdfBooki
       doc.text('Thank you for choosing Safawala.', left, 290);
       doc.text('Page 1 of 1', right, 290, { align: 'right' });
       doc.save(`${booking.booking_number}.pdf`);
+    } catch (error) {
+      console.error('Could not generate booking PDF', error);
+      window.alert('Could not generate the PDF. Please try again.');
     } finally {
       setBusy(false);
     }

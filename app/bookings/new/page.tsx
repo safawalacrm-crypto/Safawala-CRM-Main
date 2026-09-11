@@ -6,7 +6,13 @@ import { getStaffSession } from '@/lib/staff-portal/session';
 
 export const dynamic = 'force-dynamic';
 
-export default async function NewBookingPage() {
+export default async function NewBookingPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const initialType = params.type === 'rental' ? 'rental' : params.type === 'sale' ? 'sale' : undefined;
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
@@ -76,6 +82,7 @@ export default async function NewBookingPage() {
         )}
         staff={staff ?? []}
         quoteOnly={staffSession?.accessType === 'staff'}
+        initialType={initialType}
         quoteCreatorStaffId={
           staffSession?.accessType === 'staff'
             ? staffSession.staffMemberId

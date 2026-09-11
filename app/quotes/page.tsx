@@ -230,7 +230,7 @@ export default async function QuotesPage({ searchParams }: Props) {
             <>
               <RefreshQuotesButton />
               {!quoteOnly ? <ExportQuotesButton quotes={quotes} /> : null}
-              <Button size="sm" render={<Link href="/bookings/new" />}>
+              <Button size="sm" render={<Link href={`/bookings/new?type=${type}`} />}>
                 <Plus />
                 <span className="hidden md:inline">New Quote</span>
               </Button>
