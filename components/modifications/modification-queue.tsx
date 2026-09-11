@@ -31,6 +31,7 @@ import {
 } from '@/lib/modifications';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
+import { BookingPdfButton, type PdfBooking } from '@/components/bookings/booking-pdf-button';
 
 type ModificationStatus = 'pending' | 'in_progress' | 'completed';
 type QueueFilter = 'all' | ModificationStatus | 'urgent';
@@ -45,6 +46,8 @@ type Activity = {
 export type ModificationBooking = {
   id: number;
   booking_number: string;
+  booking_type: string;
+  is_quote?: boolean;
   status: string;
   event_name: string;
   event_date: string;
@@ -52,6 +55,15 @@ export type ModificationBooking = {
   event_location: string | null;
   notes: string | null;
   created_at: string;
+  pickup_date: string | null;
+  due_date: string | null;
+  subtotal: number;
+  discount: number;
+  tax: number;
+  security_deposit: number;
+  total: number;
+  paid_amount: number;
+  balance_amount: number;
   customers: { name: string; phone: string; address: string | null } | null;
   staff_members: { name: string } | null;
   booking_items: { id: number; item_name: string; quantity: number }[];
@@ -451,6 +463,7 @@ export function ModificationQueue({
       {selected ? (
         <ModificationDialog
           booking={selected}
+          staffMode={staffMode}
           busy={busyId === selected.id}
           onClose={() => setSelected(null)}
           onAdvance={() =>
@@ -632,11 +645,13 @@ function statusPresentation(status: ModificationStatus) {
 
 function ModificationDialog({
   booking,
+  staffMode,
   busy,
   onClose,
   onAdvance,
 }: {
   booking: ModificationBooking;
+  staffMode: boolean;
   busy: boolean;
   onClose: () => void;
   onAdvance: () => void;
@@ -759,6 +774,9 @@ function ModificationDialog({
         </div>
         <div className="flex justify-end border-t bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:px-6">
           <div className="flex gap-2 sm:justify-end">
+            {!staffMode ? (
+              <BookingPdfButton booking={booking as unknown as PdfBooking} label="Print / PDF" />
+            ) : null}
             <Button type="button" variant="outline" onClick={onClose}>
               Close
             </Button>
