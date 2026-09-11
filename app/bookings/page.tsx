@@ -204,7 +204,7 @@ export default async function BookingsPage({ searchParams }: Props) {
                       >
                         <td className="px-5 py-4">
                           <Link
-                            href={`/bookings/${booking.id}`}
+                            href={`/bookings/${booking.id}?returnTo=${encodeURIComponent(`/bookings?type=${type}`)}`}
                             className="font-semibold text-primary hover:underline"
                           >
                             {booking.booking_number}
@@ -259,7 +259,7 @@ export default async function BookingsPage({ searchParams }: Props) {
                               size="sm"
                               render={
                                 <Link
-                                  href={`/bookings/${booking.id}`}
+                                  href={`/bookings/${booking.id}?returnTo=${encodeURIComponent(`/bookings?type=${type}`)}`}
                                   aria-label={`Preview ${booking.booking_number}`}
                                 />
                               }
@@ -273,7 +273,7 @@ export default async function BookingsPage({ searchParams }: Props) {
                               size="sm"
                               render={
                                 <Link
-                                  href={`/bookings/${booking.id}/edit`}
+                                  href={`/bookings/${booking.id}/edit?returnTo=${encodeURIComponent(`/bookings?type=${type}`)}`}
                                   aria-label={`Edit ${booking.booking_number}`}
                                 />
                               }

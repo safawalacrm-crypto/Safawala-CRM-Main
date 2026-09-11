@@ -23,10 +23,13 @@ export const dynamic = 'force-dynamic';
 
 export default async function BookingDetailsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { id } = await params;
+  const query = await searchParams;
   const supabase = await createClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect('/login');
@@ -43,6 +46,10 @@ export default async function BookingDetailsPage({
   const activities = [...(booking.booking_activity ?? [])].sort((a, b) =>
     b.created_at.localeCompare(a.created_at),
   );
+  const requestedReturnTo = typeof query.returnTo === 'string' ? query.returnTo : '';
+  const returnTo = requestedReturnTo.startsWith('/bookings') || requestedReturnTo.startsWith('/quotes')
+    ? requestedReturnTo
+    : booking.is_quote ? '/quotes' : `/bookings?type=${booking.booking_type}`;
   return (
     <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <div className="mx-auto max-w-[1200px] space-y-6">
@@ -56,7 +63,7 @@ export default async function BookingDetailsPage({
               : booking.booking_number
           }
           subtitle={`${statusLabel(booking.booking_type)} booking · created ${friendlyDate(booking.created_at.slice(0, 10))}`}
-          backHref={booking.is_quote ? '/quotes' : '/bookings'}
+          backHref={returnTo}
           actions={
             <>
               <Badge
