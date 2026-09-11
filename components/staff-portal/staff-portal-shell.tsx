@@ -230,9 +230,12 @@ function SidebarNavigation({
                     ];
                   }),
                 ];
+  const navigationLinks = links.some((link) => link.href === '/staff-portal/event-tracking')
+    ? links
+    : [...links, { href: '/staff-portal/event-tracking', label: 'Job Tracker', icon: ClipboardList }];
   return (
     <nav aria-label="Primary navigation" className="mt-8 space-y-1">
-      {links.map(({ href, label, icon: Icon }) => {
+      {navigationLinks.map(({ href, label, icon: Icon }) => {
         const matchesPath = (candidate: string) =>
           candidate === '/staff-portal'
             ? pathname === candidate

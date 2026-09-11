@@ -81,7 +81,8 @@ export default async function StylistAssignedEventsPage() {
                 <Card key={job.id} className="border-border shadow-level-1">
                   <CardHeader>
                     <div className="flex flex-wrap items-center gap-2">
-                      <CardTitle>{job.eventSummary.eventName}</CardTitle>
+                      <CardTitle>{job.eventSummary.customerName || 'Customer not added'}</CardTitle>
+                      <p className="mt-0.5 text-sm text-muted-foreground">{job.eventSummary.eventName}</p>
                     </div>
                     <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                       <span className="font-medium text-[#70481c]">

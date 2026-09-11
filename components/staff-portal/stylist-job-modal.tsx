@@ -43,8 +43,9 @@ export async function StylistJobModal({ jobId }: { jobId: string }) {
               Rental event · {job.bookingNumber}
             </p>
             <h2 className="mt-1 text-xl font-semibold">
-              {job.eventSummary.eventName}
+              {job.eventSummary.customerName || 'Customer not added'}
             </h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">{job.eventSummary.eventName}</p>
           </div>
           <Link
             href="/staff-portal/stylist"

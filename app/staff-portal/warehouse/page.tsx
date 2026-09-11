@@ -15,6 +15,7 @@ import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { listJobs } from '@/lib/event-jobs/store';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { WarehouseJobModal } from '@/components/staff-portal/warehouse-job-modal';
+import { QueueFilterBar } from '@/components/staff-portal/queue-filter-bar';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +31,7 @@ export default async function StaffWarehousePage({
     searchParams,
     listJobs(),
   ]);
-  const { completed, view: requestedView, job: selectedJobId } = params;
+  const { completed, view: requestedView, job: selectedJobId, q = '', sort = 'booking', eventDate = '', bookingDate = '' } = params as typeof params & { q?: string; sort?: string; eventDate?: string; bookingDate?: string };
   const view: QueueView = requestedView === 'closed' ? 'closed' : 'open';
   const rentalJobs = allJobs.filter((job) => job.bookingType === 'rental');
   const hasOpenWarehouseStage = (job: (typeof rentalJobs)[number]) =>
@@ -47,7 +48,7 @@ export default async function StaffWarehousePage({
       !hasOpenWarehouseStage(job) &&
       Boolean(job.warehousePrep || job.returnWarehouseCheck),
   );
-  const jobs = view === 'open' ? openJobs : closedJobs;
+  const jobs = (view === 'open' ? openJobs : closedJobs).filter((job) => (!q || `${job.eventSummary.customerName ?? ''} ${job.bookingNumber} ${job.eventSummary.eventName} ${job.eventSummary.venue ?? ''}`.toLowerCase().includes(q.toLowerCase())) && (!eventDate || job.eventSummary.eventDate === eventDate) && (!bookingDate || job.createdAt.slice(0, 10) === bookingDate)).sort((a, b) => sort === 'event' ? b.eventSummary.eventDate.localeCompare(a.eventSummary.eventDate) : b.createdAt.localeCompare(a.createdAt));
   const groupedJobs = Array.from(
     jobs.reduce((groups, job) => {
       const key = job.eventSummary.eventDate || 'unscheduled';
@@ -56,11 +57,7 @@ export default async function StaffWarehousePage({
       groups.set(key, group);
       return groups;
     }, new Map<string, typeof jobs>()),
-  ).sort(([first], [second]) => {
-    if (first === 'unscheduled') return 1;
-    if (second === 'unscheduled') return -1;
-    return second.localeCompare(first);
-  });
+  ).sort(([, firstJobs], [, secondJobs]) => (secondJobs[0]?.createdAt ?? '').localeCompare(firstJobs[0]?.createdAt ?? ''));
 
   const bookingIds = rentalJobs.map((job) => job.bookingId);
   const admin = createAdminClient();
@@ -88,6 +85,7 @@ export default async function StaffWarehousePage({
       isMainId={session.isMainId}
     >
       <div className="mx-auto max-w-[1180px] space-y-5">
+        <QueueFilterBar basePath="/staff-portal/warehouse" search={q} sort={sort} eventDate={eventDate} bookingDate={bookingDate} />
         <DashboardHeader
           title="Warehouse"
           subtitle="Pick rental items and send completed jobs to QC & Packing"

@@ -30,7 +30,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ListPagination } from '@/components/ui/list-pagination';
 import { money } from '@/lib/bookings';
 import {
@@ -216,6 +216,7 @@ export function InventoryDirectory({
   const [notice, setNotice] = useState('');
   const [showArchived, setShowArchived] = useState(initialShowArchived);
   const [importing, setImporting] = useState(false);
+  const [archiveCandidate, setArchiveCandidate] = useState<InventoryProduct | null>(null);
 
   const activeProducts = products.filter((product) => product.is_active);
   const archivedProducts = products.filter((product) => !product.is_active);
@@ -444,6 +445,10 @@ export function InventoryDirectory({
     if (error) { setMessage(error.message); return; }
     setProducts((current) => current.map((item) => item.id === product.id ? { ...item, is_active: isActive } : item));
     setNotice(isActive ? `${product.name} was restored to inventory.` : `${product.name} was archived.`);
+  }
+
+  function requestArchive(product: InventoryProduct) {
+    setArchiveCandidate(product);
   }
 
   async function deleteProduct(product: InventoryProduct) {
@@ -680,7 +685,7 @@ export function InventoryDirectory({
               product={product}
               reservations={reservationsByProduct[product.id] ?? []}
               onEdit={() => openEditProduct(product)}
-              onArchive={() => updateProductStatus(product, false)}
+              onArchive={() => requestArchive(product)}
               onRestore={() => updateProductStatus(product, true)}
               onDelete={() => deleteProduct(product)}
               archived={showArchived}
@@ -711,6 +716,20 @@ export function InventoryDirectory({
           onClose={() => setDialogOpen(false)}
           onSaved={saved}
         />
+      ) : null}
+      {archiveCandidate ? (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-[#211d18]/60 p-4">
+          <Card className="w-full max-w-md border-border shadow-2xl">
+            <CardHeader>
+              <CardTitle>Archive product?</CardTitle>
+              <p className="text-sm text-muted-foreground">{archiveCandidate.name} will be removed from active Inventory and kept safely in Product Archive.</p>
+            </CardHeader>
+            <CardContent className="flex justify-end gap-2 border-t p-5">
+              <Button type="button" variant="outline" onClick={() => setArchiveCandidate(null)}>Cancel</Button>
+              <Button type="button" onClick={async () => { const product = archiveCandidate; setArchiveCandidate(null); await updateProductStatus(product, false); }}>Archive Product</Button>
+            </CardContent>
+          </Card>
+        </div>
       ) : null}
     </div>
   );

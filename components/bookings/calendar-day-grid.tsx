@@ -28,6 +28,7 @@ export type CalendarBooking = PdfBooking & {
   id: number;
   payment_status: string;
   notes: string | null;
+  staff_members?: { name: string } | null;
 };
 
 export type LockedDate = {
@@ -54,51 +55,29 @@ async function printDateList(dateLabel: string, rows: CalendarBooking[]) {
   const { jsPDF } = await import('jspdf');
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
   const width = doc.internal.pageSize.getWidth();
-  const left = 14;
-  const right = width - 14;
-
-  doc.setFillColor(24, 24, 24);
-  doc.roundedRect(10, 10, width - 20, 18, 3, 3, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(15);
-  doc.text('SAFAWALA', left, 21);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.text(`Date list — ${dateLabel}`, right, 21, { align: 'right' });
-
-  let y = 36;
-  doc.setTextColor(24, 24, 24);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  const headers = ['Customer', 'Phone', 'Package', 'Payment', 'Venue'];
-  const colX = [left, left + 40, left + 80, left + 130, left + 160];
-  headers.forEach((h, i) => doc.text(h, colX[i], y));
-  y += 3;
-  doc.setDrawColor(200, 200, 200);
-  doc.line(left, y, right, y);
-  y += 6;
-
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  rows.forEach((row) => {
-    if (y > 280) {
-      doc.addPage();
-      y = 20;
-    }
-    doc.text(row.customers?.name ?? '—', colX[0], y, { maxWidth: 38 });
-    doc.text(row.customers?.phone ?? '—', colX[1], y, { maxWidth: 38 });
-    doc.text(packageSummary(row), colX[2], y, { maxWidth: 48 });
-    doc.text(
-      `${money(row.total)} (Due ${money(row.balance_amount)})`,
-      colX[3],
-      y,
-      { maxWidth: 28 },
-    );
-    doc.text(row.event_location ?? '—', colX[4], y, { maxWidth: 30 });
-    y += 8;
+  const left = 14; const right = width - 14; const contentWidth = right - left;
+  const drawHeader = () => {
+    doc.setFillColor(255, 255, 255); doc.setDrawColor(92, 92, 92); doc.setLineWidth(0.45);
+    doc.roundedRect(10, 10, width - 20, 28, 3, 3, 'FD');
+    doc.setTextColor(24, 24, 24); doc.setFont('helvetica', 'bold'); doc.setFontSize(17); doc.text('SAFAWALA', left, 23);
+    doc.setFontSize(11); doc.text('BOOKING DATE LIST', right, 20, { align: 'right' });
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(78, 78, 78); doc.text(`Scheduled date: ${dateLabel}`, right, 27, { align: 'right' });
+  };
+  const drawFooter = () => { doc.setDrawColor(92, 92, 92); doc.line(left, 284, right, 284); doc.setFont('helvetica', 'normal'); doc.setFontSize(7); doc.setTextColor(78, 78, 78); doc.text('Safawala · Premium Wedding Accessories', left, 290); doc.text('Page 1 of 1', right, 290, { align: 'right' }); };
+  drawHeader();
+  let y = 48;
+  doc.setFillColor(245, 245, 245); doc.setDrawColor(92, 92, 92); doc.rect(left, y, contentWidth, 8, 'FD');
+  const columns = [{ label: 'Booking', x: left + 3, w: 32 }, { label: 'Customer / Phone', x: left + 37, w: 38 }, { label: 'Type / Items', x: left + 77, w: 45 }, { label: 'Venue / Staff', x: left + 124, w: 36 }, { label: 'Amount / Status', x: left + 162, w: contentWidth - 165 }];
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); doc.setTextColor(24, 24, 24); columns.forEach((column) => doc.text(column.label, column.x, y + 5));
+  y += 8;
+  rows.forEach((row, index) => {
+    const lines = [row.booking_number, `${row.customers?.name ?? '—'}\n${row.customers?.phone ?? '—'}`, `${row.booking_type === 'rental' ? 'Rental' : 'Sale'}\n${packageSummary(row)}`, `${row.event_location ?? 'Location not added'}\n${row.staff_members?.name ?? 'Unassigned'}`, `${money(row.total)}\nDue ${money(row.balance_amount)}`];
+    const wrapped = lines.map((value, i) => i === 4 ? [money(row.total), `Due ${money(row.balance_amount)}`] : doc.splitTextToSize(value, columns[i].w));
+    const rowHeight = Math.max(15, ...wrapped.map((value) => value.length * 3.5 + 5));
+    if (y + rowHeight > 278) { drawFooter(); doc.addPage(); drawHeader(); y = 48; doc.setFillColor(245, 245, 245); doc.rect(left, y, contentWidth, 8, 'FD'); doc.setFont('helvetica', 'bold'); doc.setFontSize(7.5); columns.forEach((column) => doc.text(column.label, column.x, y + 5)); y += 8; }
+    doc.setFillColor(index % 2 ? 252 : 255, index % 2 ? 250 : 255, index % 2 ? 247 : 255); doc.setDrawColor(205, 205, 205); doc.rect(left, y, contentWidth, rowHeight, 'FD'); doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(24, 24, 24); wrapped.forEach((value, i) => doc.text(value, columns[i].x, y + 5, i === 4 ? { align: 'right' } : undefined)); y += rowHeight;
   });
-
+  drawFooter();
   doc.save(`safawala-date-list-${dateLabel.replace(/\s+/g, '-')}.pdf`);
 }
 

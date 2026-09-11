@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BrandMark } from '@/components/brand-mark';
@@ -39,7 +39,6 @@ import {
   Settings,
   Trophy,
   UserCheck,
-  UsersRound,
   Wrench,
   UserCog,
   WalletCards,
@@ -85,7 +84,6 @@ function SidebarNavigation() {
     ] },
     { label: 'Team & HR', links: [
       { href: '/performance', label: 'Performance', icon: Trophy },
-      { href: '/staff', label: 'Staff', icon: UsersRound },
       { href: '/hr', label: 'HR & Staff', icon: UserCog },
     ] },
     { label: 'System', links: [{ href: '/settings', label: 'Settings', icon: Settings }] },
@@ -207,6 +205,7 @@ export function DashboardShell({
     return path === '/dashboard' ? { title: 'Booking Dashboard', subtitle: 'Bookings, quotations and jobs waiting for closure' } : null;
   };
   const [pageHeader, setPageHeader] = useState<PageHeader>(() => fallbackHeader(pathname));
+  useLayoutEffect(() => setPageHeader(fallbackHeader(pathname)), [pathname]);
 
   return (
     <DashboardHeaderContext.Provider value={setPageHeader}><div className="min-h-dvh bg-surface text-foreground">

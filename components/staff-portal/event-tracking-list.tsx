@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Activity,
   CalendarClock,
@@ -9,10 +9,12 @@ import {
   MapPin,
   Route,
   X,
+  Search,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { ListPagination } from '@/components/ui/list-pagination';
 import { friendlyDate } from '@/lib/bookings';
 import { trackingTimeline, TRACKING_STAGE_LABEL } from '@/lib/event-jobs/constants';
 import type { EventJob } from '@/lib/event-jobs/types';
@@ -29,6 +31,20 @@ function currentStage(job: EventJob) {
 
 export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
   const [selected, setSelected] = useState<EventJob | null>(null);
+  const [search, setSearch] = useState('');
+  const [eventDate, setEventDate] = useState('');
+  const [sortBy, setSortBy] = useState<'event' | 'booking'>('booking');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const filteredJobs = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return [...jobs]
+      .sort((a, b) => sortBy === 'booking' ? b.createdAt.localeCompare(a.createdAt) : b.eventSummary.eventDate.localeCompare(a.eventSummary.eventDate))
+      .filter((job) => (!query || `${job.eventSummary.customerName ?? ''} ${job.bookingNumber} ${job.eventSummary.eventName} ${job.eventSummary.venue ?? ''}`.toLowerCase().includes(query)) && (!eventDate || job.eventSummary.eventDate === eventDate));
+  }, [jobs, search, eventDate, sortBy]);
+  const pageCount = Math.max(1, Math.ceil(filteredJobs.length / pageSize));
+  const safePage = Math.min(page, pageCount);
+  const visibleJobs = filteredJobs.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   if (!jobs.length) {
     return (
@@ -49,8 +65,10 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
   return (
     <>
       <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1">
+        <div className="grid gap-2 border-b bg-[#fcfaf7] p-4 dark:bg-[#241e17] sm:grid-cols-[minmax(0,1fr)_180px_180px]"><label className="relative block"><Search className="absolute left-3 top-3 size-4 text-muted-foreground" /><input aria-label="Search jobs" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} placeholder="Search customer, booking, event, or location…" className="h-10 w-full rounded-lg border border-input bg-white pl-9 pr-3 text-sm outline-none focus:border-primary dark:bg-card" /></label><label className="text-xs font-medium text-muted-foreground"><span className="sr-only">Filter event date</span><input type="date" aria-label="Filter event date" value={eventDate} onChange={(event) => { setEventDate(event.target.value); setPage(1); }} className="h-10 w-full rounded-lg border border-input bg-white px-3 text-sm font-normal text-foreground outline-none focus:border-primary dark:bg-card" /></label><select aria-label="Sort jobs by" value={sortBy} onChange={(event) => { setSortBy(event.target.value as 'event' | 'booking'); setPage(1); }} className="h-10 rounded-lg border border-input bg-white px-3 text-sm text-foreground outline-none focus:border-primary dark:bg-card"><option value="booking">Sort by Booking date</option><option value="event">Sort by Event date</option></select></div>
+        <ListPagination total={filteredJobs.length} page={safePage} pageSize={pageSize} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} itemLabel="jobs" />
         <div className="divide-y divide-border">
-          {jobs.map((job) => (
+          {visibleJobs.map((job) => (
             <div
               key={job.id}
               className="flex flex-col gap-3 px-4 py-4 transition hover:bg-[#fcfaf7] dark:hover:bg-[#241e17] sm:flex-row sm:items-center"
@@ -61,7 +79,7 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                   <h2 className="truncate text-sm font-semibold">
-                    {job.eventSummary.eventName}
+                    {job.eventSummary.customerName || 'Customer not added'}
                   </h2>
                   <Badge
                     variant="outline"
@@ -75,9 +93,12 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
                   </Badge>
                 </div>
                 <p className="mt-1 truncate text-xs text-muted-foreground">
-                  {job.id} · {friendlyDate(job.eventSummary.eventDate)} ·{' '}
-                  {currentStage(job)}
+                  {job.eventSummary.eventName} · {job.bookingNumber} · {currentStage(job)}
                 </p>
+                <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                  <span className="rounded-md bg-[#f7f0e6] px-2 py-1 text-[#70481c]">Booking date: {friendlyDate(job.createdAt.slice(0, 10))}</span>
+                  <span className="rounded-md bg-[#f5f5f4] px-2 py-1 text-muted-foreground">Event date: {friendlyDate(job.eventSummary.eventDate)}</span>
+                </div>
               </div>
               <Button
                 type="button"
@@ -118,10 +139,10 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
                     id="tracking-title"
                     className="mt-1 truncate text-lg font-semibold"
                   >
-                    {selected.id}
+                    {selected.eventSummary.customerName || 'Customer not added'}
                   </h2>
                   <p className="mt-0.5 text-xs text-muted-foreground">
-                    {selected.bookingNumber}
+                    {selected.bookingNumber} · {selected.eventSummary.eventName}
                   </p>
                 </div>
                 <button
@@ -136,8 +157,9 @@ export function EventTrackingList({ jobs }: { jobs: EventJob[] }) {
               <div className="mt-3 space-y-1 text-xs text-muted-foreground">
                 <p className="flex items-center gap-1.5">
                   <CalendarClock className="size-3.5" />
-                  {friendlyDate(selected.eventSummary.eventDate)}
+                  Event date: {friendlyDate(selected.eventSummary.eventDate)}
                 </p>
+                <p className="text-xs text-muted-foreground">Booking date: {friendlyDate(selected.createdAt.slice(0, 10))}</p>
                 {selected.eventSummary.venue ? (
                   <p className="flex items-center gap-1.5">
                     <MapPin className="size-3.5" />

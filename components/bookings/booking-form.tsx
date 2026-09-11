@@ -34,6 +34,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { BookingPdfButton } from '@/components/bookings/booking-pdf-button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BOOKING_TERMS, money } from '@/lib/bookings';
 import {
@@ -2735,20 +2736,44 @@ export function BookingForm({
                     </strong>
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => window.print()}
-                      disabled={quoteOnly}
-                      title={
-                        quoteOnly
-                          ? 'PDF and printing are available to Main IDs only'
-                          : 'Print or save as PDF'
-                      }
-                    >
-                      <Printer />
-                      Print / PDF
-                    </Button>
+                    <div title={!type || !eventDate || !selectedCustomer ? 'Select a booking type, customer, and event date first' : 'Generate invoice PDF preview'}>
+                      <BookingPdfButton
+                        booking={{
+                          booking_number: 'PREVIEW',
+                          booking_type: type ?? 'sale',
+                          is_quote: false,
+                          status: 'confirmed',
+                          event_name: isSale ? eventType : `${eventType} - ${eventFor}`,
+                          event_date: eventDate,
+                          event_time: eventTime || null,
+                          event_location: venue || null,
+                          pickup_date: isSale ? null : pickupDate || null,
+                          due_date: isSale ? null : dueDate || null,
+                          subtotal,
+                          discount: effectiveDiscount,
+                          tax,
+                          security_deposit: deposit,
+                          total,
+                          paid_amount: paid,
+                          balance_amount: Math.max(total - paid, 0),
+                          customers: selectedCustomer
+                            ? { name: selectedCustomer.name, phone: selectedCustomer.phone, address: selectedCustomer.address }
+                            : null,
+                          booking_items: items.map((item) => {
+                            const product = products.find((entry) => entry.id === item.product_id);
+                            return {
+                              item_name: item.item_name,
+                              quantity: item.quantity,
+                              unit_price: item.unit_price,
+                              line_total: item.quantity * item.unit_price,
+                              product_id: item.product_id ?? null,
+                              products: product ? { image_urls: product.image_urls, barcode: product.barcode } : null,
+                            };
+                          }),
+                        }}
+                        label="Print / PDF"
+                      />
+                    </div>
                     <Button
                       type="submit"
                       name="intent"

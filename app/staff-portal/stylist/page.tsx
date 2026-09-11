@@ -172,11 +172,11 @@ export default async function StaffStylistPage({
                       className="flex flex-col gap-2.5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div>
-                        <p className="font-medium">
-                          {job.eventSummary.eventName}
+                        <p className="font-semibold">
+                          {job.eventSummary.customerName || 'Customer not added'}
                         </p>
                         <p className="mt-0.5 truncate text-xs font-medium text-[#70481c]">
-                          Customer: {job.eventSummary.customerName || 'Customer not added'}
+                          {job.eventSummary.eventName} · {job.bookingNumber}
                         </p>
                         <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
                           <span className="flex items-center gap-1.5">

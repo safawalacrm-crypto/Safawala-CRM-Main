@@ -49,9 +49,10 @@ export default async function StylistApprovalsPage() {
                         <Link href={`/event-jobs/${job.id}`} className="font-semibold text-primary hover:underline">{job.id}</Link>
                         <span className="text-sm text-muted-foreground">{job.bookingNumber}</span>
                       </div>
-                      <CardTitle className="mt-2 text-lg">{job.eventSummary.eventName}</CardTitle>
+                      <CardTitle className="mt-2 text-lg">{job.eventSummary.customerName || 'Customer not added'}</CardTitle>
+                      <p className="mt-0.5 text-sm text-muted-foreground">{job.eventSummary.eventName} · {job.bookingNumber}</p>
                       <p className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1.5"><CalendarClock className="size-4" />{friendlyDate(job.eventSummary.eventDate)} · {friendlyTime(job.eventSummary.eventTime)}</span>
+                        <span className="flex items-center gap-1.5"><CalendarClock className="size-4" />Event date: {friendlyDate(job.eventSummary.eventDate)} · {friendlyTime(job.eventSummary.eventTime)}</span>
                         {job.eventSummary.venue ? <span className="flex items-center gap-1.5"><MapPin className="size-4" />{job.eventSummary.venue}</span> : null}
                       </p>
                     </div>

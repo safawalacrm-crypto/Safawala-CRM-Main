@@ -49,7 +49,7 @@ export default async function StylistEventDetailsPage({ params }: { params: Prom
       notificationCount={notificationCount}
     >
       <div className="mx-auto max-w-[920px] space-y-5">
-        <DashboardHeader title={job.eventSummary.eventName} subtitle="Rental event details" backHref="/staff-portal/stylist" />
+        <DashboardHeader title={job.eventSummary.customerName || 'Customer not added'} subtitle={`${job.eventSummary.eventName} · Rental event details`} backHref="/staff-portal/stylist" />
 
         <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1">
           <CardHeader className="border-b border-[#e8dccb] bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:px-6">

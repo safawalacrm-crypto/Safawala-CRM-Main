@@ -26,7 +26,6 @@ import { currentStageSummary, listActiveJobs } from '@/lib/event-jobs/store';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
-const SHOW_LEGACY_DASHBOARD_SECTIONS = false;
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -355,25 +354,6 @@ export default async function DashboardPage() {
             </Link>
           ))}
         </section>
-        <Card className="border-border shadow-level-1 ring-0">
-          <CardHeader className="border-b py-4">
-            <CardTitle className="text-base">Quick access</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">Open a core booking workspace.</p>
-          </CardHeader>
-          <CardContent className="grid gap-2 p-3 sm:grid-cols-3">
-            {[
-              ['All bookings', '/bookings', ClipboardList],
-              ['Quotes', '/quotes', FileText],
-              ['Event tracking', '/staff-portal/event-tracking', ListChecks],
-            ].map(([title, href, Icon]) => (
-              <Link key={String(title)} href={String(href)} className="group flex items-center gap-3 rounded-lg border border-border/80 px-3 py-3 transition hover:border-primary/35 hover:bg-accent/45">
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-accent text-primary"><Icon className="size-4" /></span>
-                <p className="flex-1 text-sm font-medium">{String(title)}</p>
-                <ArrowRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" />
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
         <div className="space-y-3">
           <div>
             <h2 className="flex items-center gap-2 text-lg font-semibold tracking-tight">
@@ -394,7 +374,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
+        {false && <>
         <section className="grid gap-4 xl:grid-cols-[1fr_1.35fr]">
           <Card className="border-border shadow-level-1 ring-0">
             <CardHeader className="flex-row items-center justify-between border-b py-4">
@@ -571,7 +551,7 @@ export default async function DashboardPage() {
           </Card>
         </section>
         </>}
-        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
+        {false && <>
         <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
           <CardHeader className="flex-row items-center justify-between border-b py-5">
             <div>
@@ -663,8 +643,8 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
         </>}
-        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
-        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
+        {false && <>
+        {false && <>
         <Card className="border-border shadow-level-1 ring-0">
           <CardHeader className="flex-row items-center justify-between border-b py-4">
             <div>
@@ -732,7 +712,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
         </>}
-        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
+        {false && <>
         <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
           <CardHeader className="flex-row items-center justify-between border-b py-5">
             <div>
