@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, type SyntheticEvent } from 'react';
+import { useState, type SyntheticEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Banknote, RotateCcw } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -20,16 +20,6 @@ export function BookingActions({ booking }: { booking: Booking }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  useEffect(() => {
-    const handler = () => window.print();
-    document
-      .querySelector('[data-print-booking]')
-      ?.addEventListener('click', handler);
-    return () =>
-      document
-        .querySelector('[data-print-booking]')
-        ?.removeEventListener('click', handler);
-  }, []);
   async function invoke(name: string, args: Record<string, unknown>) {
     setBusy(true);
     setError('');

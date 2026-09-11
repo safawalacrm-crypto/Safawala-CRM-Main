@@ -175,7 +175,7 @@ async function roundedThumbnail(
   }
 }
 
-export function BookingPdfButton({ booking }: { booking: PdfBooking }) {
+export function BookingPdfButton({ booking, label = 'PDF' }: { booking: PdfBooking; label?: string }) {
   const [busy, setBusy] = useState(false);
 
   async function downloadPdf() {
@@ -681,11 +681,11 @@ export function BookingPdfButton({ booking }: { booking: PdfBooking }) {
       size="sm"
       onClick={downloadPdf}
       disabled={busy}
-      title="Download protected PDF"
-      aria-label={`Download protected PDF for ${booking.booking_number}`}
+      title={label === 'PDF' ? 'Download protected PDF' : label}
+      aria-label={`${label} for ${booking.booking_number}`}
     >
       <Download />
-      <span className="hidden 2xl:inline">PDF</span>
+      <span className={label === 'PDF' ? 'hidden 2xl:inline' : undefined}>{label}</span>
     </Button>
   );
 }

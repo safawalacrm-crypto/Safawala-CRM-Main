@@ -1,10 +1,10 @@
 import { notFound, redirect } from 'next/navigation';
-import { MapPin, Phone, Printer } from 'lucide-react';
+import { MapPin, Phone } from 'lucide-react';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { BookingActions } from '@/components/bookings/booking-actions';
+import { BookingPdfButton, type PdfBooking } from '@/components/bookings/booking-pdf-button';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   BOOKING_TERMS,
@@ -71,22 +71,7 @@ export default async function BookingDetailsPage({
               >
                 {statusLabel(booking.payment_status)}
               </Badge>
-              {!quoteOnly ? <Button
-                variant="outline"
-                size="sm"
-                className="print:hidden"
-                nativeButton
-                render={
-                  <button
-                    type="button"
-                    data-print-booking="true"
-                    aria-label="Print booking"
-                  />
-                }
-              >
-                <Printer />
-                <span className="hidden xl:inline">Print booking</span>
-              </Button> : null}
+              {!quoteOnly ? <BookingPdfButton booking={booking as PdfBooking} label="Print booking" /> : null}
             </>
           }
         />
