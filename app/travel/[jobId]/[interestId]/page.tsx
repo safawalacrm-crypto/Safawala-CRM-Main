@@ -109,7 +109,7 @@ export default async function TravelPlanPage({
               </div>
             ) : null}
 
-            <form action={uploadTicketAction} encType="multipart/form-data" className="flex flex-col gap-3 rounded-xl border border-border bg-white dark:bg-card p-4 sm:flex-row sm:items-end">
+            <form action={uploadTicketAction} className="flex flex-col gap-3 rounded-xl border border-border bg-white dark:bg-card p-4 sm:flex-row sm:items-end">
               <input type="hidden" name="jobId" value={job.id} />
               <input type="hidden" name="interestId" value={interest.id} />
               <label className="block flex-1 text-sm">
