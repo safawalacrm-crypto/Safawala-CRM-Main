@@ -9,6 +9,7 @@ import { StylistAssignmentPanel } from '@/components/stylist/stylist-assignment-
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { PaginatedList } from '@/components/ui/paginated-list';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import { stylistJobsForAdmin } from '@/lib/event-jobs/store';
 import { createClient } from '@/lib/supabase/server';
@@ -39,6 +40,7 @@ export default async function StylistApprovalsPage() {
 
         {jobs.length ? (
           <div className="space-y-5">
+            <PaginatedList itemLabel="rental events">
             {jobs.map((job) => (
               <Card key={job.id} className="gap-0 overflow-hidden border-border py-0 shadow-level-1">
                 <CardHeader className="border-b border-[#e8dccb] bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:px-6">
@@ -68,6 +70,7 @@ export default async function StylistApprovalsPage() {
                 </CardContent>
               </Card>
             ))}
+            </PaginatedList>
           </div>
         ) : (
           <Card className="border-border shadow-level-1"><CardContent className="grid min-h-64 place-items-center p-8 text-center"><div><span className="mx-auto grid size-12 place-items-center rounded-full bg-accent text-primary"><UserCheck /></span><h3 className="mt-4 font-semibold">No rental events need stylist approval</h3><p className="mt-1 text-sm text-muted-foreground">Confirmed rental Event Jobs will appear here.</p></div></CardContent></Card>
