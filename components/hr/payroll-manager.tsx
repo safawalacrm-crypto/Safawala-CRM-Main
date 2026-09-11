@@ -1,5 +1,6 @@
 'use client';
 import { useMemo, useState, useTransition } from 'react';
+import { Download, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
@@ -164,10 +165,12 @@ export function PayrollManager({
           <span className="flex-1" />
           <Button onClick={() => setEditing(blank)}>Add payroll</Button>
           <Button variant="outline" onClick={csv}>
-            Export CSV
+            <Download />
+            CSV
           </Button>
           <Button variant="outline" onClick={() => window.print()}>
-            Print / PDF
+            <FileText />
+            PDF
           </Button>
         </CardContent>
       </Card>

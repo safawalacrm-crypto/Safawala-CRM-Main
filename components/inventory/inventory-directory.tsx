@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, type ChangeEvent, type SyntheticEvent } from 'react';
+import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import {
   AlertTriangle,
@@ -191,6 +192,7 @@ export function InventoryDirectory({
   headerTitle?: string;
   headerSubtitle?: string;
 }) {
+  const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const reservationsByProduct = useMemo(() => {
     const map: Record<number, ProductReservation[]> = {};
@@ -213,6 +215,7 @@ export function InventoryDirectory({
   const [message, setMessage] = useState(loadError);
   const [notice, setNotice] = useState('');
   const [showArchived, setShowArchived] = useState(initialShowArchived);
+  const [importing, setImporting] = useState(false);
 
   const activeProducts = products.filter((product) => product.is_active);
   const archivedProducts = products.filter((product) => !product.is_active);
@@ -334,6 +337,95 @@ export function InventoryDirectory({
     URL.revokeObjectURL(url);
   }
 
+  function parseCsvLine(line: string) {
+    const values: string[] = [];
+    let value = '';
+    let quoted = false;
+    for (let index = 0; index < line.length; index += 1) {
+      const character = line[index];
+      if (character === '"' && line[index + 1] === '"' && quoted) {
+        value += '"';
+        index += 1;
+      } else if (character === '"') quoted = !quoted;
+      else if (character === ',' && !quoted) {
+        values.push(value.trim());
+        value = '';
+      } else value += character;
+    }
+    values.push(value.trim());
+    return values;
+  }
+
+  async function importCsv(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setImporting(true);
+    setMessage('');
+    setNotice('');
+    const lines = (await file.text()).split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length < 2) {
+      setMessage('The CSV must include a header row and at least one product.');
+      setImporting(false);
+      return;
+    }
+    const headers = parseCsvLine(lines[0]).map((header) => header.toLowerCase());
+    const rows = lines.slice(1).map((line) => {
+      const values = parseCsvLine(line);
+      return Object.fromEntries(headers.map((header, index) => [header, values[index] ?? '']));
+    });
+    const supabase = createClient();
+    const { data: auth } = await supabase.auth.getUser();
+    if (!auth.user) {
+      setMessage('Your session has expired. Please sign in again.');
+      setImporting(false);
+      return;
+    }
+    let imported = 0;
+    for (const row of rows) {
+      const name = String(row.product_name || row.name || '').trim();
+      if (!name) continue;
+      const barcode = cleanBarcode(String(row.barcode || ''));
+      const values = {
+        name,
+        barcode: barcode || null,
+        sku: String(row.sku || barcode || '').trim() || null,
+        category: String(row.category || '').trim() || null,
+        subcategory: String(row.subcategory || '').trim() || null,
+        size: String(row.size || '').trim() || null,
+        color: String(row.color || '').trim() || null,
+        material: String(row.material || '').trim() || null,
+        cost_price: Math.max(Number(row.cost_price) || 0, 0),
+        regular_price: Math.max(Number(row.regular_price) || 0, 0),
+        sale_price: Math.max(Number(row.sale_price) || 0, 0),
+        rental_price: Math.max(Number(row.rental_price) || 0, 0),
+        security_deposit: Math.max(Number(row.security_deposit) || 0, 0),
+        stock_quantity: Math.max(Math.floor(Number(row.stock_quantity) || 0), 0),
+        reorder_level: Math.max(Math.floor(Number(row.reorder_level) || 0), 0),
+        is_active: String(row.is_active || 'true').toLowerCase() !== 'false',
+      };
+      const existing = products.find((product) =>
+        (barcode && product.barcode === barcode) ||
+        (values.sku && product.sku === values.sku),
+      );
+      const result = existing
+        ? await supabase.from('products').update(values).eq('id', existing.id).select(productFields).single()
+        : await supabase.from('products').insert({ owner_id: auth.user.id, ...values }).select(productFields).single();
+      if (result.error) {
+        setMessage(`Import stopped after ${imported} product${imported === 1 ? '' : 's'}: ${result.error.message}`);
+        setImporting(false);
+        return;
+      }
+      if (result.data) {
+        setProducts((current) => existing ? current.map((product) => product.id === existing.id ? result.data as InventoryProduct : product) : [result.data as InventoryProduct, ...current]);
+        imported += 1;
+      }
+    }
+    setNotice(`${imported} product${imported === 1 ? '' : 's'} imported successfully.`);
+    setImporting(false);
+    router.refresh();
+  }
+
   function openNewProduct() {
     setEditingProduct(null);
     setDialogStep('details');
@@ -423,6 +515,11 @@ export function InventoryDirectory({
               <Download />
               <span className="hidden sm:inline">Export CSV</span>
             </Button>
+            <label className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-lg border border-input bg-white dark:bg-card px-3 text-sm font-medium shadow-sm transition hover:bg-accent">
+              <Upload />
+              <span className="hidden sm:inline">{importing ? 'Importing…' : 'Import'}</span>
+              <input type="file" accept=".csv,text/csv" className="sr-only" onChange={importCsv} disabled={importing} />
+            </label>
             <Button type="button" size="sm" variant={showArchived ? 'default' : 'outline'} onClick={() => { setShowArchived((current) => !current); setPage(1); }}>
               <Archive />
               <span className="hidden sm:inline">{showArchived ? 'Active products' : `Archived (${archivedProducts.length})`}</span>
