@@ -3,7 +3,6 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft,
   CalendarRange,
   IndianRupee,
   Landmark,
@@ -110,11 +109,9 @@ export function CustomerLedgerDetail({
       <DashboardHeader
         title={`${customer.name} · Ledger`}
         subtitle={`${customer.phone} · ${period}`}
+        backHref="/ledger"
         actions={
           <>
-            <Button variant="outline" size="icon-sm" render={<Link href="/ledger" aria-label="Back to customer ledger" />}>
-              <ArrowLeft />
-            </Button>
             <Button type="button" variant="outline" size="sm" onClick={() => window.print()}>
               <Printer /><span className="hidden sm:inline">Print</span>
             </Button>
@@ -208,8 +205,8 @@ export function CustomerLedgerDetail({
       <section className="hidden print:block">
         <h3 className="mb-3 text-base font-semibold">Transaction history</h3>
         <table className="ledger-table w-full text-left text-[8px]">
-          <thead className="border-y bg-[#f7f4ef] dark:bg-[#241e17] text-muted-foreground">
-            <tr>{['Date','Time','Bill No.','Type','Transaction','Bill amount','Payment','Mode','Reference','Balance','Status'].map((heading) => <th key={heading} className="px-1.5 py-2 font-medium">{heading}</th>)}</tr>
+          <thead className="border-y border-[#b9aa97] bg-[#eee7dc] text-[#2f261d]">
+            <tr>{['Date','Time','Bill No.','Type','Transaction','Bill amount','Payment','Mode','Reference','Balance','Status'].map((heading) => <th key={heading} className="px-1.5 py-2 font-semibold tracking-wide">{heading}</th>)}</tr>
           </thead>
           <tbody>
             {filtered.map((transaction) => (

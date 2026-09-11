@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, CalendarClock, MapPin, Phone } from 'lucide-react';
+import { CalendarClock, MapPin, Phone } from 'lucide-react';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
@@ -76,16 +76,9 @@ export default async function EventJobDetailPage({
   return (
     <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <div className="mx-auto max-w-[1080px] space-y-6">
-        <div>
-          <Link
-            href="/event-jobs"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> All event jobs
-          </Link>
-        </div>
         <DashboardHeader
           title={job.id}
+          backHref="/event-jobs"
           subtitle={
             booking
               ? `${booking.event_name} · ${booking.booking_number}`

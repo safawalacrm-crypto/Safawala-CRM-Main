@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Check, Pencil, Plus, Tag, Trash2, X } from 'lucide-react';
 import { DashboardHeader } from '@/components/layout/dashboard-header';

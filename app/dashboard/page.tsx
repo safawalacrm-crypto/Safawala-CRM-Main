@@ -11,7 +11,6 @@ import {
   Clock3,
   FileText,
   ListChecks,
-  MapPin,
   PackageCheck,
   Plus,
   Route,
@@ -27,6 +26,7 @@ import { currentStageSummary, listActiveJobs } from '@/lib/event-jobs/store';
 import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
+const SHOW_LEGACY_DASHBOARD_SECTIONS = false;
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -36,8 +36,6 @@ export default async function DashboardPage() {
   const [
     { count: total },
     { count: quoteTotal },
-    { count: upcoming },
-    { count: todayEvents },
     { count: confirmed },
     { count: completed },
     { data: upcomingRows },
@@ -58,23 +56,6 @@ export default async function DashboardPage() {
       .select('*', { count: 'exact', head: true })
       .eq('is_quote', true)
       .eq('status', 'draft'),
-    supabase
-      .from('bookings')
-      .select('*', { count: 'exact', head: true })
-      .or(
-        'is_quote.eq.false,and(is_quote.eq.true,status.not.in.(draft,cancelled))',
-      )
-      .gte('event_date', today)
-      .not('status', 'in', '(completed,cancelled)'),
-    supabase
-      .from('bookings')
-      .select('*', { count: 'exact', head: true })
-      .or(
-        'is_quote.eq.false,and(is_quote.eq.true,status.not.in.(draft,cancelled))',
-      )
-      .gte('event_date', today)
-      .eq('event_date', today)
-      .not('status', 'in', '(completed,cancelled)'),
     supabase
       .from('bookings')
       .select('*', { count: 'exact', head: true })
@@ -174,15 +155,6 @@ export default async function DashboardPage() {
       (stage) => stage.status === 'open' || stage.status === 'in_progress',
     );
   }).length;
-  const pendingPaymentBookings = (paymentRows ?? []).filter((row) => {
-    const pending = Number(row.total ?? 0) - Number(row.paid_amount ?? 0);
-    return pending > 0 && row.payment_status !== 'paid';
-  });
-  const pendingPaymentAmount = pendingPaymentBookings.reduce(
-    (sum, row) =>
-      sum + Math.max(Number(row.total ?? 0) - Number(row.paid_amount ?? 0), 0),
-    0,
-  );
   const revenueRows = (paymentRows ?? []) as Array<{
     paid_amount: number | null;
     created_at: string | null;
@@ -203,11 +175,6 @@ export default async function DashboardPage() {
     (sum, row) => sum + Number(row.paid_amount ?? 0),
     0,
   );
-  const activeCustomers = new Set(
-    (paymentRows ?? [])
-      .map((row) => row.customer_id)
-      .filter((customerId) => customerId !== null && customerId !== undefined),
-  ).size;
   const upcomingBookings = (upcomingRows ?? []) as unknown as Array<{
     id: number;
     booking_number: string;
@@ -222,10 +189,6 @@ export default async function DashboardPage() {
   const todayBookings = upcomingBookings.filter(
     (booking) => booking.event_date === today,
   );
-  const attentionCount =
-    jobsToClose +
-    pendingPaymentBookings.length +
-    Number(modificationCount ?? 0);
   const trackedJobs = jobTrackerJobs.slice(0, 8);
   const recentBookings = (recent ?? []) as unknown as Array<{
     id: number;
@@ -431,7 +394,7 @@ export default async function DashboardPage() {
             </CardContent>
           </Card>
         </div>
-        {false && <>
+        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
         <section className="grid gap-4 xl:grid-cols-[1fr_1.35fr]">
           <Card className="border-border shadow-level-1 ring-0">
             <CardHeader className="flex-row items-center justify-between border-b py-4">
@@ -608,7 +571,7 @@ export default async function DashboardPage() {
           </Card>
         </section>
         </>}
-        {false && <>
+        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
         <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
           <CardHeader className="flex-row items-center justify-between border-b py-5">
             <div>
@@ -700,8 +663,8 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
         </>}
-        {false && <>
-        {false && <>
+        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
+        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
         <Card className="border-border shadow-level-1 ring-0">
           <CardHeader className="flex-row items-center justify-between border-b py-4">
             <div>
@@ -769,7 +732,7 @@ export default async function DashboardPage() {
           </CardContent>
         </Card>
         </>}
-        {false && <>
+        {SHOW_LEGACY_DASHBOARD_SECTIONS && <>
         <Card className="gap-0 border-border py-0 shadow-level-1 ring-0">
           <CardHeader className="flex-row items-center justify-between border-b py-5">
             <div>

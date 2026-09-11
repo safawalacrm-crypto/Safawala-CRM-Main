@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, CalendarDays, MapPin, PackageCheck, UserRound } from 'lucide-react';
+import { CalendarDays, MapPin, PackageCheck, UserRound } from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
@@ -72,10 +71,7 @@ export default async function CollectionJobDetailPage({ params }: { params: Prom
       isMainId={session.isMainId}
     >
       <div className="mx-auto max-w-[900px] space-y-5">
-        <DashboardHeader title="Collection job" subtitle={`${job.id} · ${customerName}`} />
-        <Link href="/staff-portal/collection" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> Back to Collection
-        </Link>
+        <DashboardHeader title="Collection job" subtitle={`${job.id} · ${customerName}`} backHref="/staff-portal/collection" />
 
         <section className="rounded-2xl border border-[#dfd3c3] bg-white dark:bg-card p-5 shadow-level-1">
           <div className="flex flex-wrap items-start justify-between gap-3">

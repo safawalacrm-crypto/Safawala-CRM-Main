@@ -43,6 +43,7 @@ import {
 } from '@/lib/inventory-catalog';
 import { createClient } from '@/lib/supabase/client';
 import { initializeBookingEventJobAction } from '@/app/bookings/event-job-actions';
+import { validateCouponAction } from '@/app/coupons/actions';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { BarcodeScannerModal } from '@/components/bookings/barcode-scanner-modal';
 import { useHardwareScannerListener } from '@/lib/hooks/use-hardware-scanner';
@@ -160,6 +161,10 @@ export function BookingForm({
   const [customProductBusy, setCustomProductBusy] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
   const [discount, setDiscount] = useState(0);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponMessage, setCouponMessage] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState('');
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [overrideTotal, setOverrideTotal] = useState(0);
   const [taxEnabled, setTaxEnabled] = useState(false);
@@ -259,6 +264,22 @@ export function BookingForm({
     ? Math.max(subtotal + tax + deposit - overrideTotal, 0)
     : discount;
   const total = overrideEnabled ? Math.max(overrideTotal, 0) : baseTotal;
+  async function applyCoupon() {
+    if (!couponCode.trim()) return setCouponMessage('Enter a coupon code.');
+    setCouponBusy(true);
+    setCouponMessage('');
+    try {
+      const result = await validateCouponAction(couponCode, subtotal);
+      setDiscount(result.discount);
+      setAppliedCoupon(result.code);
+      setCouponMessage(`${result.code} applied: ${money(result.discount)} off`);
+    } catch (error) {
+      setAppliedCoupon('');
+      setCouponMessage(error instanceof Error ? error.message : 'Unable to apply coupon.');
+    } finally {
+      setCouponBusy(false);
+    }
+  }
   const matchingCustomers = customerList.filter((customer) =>
     `${customer.name} ${customer.phone} ${customer.email ?? ''}`
       .toLowerCase()
@@ -444,13 +465,19 @@ export function BookingForm({
     window.setTimeout(() => setAddedToast(''), 2400);
   }
 
-  function handleProductScan(rawValue: string) {
+  async function handleProductScan(rawValue: string) {
     const scanned = rawValue.trim().toLowerCase();
-    const product = products.find(
+    let product = products.find(
       (item) =>
         item.barcode?.trim().toLowerCase() === scanned ||
         item.sku?.trim().toLowerCase() === scanned,
     );
+    if (!product && scanned) {
+      try {
+        const response = await fetch('/api/barcode/lookup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ barcode: rawValue.trim() }) });
+        if (response.ok) product = (await response.json()).product as Product;
+      } catch { /* Keep the existing not-found message when lookup is unavailable. */ }
+    }
     if (product) {
       addProduct(product);
       setProductSearch('');
@@ -985,17 +1012,9 @@ export function BookingForm({
               ? 'Prepare a customer quotation for Main ID review'
               : 'Complete the details below to create a live booking'
           }
+          backHref="/bookings"
           actions={
             <>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                render={<Link href="/bookings" aria-label="All bookings" />}
-              >
-                <ArrowLeft />
-                <span className="hidden xl:inline">All bookings</span>
-              </Button>
               <Badge variant="outline" className="h-9 bg-white dark:bg-card px-3">
                 {isSale ? 'Sale booking' : 'Rental booking'}
               </Badge>
@@ -1397,19 +1416,9 @@ export function BookingForm({
                             value={productSearch}
                             onChange={(e) => handleProductSearchInput(e.target.value)}
                             onKeyDown={(event) => {
-                              if (event.key !== 'Enter') return;
-                              event.preventDefault();
-                              const value = productSearch.trim().toLowerCase();
-                              const exact = products.find((item) =>
-                                [item.barcode, item.sku]
-                                  .filter(Boolean)
-                                  .some((code) => code?.trim().toLowerCase() === value),
-                              );
-                              if (exact) {
-                                addProduct(exact);
-                                setProductSearch('');
-                                setMessage(null);
-                              }
+      if (event.key !== 'Enter') return;
+      event.preventDefault();
+                              void handleProductScan(productSearch);
                             }}
                             placeholder="Search products or barcode…"
                             inputMode="search"
@@ -2518,6 +2527,16 @@ export function BookingForm({
                       onChange={setDiscount}
                       disabled={quoteOnly}
                     />
+                    <div className="border-t pt-3">
+                      <label className="block text-sm">
+                        <span className="mb-1.5 block text-muted-foreground">Coupon code</span>
+                        <div className="flex gap-2">
+                          <input value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} placeholder="e.g. SAVE10" className={`${inputClass} min-w-0 flex-1`} disabled={quoteOnly || couponBusy} />
+                          <Button type="button" variant="outline" size="sm" onClick={applyCoupon} disabled={quoteOnly || couponBusy || !couponCode.trim()}>{couponBusy ? 'Checking…' : 'Apply'}</Button>
+                        </div>
+                      </label>
+                      {couponMessage ? <p className={`mt-1.5 text-xs ${appliedCoupon ? 'text-emerald-700' : 'text-destructive'}`}>{couponMessage}</p> : null}
+                    </div>
                     <label className="flex items-center gap-2 border-t pt-3 text-sm text-muted-foreground">
                       <input
                         type="checkbox"
@@ -2894,19 +2913,16 @@ function BookingSteps({ current }: { current: 1 | 2 | 3 }) {
   return (
     <nav
       aria-label="Booking progress"
-      className="rounded-xl border bg-white dark:bg-card px-3 py-3 shadow-level-1 sm:px-5"
+      className="rounded-2xl border border-[#e4d8c9] bg-white dark:bg-card px-3 py-4 shadow-level-1 sm:px-6"
     >
-      <ol className="grid grid-cols-3 gap-2">
+      <ol className="flex items-start gap-1 sm:gap-3">
         {steps.map((item, index) => {
           const complete = item.number < current;
           const active = item.number === current;
           return (
-            <li
-              key={item.number}
-              className="relative flex min-w-0 items-center gap-2 sm:gap-3"
-            >
+            <li key={item.number} className="flex min-w-0 flex-1 items-start gap-2 sm:items-center sm:gap-3">
               <span
-                className={`grid size-8 shrink-0 place-items-center rounded-full border text-xs font-semibold transition sm:size-9 ${complete || active ? 'border-primary bg-primary text-white' : 'border-border bg-[#f7f4ef] dark:bg-[#241e17] text-muted-foreground'}`}
+                className={`grid size-9 shrink-0 place-items-center rounded-full border text-xs font-bold transition sm:size-10 ${complete || active ? 'border-primary bg-primary text-white shadow-[0_3px_10px_rgb(154_103_40_/.25)]' : 'border-[#d9cbbb] bg-[#faf7f2] dark:bg-[#241e17] text-muted-foreground'}`}
               >
                 {complete ? <Check className="size-4" /> : item.icon}
               </span>
@@ -2916,14 +2932,15 @@ function BookingSteps({ current }: { current: 1 | 2 | 3 }) {
                 </span>
                 <span
                   aria-current={active ? 'step' : undefined}
-                  className={`mt-0.5 block truncate text-xs font-semibold sm:text-sm ${active ? 'text-primary' : 'text-foreground'}`}
+                  className={`mt-0.5 block truncate text-[11px] font-semibold sm:text-sm ${active ? 'text-primary' : 'text-foreground'}`}
                 >
                   {item.label}
                 </span>
               </span>
               {index < steps.length - 1 && (
                 <span
-                  className={`absolute left-[calc(100%-2px)] top-1/2 hidden h-px w-2 -translate-y-1/2 sm:block ${complete ? 'bg-primary' : 'bg-border'}`}
+                  aria-hidden="true"
+                  className={`mt-5 hidden h-0.5 min-w-4 flex-1 rounded-full sm:block ${complete ? 'bg-primary' : 'bg-[#e5ddd2]'}`}
                 />
               )}
             </li>

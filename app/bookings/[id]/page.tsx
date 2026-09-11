@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, MapPin, Phone, Printer } from 'lucide-react';
+import { MapPin, Phone, Printer } from 'lucide-react';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { BookingActions } from '@/components/bookings/booking-actions';
@@ -57,6 +56,7 @@ export default async function BookingDetailsPage({
               : booking.booking_number
           }
           subtitle={`${statusLabel(booking.booking_type)} booking · created ${friendlyDate(booking.created_at.slice(0, 10))}`}
+          backHref={booking.is_quote ? '/quotes' : '/bookings'}
           actions={
             <>
               <Badge
@@ -71,13 +71,6 @@ export default async function BookingDetailsPage({
               >
                 {statusLabel(booking.payment_status)}
               </Badge>
-              <Button
-                variant="outline"
-                size="icon-sm"
-                render={<Link href={booking.is_quote ? '/quotes' : '/bookings'} aria-label={booking.is_quote ? 'Back to quotes' : 'Back to bookings'} />}
-              >
-                <ArrowLeft />
-              </Button>
               {!quoteOnly ? <Button
                 variant="outline"
                 size="sm"

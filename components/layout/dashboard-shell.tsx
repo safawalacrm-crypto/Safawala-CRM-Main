@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { BrandMark } from '@/components/brand-mark';
@@ -17,6 +17,9 @@ import {
 } from '@/components/ui/sheet';
 import { createClient } from '@/lib/supabase/client';
 import {
+  Archive,
+  BarChart3,
+  CircleDollarSign,
   Boxes,
   ArrowLeft,
   CalendarDays,
@@ -32,14 +35,17 @@ import {
   PlaneTakeoff,
   Plus,
   Route,
+  ReceiptText,
   Settings,
   Trophy,
   UserCheck,
   UsersRound,
   Wrench,
   UserCog,
+  WalletCards,
   Tag,
   Truck,
+  WashingMachine,
 } from 'lucide-react';
 
 function SidebarNavigation() {
@@ -66,8 +72,16 @@ function SidebarNavigation() {
       { href: '/travel', label: 'Travel Manager', icon: PlaneTakeoff },
       { href: '/event-tracking', label: 'Job Tracking', icon: Route },
       { href: '/inventory', label: 'Inventory', icon: Boxes },
+      { href: '/inventory/archive', label: 'Product Archive', icon: Archive },
       { href: '/packages', label: 'Package Manager', icon: Layers3 },
       { href: '/vendors', label: 'Vendors', icon: Truck },
+      { href: '/laundry', label: 'Laundry', icon: WashingMachine },
+    ] },
+    { label: 'Finance & Operations', links: [
+      { href: '/challans', label: 'Challans', icon: ReceiptText },
+      { href: '/vouchers', label: 'Vouchers', icon: WalletCards },
+      { href: '/expenses', label: 'Expenses', icon: CircleDollarSign },
+      { href: '/reports', label: 'Reports', icon: BarChart3 },
     ] },
     { label: 'Team & HR', links: [
       { href: '/performance', label: 'Performance', icon: Trophy },
@@ -83,7 +97,11 @@ function SidebarNavigation() {
           <p className="mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/75">{group.label}</p>
           <div className="space-y-1">
             {group.links.map(({ href, label, icon: Icon }) => {
-              const active = href === '/dashboard' || href === '/bookings' ? pathname === href : pathname.startsWith(href);
+              const active = href === '/inventory'
+                ? pathname === '/inventory'
+                : href === '/dashboard' || href === '/bookings'
+                  ? pathname === href
+                  : pathname === href || pathname.startsWith(`${href}/`);
               return (
                 <Link key={href} href={href} aria-current={active ? 'page' : undefined}
                   className={`flex h-10 items-center gap-2.5 rounded-lg border px-2.5 text-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${active ? 'border-[#e4d2b6] bg-[#f5ead8] font-semibold text-[#70481c]' : 'border-transparent text-muted-foreground hover:bg-[#f7f4ef] hover:text-foreground'}`}>
@@ -163,7 +181,7 @@ function BrandDivider() {
 export function DashboardShell({
   email,
   children,
-  notificationCount = 0,
+  notificationCount: _notificationCount = 0,
 }: {
   email: string;
   children: ReactNode;
@@ -179,13 +197,16 @@ export function DashboardShell({
     if (path.startsWith('/inventory')) return { title: 'Inventory', subtitle: 'Products, pricing, stock and barcodes' };
     if (path.startsWith('/packages')) return { title: 'Package Manager', subtitle: 'Category-based package system' };
     if (path.startsWith('/coupons')) return { title: 'Manage Offers', subtitle: 'Create, edit, and manage discount codes for bookings', backHref: '/dashboard' };
+    if (path.startsWith('/reports')) return { title: 'Business Reports', subtitle: 'Revenue, bookings, inventory and payment insights', backHref: '/dashboard' };
+    if (path.startsWith('/challans')) return { title: 'Delivery Challans', subtitle: 'Create and track delivery receipts and pickup sheets', backHref: '/dashboard' };
+    if (path.startsWith('/vouchers')) return { title: 'Payment & Receipt Vouchers', subtitle: 'Track customer receipts and company payments', backHref: '/dashboard' };
+    if (path.startsWith('/expenses')) return { title: 'Expenses', subtitle: 'Track and manage business expenses', backHref: '/dashboard' };
     if (path.startsWith('/vendors')) return { title: 'Vendor Management', subtitle: 'Suppliers, contacts and vendor records for your business', backHref: '/dashboard' };
     if (path.startsWith('/staff')) return { title: 'Staff', subtitle: 'Manage staff accounts and access' };
     if (path.startsWith('/settings')) return { title: 'Settings', subtitle: 'Manage your CRM preferences' };
     return path === '/dashboard' ? { title: 'Booking Dashboard', subtitle: 'Bookings, quotations and jobs waiting for closure' } : null;
   };
   const [pageHeader, setPageHeader] = useState<PageHeader>(() => fallbackHeader(pathname));
-  useLayoutEffect(() => setPageHeader(fallbackHeader(pathname)), [pathname]);
 
   return (
     <DashboardHeaderContext.Provider value={setPageHeader}><div className="min-h-dvh bg-surface text-foreground">
@@ -233,7 +254,7 @@ export function DashboardShell({
                 </div>
               </SheetContent>
             </Sheet>
-            {pageHeader ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pl-12 lg:pl-0"><div className="flex min-w-0 flex-1 basis-[220px] items-center">{pageHeader.backHref ? <Link href={pageHeader.backHref} className="pointer-events-auto mr-3 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label="Back"><ArrowLeft aria-hidden="true" className="size-4" strokeWidth={3} /></Link> : null}<span className="min-w-0 align-middle"><span className="block truncate text-base font-semibold leading-5">{pageHeader.title}</span><span className="hidden truncate text-[11px] text-muted-foreground sm:block">{pageHeader.subtitle}</span></span></div>{pageHeader.actions ? <div className="pointer-events-auto ml-auto flex max-w-full flex-wrap items-center justify-end gap-1.5 [&_[data-slot=button]]:h-8 [&_[data-slot=button]]:px-3 [&_[data-slot=button]]:text-xs">{pageHeader.actions}</div> : null}</div> : <div className="min-w-0 flex-1" />}
+            {pageHeader ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 pl-12 lg:pl-0"><div className="flex min-w-0 flex-1 basis-[220px] items-center">{pageHeader.backHref ? <Link href={pageHeader.backHref} className="pointer-events-auto mr-3 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted" aria-label="Back"><ArrowLeft aria-hidden="true" className="size-4" strokeWidth={3} /></Link> : null}<span className="min-w-0 align-middle"><span className="block truncate text-base font-semibold leading-5">{pageHeader.title}</span><span className="hidden truncate text-[11px] text-muted-foreground sm:block">{pageHeader.subtitle}</span></span></div>{pageHeader.actions ? <div className="pointer-events-auto ml-auto flex max-w-full flex-wrap items-center justify-end gap-1.5 [&_[data-slot=button]]:h-9 [&_[data-slot=button]]:px-3 [&_[data-slot=button]]:text-sm">{pageHeader.actions}</div> : null}</div> : <div className="min-w-0 flex-1" />}
           <div className="pointer-events-auto flex items-center gap-2">
             <AdminNotificationPopover />
           </div>

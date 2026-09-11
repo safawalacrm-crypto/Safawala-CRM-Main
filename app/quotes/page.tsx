@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import {
-  ArrowLeft,
   CalendarDays,
   CheckCircle2,
   ChevronLeft,
@@ -226,17 +225,9 @@ export default async function QuotesPage({ searchParams }: Props) {
         <DashboardHeader
           title="Quote Management"
           subtitle="Generate and manage customer quotes"
-          backHref="/dashboard"
+          backHref="/bookings"
           actions={
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                render={<Link href="/bookings" aria-label="Back to bookings" />}
-              >
-                <ArrowLeft />
-                <span className="hidden md:inline">Back</span>
-              </Button>
               <RefreshQuotesButton />
               {!quoteOnly ? <ExportQuotesButton quotes={quotes} /> : null}
               <Button size="sm" render={<Link href="/bookings/new" />}>

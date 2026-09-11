@@ -1,8 +1,8 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, CalendarClock, CheckCircle2, FileText, MapPin, MessageCircle, Phone, Upload, UserRound } from 'lucide-react';
+import { CalendarClock, CheckCircle2, FileText, MapPin, MessageCircle, Phone, Upload, UserRound } from 'lucide-react';
 import { confirmTicketSentAction, uploadTicketAction } from '@/app/travel/actions';
 import { BookingPortalShell } from '@/components/bookings/booking-portal-shell';
+import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,14 +55,7 @@ export default async function TravelPlanPage({
   return (
     <BookingPortalShell email={auth.user.email ?? 'Safawala user'}>
       <div className="mx-auto max-w-[1000px] space-y-5">
-        <div>
-          <Link
-            href="/travel"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> All travel &amp; accommodation
-          </Link>
-        </div>
+        <DashboardHeader title="Travel & Accommodation" subtitle={`${job.id} · ${job.bookingNumber}`} backHref="/travel" />
         <div className="overflow-hidden rounded-2xl border border-[#d9c7ad] bg-gradient-to-r from-[#5d422a] to-[#8d602b] p-5 text-white shadow-level-1 sm:p-6"><div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between"><div><Badge variant="outline" className="border-white/30 bg-white/10 text-white">Rental event</Badge><h1 className="mt-3 text-2xl font-semibold">Travel &amp; Accommodation</h1><p className="mt-1 text-sm text-white/75">{job.id} · {job.bookingNumber}</p></div><p className="flex items-center gap-1.5 text-sm text-white/85"><CalendarClock className="size-4" />{friendlyDate(job.eventSummary.eventDate)} · {friendlyTime(job.eventSummary.eventTime)}</p></div></div>
 
         {confirmed ? <Card className="border-emerald-200 bg-emerald-50"><CardContent className="flex items-center gap-2 p-4 text-sm text-emerald-700"><CheckCircle2 className="size-4" /> Ticket confirmation saved and the selected staff member was notified.</CardContent></Card> : null}

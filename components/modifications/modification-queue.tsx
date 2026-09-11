@@ -10,7 +10,6 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
-  ExternalLink,
   MapPin,
   PackageCheck,
   Phone,
@@ -29,7 +28,6 @@ import { ListPagination } from '@/components/ui/list-pagination';
 import { friendlyDate, friendlyTime } from '@/lib/bookings';
 import {
   modificationDetails,
-  type ModificationDetails,
 } from '@/lib/modifications';
 import { createClient } from '@/lib/supabase/client';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
@@ -136,9 +134,11 @@ function urgency(booking: ModificationBooking) {
 export function ModificationQueue({
   initialBookings,
   loadError,
+  staffMode = false,
 }: {
   initialBookings: ModificationBooking[];
   loadError: string;
+  staffMode?: boolean;
 }) {
   const [bookings, setBookings] = useState(initialBookings);
   const [search, setSearch] = useState('');
@@ -257,9 +257,9 @@ export function ModificationQueue({
     <div className="mx-auto max-w-[1440px] space-y-6">
       <DashboardHeader
         title="Modifications"
-        subtitle="Delivery-first workshop queue for Sale bookings"
-        backHref="/dashboard"
-        actions={
+        subtitle={staffMode ? 'Work assigned to the modification department' : 'Delivery-first workshop queue for Sale bookings'}
+        backHref={null}
+        actions={!staffMode ? (
           <Button
             size="sm"
             variant="outline"
@@ -268,7 +268,7 @@ export function ModificationQueue({
             <ArrowRight />
             <span className="hidden sm:inline">Create sale booking</span>
           </Button>
-        }
+        ) : undefined}
       />
 
       {message ? (
@@ -757,14 +757,7 @@ function ModificationDialog({
             </Card>
           </div>
         </div>
-        <div className="flex flex-col-reverse gap-2 border-t bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <Button
-            variant="outline"
-            render={<Link href={`/bookings/${booking.id}`} />}
-          >
-            <ExternalLink />
-            Open full booking
-          </Button>
+        <div className="flex justify-end border-t bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:px-6">
           <div className="flex gap-2 sm:justify-end">
             <Button type="button" variant="outline" onClick={onClose}>
               Close

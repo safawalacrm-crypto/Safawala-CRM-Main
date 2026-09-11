@@ -1,7 +1,6 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { notFound } from 'next/navigation';
-import { ArrowLeft, CalendarClock, MapPin, PackageCheck, UsersRound } from 'lucide-react';
+import { CalendarClock, MapPin, PackageCheck, UsersRound } from 'lucide-react';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { StylistInterestButton } from '@/components/staff-portal/stylist-interest-button';
@@ -50,10 +49,7 @@ export default async function StylistEventDetailsPage({ params }: { params: Prom
       notificationCount={notificationCount}
     >
       <div className="mx-auto max-w-[920px] space-y-5">
-        <Link href="/staff-portal/stylist" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> Available events
-        </Link>
-        <DashboardHeader title={job.eventSummary.eventName} subtitle="Rental event details" />
+        <DashboardHeader title={job.eventSummary.eventName} subtitle="Rental event details" backHref="/staff-portal/stylist" />
 
         <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1">
           <CardHeader className="border-b border-[#e8dccb] bg-[#fcfaf7] dark:bg-[#241e17] px-5 py-4 sm:px-6">

@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  ArrowLeft,
   Box,
   Camera,
   Check,
@@ -24,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { displayQuoteNumber, money, statusLabel } from '@/lib/bookings';
 import { useHardwareScannerListener } from '@/lib/hooks/use-hardware-scanner';
 import { createClient } from '@/lib/supabase/client';
+import { validateCouponAction } from '@/app/coupons/actions';
 
 type BookingItem = {
   id?: number;
@@ -225,6 +225,10 @@ export function BookingEditForm({
     })),
   );
   const [discount, setDiscount] = useState(Number(booking.discount) || 0);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponBusy, setCouponBusy] = useState(false);
+  const [couponMessage, setCouponMessage] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState('');
   const [taxEnabled, setTaxEnabled] = useState(Number(booking.tax) > 0);
   const [productSearch, setProductSearch] = useState('');
 
@@ -238,6 +242,22 @@ export function BookingEditForm({
     [items, isSale],
   );
   const taxable = Math.max(subtotal - discount, 0);
+  async function applyCoupon() {
+    if (!couponCode.trim()) return setCouponMessage('Enter a coupon code.');
+    setCouponBusy(true);
+    setCouponMessage('');
+    try {
+      const result = await validateCouponAction(couponCode, subtotal);
+      setDiscount(result.discount);
+      setAppliedCoupon(result.code);
+      setCouponMessage(`${result.code} applied: ${money(result.discount)} off`);
+    } catch (error) {
+      setAppliedCoupon('');
+      setCouponMessage(error instanceof Error ? error.message : 'Unable to apply coupon.');
+    } finally {
+      setCouponBusy(false);
+    }
+  }
   const tax = taxEnabled ? Math.round(taxable * 0.05) : 0;
   const total = taxable + tax + deposit;
   const visibleProducts = products.filter((product) =>
@@ -248,14 +268,20 @@ export function BookingEditForm({
   const [cameraOpen, setCameraOpen] = useState(false);
   const [productMessage, setProductMessage] = useState('');
 
-  function handleBarcodeSubmit(rawValue: string) {
+  async function handleBarcodeSubmit(rawValue: string) {
     const scanned = rawValue.trim().toLowerCase();
     if (!scanned) return;
-    const match = products.find(
+    let match = products.find(
       (item) =>
         item.barcode?.trim().toLowerCase() === scanned ||
         item.sku?.trim().toLowerCase() === scanned,
     );
+    if (!match) {
+      try {
+        const response = await fetch('/api/barcode/lookup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ barcode: rawValue.trim() }) });
+        if (response.ok) match = (await response.json()).product as Product;
+      } catch { /* Fall through to the existing not-found message. */ }
+    }
     if (match) {
       addProduct(match);
       setProductSearch('');
@@ -461,12 +487,7 @@ export function BookingEditForm({
       <DashboardHeader
         title={`Edit ${documentNumber}`}
         subtitle="Update customer, delivery and operational booking details"
-        actions={
-          <Button variant="outline" render={<Link href={backHref} />}>
-            <ArrowLeft />
-            <span className="hidden sm:inline">Cancel editing</span>
-          </Button>
-        }
+        backHref={backHref}
       />
       <form onSubmit={submit} className="space-y-5">
         <Card className="gap-0 overflow-hidden border-border py-0 shadow-level-1 ring-0">
@@ -875,6 +896,16 @@ export function BookingEditForm({
                       className={`${fieldClass} !mt-0`}
                     />
                   </label>
+                  <div className="border-t pt-3">
+                    <label className="block text-sm">
+                      <span className="mb-1.5 block text-muted-foreground">Coupon code</span>
+                      <div className="flex gap-2">
+                        <input value={couponCode} onChange={(event) => setCouponCode(event.target.value.toUpperCase())} placeholder="e.g. SAVE10" className={`${fieldClass} min-w-0 flex-1 !mt-0`} disabled={couponBusy} />
+                        <Button type="button" variant="outline" size="sm" onClick={applyCoupon} disabled={couponBusy || !couponCode.trim()}>{couponBusy ? 'Checking…' : 'Apply'}</Button>
+                      </div>
+                    </label>
+                    {couponMessage ? <p className={`mt-1.5 text-xs ${appliedCoupon ? 'text-emerald-700' : 'text-destructive'}`}>{couponMessage}</p> : null}
+                  </div>
                   <label className="flex items-center gap-2 border-t pt-3 text-sm text-muted-foreground">
                     <input
                       type="checkbox"

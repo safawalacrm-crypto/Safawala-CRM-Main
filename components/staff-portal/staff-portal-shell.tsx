@@ -93,6 +93,9 @@ function SidebarNavigation({
     (grant) => grant.active && grant.department === 'stylist',
   );
   const isStylistMain = isMainId && isStylistStaff;
+  const isModificationStaff = departments.some(
+    (grant) => grant.active && grant.department === 'modification',
+  );
   const seen = new Set<string>();
   const links = isBookingPortal
     ? [
@@ -147,7 +150,7 @@ function SidebarNavigation({
                   icon: PackageCheck,
                 },
               ]
-            : isStylistMain
+              : isStylistMain
               ? [
                   {
                     href: '/staff-portal/stylist',
@@ -158,6 +161,14 @@ function SidebarNavigation({
                     href: '/staff-portal/stylist/assigned',
                     label: 'All assigned events',
                     icon: CalendarDays,
+                  },
+                ]
+            : isModificationStaff
+              ? [
+                  {
+                    href: '/staff-portal/modifications',
+                    label: 'Modifications',
+                    icon: Wrench,
                   },
                 ]
             : isStylistStaff
@@ -394,7 +405,7 @@ export function StaffPortalShell({
                 </div>
               </SheetContent>
             </Sheet>
-            {pageHeader ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 pl-12 lg:pl-0"><div className="flex min-w-0 flex-1 basis-[220px] items-center"><Link href={pageHeader.backHref ?? '/staff-portal'} aria-label="Back" className="pointer-events-auto mr-3 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted"><ArrowLeft className="size-4" strokeWidth={3} /></Link><div className="min-w-0"><span className="block truncate text-base font-semibold leading-5">{pageHeader.title}</span><span className="hidden truncate text-[11px] text-muted-foreground sm:block">{pageHeader.subtitle}</span></div></div>{pageHeader.actions ? <div className="pointer-events-auto ml-auto flex shrink-0 items-center gap-1.5 [&_[data-slot=button]]:h-8 [&_[data-slot=button]]:px-3 [&_[data-slot=button]]:text-xs">{pageHeader.actions}</div> : null}</div> : <div className="min-w-0 flex-1" />}
+            {pageHeader ? <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2 gap-y-1 pl-12 lg:pl-0"><div className="flex min-w-0 flex-1 basis-[220px] items-center">{pageHeader.backHref !== null ? <Link href={pageHeader.backHref ?? '/staff-portal'} aria-label="Back" className="pointer-events-auto mr-3 inline-flex size-8 shrink-0 items-center justify-center rounded-lg border border-border text-muted-foreground hover:bg-muted"><ArrowLeft className="size-4" strokeWidth={3} /></Link> : null}<div className="min-w-0"><span className="block truncate text-base font-semibold leading-5">{pageHeader.title}</span><span className="hidden truncate text-[11px] text-muted-foreground sm:block">{pageHeader.subtitle}</span></div></div>{pageHeader.actions ? <div className="pointer-events-auto ml-auto flex shrink-0 items-center gap-1.5 [&_[data-slot=button]]:h-9 [&_[data-slot=button]]:px-3 [&_[data-slot=button]]:text-sm">{pageHeader.actions}</div> : null}</div> : <div className="min-w-0 flex-1" />}
             <Link
               href="/staff-portal/notifications"
               aria-label="Notifications"

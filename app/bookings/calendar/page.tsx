@@ -89,6 +89,7 @@ export default async function BookingCalendar({
             month: 'long',
             year: 'numeric',
           })}
+          backHref="/bookings"
           actions={
             <>
               <Button

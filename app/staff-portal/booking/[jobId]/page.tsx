@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { ArrowLeft, CalendarClock, MapPin } from 'lucide-react';
+import { CalendarClock, MapPin } from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
@@ -44,15 +43,7 @@ export default async function BookingJobDetailPage({ params }: { params: Promise
   return (
     <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} isMainId={session.isMainId}>
       <div className="mx-auto max-w-[900px] space-y-6">
-        <div>
-          <Link
-            href="/staff-portal/booking/close-jobs"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> Back to Close Jobs
-          </Link>
-        </div>
-        <DashboardHeader title={job.id} subtitle={`${job.eventSummary.eventName} · ${job.bookingNumber}`} />
+        <DashboardHeader title={job.id} subtitle={`${job.eventSummary.eventName} · ${job.bookingNumber}`} backHref="/staff-portal/booking/close-jobs" />
 
         {job.status === 'closed' ? (
           <Card className="border-emerald-200 bg-emerald-50">

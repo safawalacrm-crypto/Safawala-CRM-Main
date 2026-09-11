@@ -47,6 +47,10 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
   const isStylistStaff = activeDepartments.some(
     (grant) => grant.department === 'stylist',
   );
+  const isModificationStaff = activeDepartments.some(
+    (grant) => grant.department === 'modification',
+  );
+  if (isModificationStaff) redirect('/staff-portal/modifications');
   if (isStylistStaff) redirect('/staff-portal/stylist');
   const isBookingStaff =
     !session.isMainId &&
@@ -128,6 +132,39 @@ export default async function StaffPortalHomePage({ searchParams }: Props) {
     session.id,
     activeDepartments.map((grant) => grant.department),
   );
+
+  if (isModificationStaff) {
+    return (
+      <StaffPortalShell
+        name={session.name}
+        departments={session.departments}
+        permissions={session.permissions}
+        accessModules={session.accessModules}
+        isMainId={session.isMainId}
+        notificationCount={notificationCount}
+      >
+        <div className="mx-auto max-w-[960px] space-y-5">
+          <DashboardHeader
+            title="Modification Dashboard"
+            subtitle="A simple view of your modification work"
+          />
+          <Card className="border-border shadow-level-1">
+            <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-lg font-semibold">Modification work queue</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Open sale-booking requests, update their progress, and mark completed work.
+                </p>
+              </div>
+              <Link href="/staff-portal/modifications" className="inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition hover:opacity-90">
+                Open Modifications
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </StaffPortalShell>
+    );
+  }
 
   return (
     <StaffPortalShell

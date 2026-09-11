@@ -16,6 +16,8 @@ import {
   Layers3,
   PackageCheck,
   Pencil,
+  MoreHorizontal,
+  Copy,
   Plus,
   Search,
   ShieldCheck,
@@ -178,10 +180,16 @@ export function InventoryDirectory({
   initialProducts,
   loadError,
   reservations = [],
+  initialShowArchived = false,
+  headerTitle = 'Inventory',
+  headerSubtitle = 'Products, pricing, stock & existing printed barcodes',
 }: {
   initialProducts: InventoryProduct[];
   loadError: string;
   reservations?: ProductReservation[];
+  initialShowArchived?: boolean;
+  headerTitle?: string;
+  headerSubtitle?: string;
 }) {
   const [products, setProducts] = useState(initialProducts);
   const reservationsByProduct = useMemo(() => {
@@ -204,8 +212,10 @@ export function InventoryDirectory({
   const [dialogStep, setDialogStep] = useState<Step>('details');
   const [message, setMessage] = useState(loadError);
   const [notice, setNotice] = useState('');
+  const [showArchived, setShowArchived] = useState(initialShowArchived);
 
   const activeProducts = products.filter((product) => product.is_active);
+  const archivedProducts = products.filter((product) => !product.is_active);
   const inStock = activeProducts.filter(
     (product) => product.stock_quantity > product.reorder_level,
   ).length;
@@ -239,7 +249,8 @@ export function InventoryDirectory({
   ].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
   const visibleProducts = (() => {
     const query = search.trim().toLowerCase();
-    return activeProducts.filter((product) => {
+    const sourceProducts = showArchived ? archivedProducts : activeProducts;
+    return sourceProducts.filter((product) => {
       const searchable =
         `${product.name} ${product.barcode ?? ''} ${product.sku ?? ''} ${product.category ?? ''} ${product.subcategory ?? ''}`.toLowerCase();
       const matchesSearch = !query || searchable.includes(query);
@@ -335,6 +346,23 @@ export function InventoryDirectory({
     setDialogOpen(true);
   }
 
+  async function updateProductStatus(product: InventoryProduct, isActive: boolean) {
+    const supabase = createClient();
+    const { error } = await supabase.from('products').update({ is_active: isActive }).eq('id', product.id);
+    if (error) { setMessage(error.message); return; }
+    setProducts((current) => current.map((item) => item.id === product.id ? { ...item, is_active: isActive } : item));
+    setNotice(isActive ? `${product.name} was restored to inventory.` : `${product.name} was archived.`);
+  }
+
+  async function deleteProduct(product: InventoryProduct) {
+    if (!window.confirm(`Delete ${product.name} permanently?`)) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('products').delete().eq('id', product.id);
+    if (error) { setMessage(error.message); return; }
+    setProducts((current) => current.filter((item) => item.id !== product.id));
+    setNotice(`${product.name} was deleted.`);
+  }
+
   function saved(product: InventoryProduct, wasEditing: boolean) {
     setProducts((current) =>
       wasEditing
@@ -380,8 +408,8 @@ export function InventoryDirectory({
       ) : null}
 
       <DashboardHeader
-        title="Inventory"
-        subtitle="Products, pricing, stock & existing printed barcodes"
+        title={headerTitle}
+        subtitle={headerSubtitle}
         backHref="/dashboard"
         actions={
           <>
@@ -395,7 +423,11 @@ export function InventoryDirectory({
               <Download />
               <span className="hidden sm:inline">Export CSV</span>
             </Button>
-            <Button type="button" size="sm" onClick={openNewProduct}>
+            <Button type="button" size="sm" variant={showArchived ? 'default' : 'outline'} onClick={() => { setShowArchived((current) => !current); setPage(1); }}>
+              <Archive />
+              <span className="hidden sm:inline">{showArchived ? 'Active products' : `Archived (${archivedProducts.length})`}</span>
+            </Button>
+            <Button type="button" size="sm" onClick={openNewProduct} disabled={showArchived}>
               <Plus />
               <span className="hidden sm:inline">Add product</span>
             </Button>
@@ -544,13 +576,17 @@ export function InventoryDirectory({
       </div>
 
       {visibleProducts.length ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {pagedProducts.map((product) => (
             <ProductCard
               key={product.id}
               product={product}
               reservations={reservationsByProduct[product.id] ?? []}
               onEdit={() => openEditProduct(product)}
+              onArchive={() => updateProductStatus(product, false)}
+              onRestore={() => updateProductStatus(product, true)}
+              onDelete={() => deleteProduct(product)}
+              archived={showArchived}
             />
           ))}
         </div>
@@ -630,10 +666,18 @@ function ProductCard({
   product,
   reservations = [],
   onEdit,
+  onArchive,
+  onRestore,
+  onDelete,
+  archived = false,
 }: {
   product: InventoryProduct;
   reservations?: ProductReservation[];
   onEdit: () => void;
+  onArchive: () => void;
+  onRestore: () => void;
+  onDelete: () => void;
+  archived?: boolean;
 }) {
   const today = new Date().toISOString().slice(0, 10);
   const reservedToday = reservations
@@ -678,13 +722,15 @@ function ProductCard({
         </Badge>
       </div>
       <CardContent className="space-y-4 p-4">
-        <div>
-          <h3 className="truncate text-base font-semibold">{product.name}</h3>
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1"><h3 className="truncate text-base font-semibold">{product.name}</h3>
           <p className="mt-1 truncate text-xs text-muted-foreground">
             {product.subcategory ||
               [product.color, product.material].filter(Boolean).join(' · ') ||
               'Product catalog item'}
           </p>
+          </div>
+          <ProductMenu product={product} archived={archived} onEdit={onEdit} onArchive={onArchive} onRestore={onRestore} onDelete={onDelete} />
         </div>
         <div className="flex items-center justify-between">
           <Badge variant="outline" className={statusClass}>
@@ -740,18 +786,16 @@ function ProductCard({
             {product.barcode || product.sku || 'Barcode pending'}
           </span>
         </div>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full bg-white dark:bg-card"
-          onClick={onEdit}
-        >
-          <Pencil />
-          Edit product details
-        </Button>
+        {!archived ? <Button type="button" variant="outline" className="w-full bg-white dark:bg-card" onClick={onEdit}><Pencil /> Edit product details</Button> : <Button type="button" variant="outline" className="w-full bg-white dark:bg-card" onClick={onRestore}><Check /> Restore to active inventory</Button>}
       </CardContent>
     </Card>
   );
+}
+
+function ProductMenu({ product, archived, onEdit, onArchive, onRestore, onDelete }: { product: InventoryProduct; archived: boolean; onEdit: () => void; onArchive: () => void; onRestore: () => void; onDelete: () => void }) {
+  const [open, setOpen] = useState(false);
+  async function copyBarcode() { if (product.barcode || product.sku) { try { await navigator.clipboard?.writeText(product.barcode || product.sku || ''); } catch { /* Clipboard access may be unavailable in insecure previews. */ } setOpen(false); } }
+  return <div className="relative shrink-0"><Button type="button" variant="outline" size="icon" aria-label={`Actions for ${product.name}`} onClick={() => setOpen((current) => !current)}><MoreHorizontal className="size-4" /></Button>{open ? <><button type="button" aria-label="Close product actions" className="fixed inset-0 z-10 cursor-default" onClick={() => setOpen(false)} /><div className="absolute right-0 top-10 z-20 w-44 overflow-hidden rounded-lg border border-border bg-white p-1 shadow-level-2 dark:bg-card"><button type="button" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-muted" onClick={() => { onEdit(); setOpen(false); }}><Pencil className="size-4" /> Edit Product</button>{!archived ? <button type="button" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-muted" onClick={() => { onArchive(); setOpen(false); }}><Archive className="size-4" /> Archive Product</button> : <button type="button" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-muted" onClick={() => { onRestore(); setOpen(false); }}><Check className="size-4" /> Restore Product</button>}<button type="button" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm hover:bg-muted" onClick={copyBarcode}><Copy className="size-4" /> Copy Barcode</button><button type="button" className="flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm text-destructive hover:bg-red-50" onClick={() => { onDelete(); setOpen(false); }}><Trash2 className="size-4" /> Delete Product</button></div></> : null}</div>;
 }
 
 function ProductDialog({

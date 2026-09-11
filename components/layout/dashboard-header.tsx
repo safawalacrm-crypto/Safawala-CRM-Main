@@ -1,6 +1,6 @@
 'use client';
 
-import { useContext, useLayoutEffect, type ReactNode } from 'react';
+import { useContext, useEffect, type ReactNode } from 'react';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 import { DashboardHeaderContext } from './dashboard-header-context';
@@ -14,10 +14,10 @@ export function DashboardHeader({
   title: string;
   subtitle: string;
   actions?: ReactNode;
-  backHref?: string;
+  backHref?: string | null;
 }) {
   const setHeader = useContext(DashboardHeaderContext);
-  useLayoutEffect(() => {
+  useEffect(() => {
     if (!setHeader) return;
     setHeader({ title, subtitle, actions, backHref });
     return () => setHeader(null);

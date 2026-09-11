@@ -1,5 +1,4 @@
-import Link from 'next/link';
-import { ArrowLeft, CalendarClock, CheckCircle2, FileText, MapPin } from 'lucide-react';
+import { CalendarClock, CheckCircle2, FileText, MapPin } from 'lucide-react';
 import { requireStylistSession } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
@@ -65,15 +64,7 @@ export default async function StylistAssignedEventsPage() {
   return (
     <StaffPortalShell name={session.name} departments={session.departments} permissions={session.permissions} accessModules={session.accessModules} isMainId={session.isMainId} notificationCount={notificationCount}>
       <div className="mx-auto max-w-[1080px] space-y-6">
-        <div>
-          <Link
-            href="/staff-portal/stylist"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="size-4" /> Back to opportunities
-          </Link>
-        </div>
-        <DashboardHeader title={session.isMainId ? 'All Stylist Events' : 'My Assigned Events'} subtitle={session.isMainId ? 'Overview of every stylist assignment and event status' : 'Approved assignments and clearly marked backup events'} />
+        <DashboardHeader title={session.isMainId ? 'All Stylist Events' : 'My Assigned Events'} subtitle={session.isMainId ? 'Overview of every stylist assignment and event status' : 'Approved assignments and clearly marked backup events'} backHref="/staff-portal/stylist" />
 
         {jobs.length ? (
           <div className="space-y-6">

@@ -1,6 +1,5 @@
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
-import { AlertTriangle, ArrowLeft, CalendarDays, MapPin, UserRound } from 'lucide-react';
+import { AlertTriangle, CalendarDays, MapPin, UserRound } from 'lucide-react';
 import { requireDepartment } from '@/lib/staff-portal/guard';
 import { StaffPortalShell } from '@/components/staff-portal/staff-portal-shell';
 import { DashboardHeader } from '@/components/layout/dashboard-header';
@@ -113,10 +112,7 @@ export default async function WarehouseJobDetailPage({ params }: { params: Promi
       isMainId={session.isMainId}
     >
       <div className="mx-auto max-w-[900px] space-y-5">
-        <DashboardHeader title="Warehouse job" subtitle={`${job.id} · ${slipDetails.customerName}`} />
-        <Link href="/staff-portal/warehouse" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="size-4" /> Back to warehouse
-        </Link>
+        <DashboardHeader title="Warehouse job" subtitle={`${job.id} · ${slipDetails.customerName}`} backHref="/staff-portal/warehouse" />
 
         <section className="rounded-2xl border border-[#dfd3c3] bg-white dark:bg-card p-5 shadow-level-1">
           <div className="flex flex-wrap items-start justify-between gap-3">
