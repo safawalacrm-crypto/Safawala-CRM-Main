@@ -1,6 +1,6 @@
 'use client';
 import { useMemo, useState, useTransition } from 'react';
-import { Download, FileText } from 'lucide-react';
+import { Download, Eye, FileText, Pencil } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/client';
@@ -222,17 +222,21 @@ export function PayrollManager({
                   <td className="px-5 py-4 text-right">
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => setPreview(r)}
+                      aria-label={`View payslip for ${r.staff_members?.name ?? 'employee'}`}
+                      title="View payslip"
                     >
-                      Payslip
+                      <Eye />
                     </Button>
                     <Button
                       variant="ghost"
-                      size="sm"
+                      size="icon"
                       onClick={() => setEditing(r)}
+                      aria-label={`Edit payroll for ${r.staff_members?.name ?? 'employee'}`}
+                      title="Edit payroll"
                     >
-                      Edit
+                      <Pencil />
                     </Button>
                   </td>
                 </tr>
