@@ -170,6 +170,8 @@ export function BookingForm({
   const [taxEnabled, setTaxEnabled] = useState(false);
   const [paid, setPaid] = useState(0);
   const [modificationsRequired, setModificationsRequired] = useState(false);
+  const [customerOwnedModification, setCustomerOwnedModification] = useState(false);
+  const [modificationCharge, setModificationCharge] = useState('0');
   const [modificationType, setModificationType] = useState<string>('');
   const [eventType, setEventType] = useState('Wedding');
   const [eventFor, setEventFor] = useState('Groom Only');
@@ -737,15 +739,16 @@ export function BookingForm({
       });
       return;
     }
-    showStep(2);
+    showStep(isSale && customerOwnedModification ? 3 : 2);
   }
 
   function continueFromProducts() {
     if (
-      items.length === 0 ||
-      items.some(
-        (item) => item.item_name.trim().length < 2 || item.quantity < 1,
-      )
+      !customerOwnedModification &&
+      (items.length === 0 ||
+        items.some(
+          (item) => item.item_name.trim().length < 2 || item.quantity < 1,
+        ))
     ) {
       setMessage({
         title: 'Add order items',
@@ -757,6 +760,28 @@ export function BookingForm({
     const time = form?.get('event_time');
     setEventTime(typeof time === 'string' ? time : '');
     showStep(3);
+  }
+
+  function toggleCustomerOwnedModification(checked: boolean) {
+    setCustomerOwnedModification(checked);
+    if (checked) {
+      setModificationsRequired(true);
+      setItems([
+        {
+          key: uid(),
+          item_name: 'Customer-owned product · Modification',
+          quantity: 1,
+          unit_price: Math.max(Number(modificationCharge) || 0, 0),
+          security_deposit: 0,
+          override_price: true,
+        },
+      ]);
+    } else {
+      setModificationsRequired(false);
+      setItems((current) =>
+        current.filter((item) => !item.item_name.startsWith('Customer-owned product ·')),
+      );
+    }
   }
 
   async function submit(event: SyntheticEvent<HTMLFormElement>) {
@@ -781,10 +806,11 @@ export function BookingForm({
       return;
     }
     if (
-      items.length === 0 ||
-      items.some(
-        (item) => item.item_name.trim().length < 2 || item.quantity < 1,
-      )
+      !customerOwnedModification &&
+      (items.length === 0 ||
+        items.some(
+          (item) => item.item_name.trim().length < 2 || item.quantity < 1,
+        ))
     ) {
       setMessage({
         title: 'Add order items',
@@ -796,6 +822,13 @@ export function BookingForm({
       setMessage({
         title: 'Check the payment',
         text: 'Amount paid cannot be more than the order total.',
+      });
+      return;
+    }
+    if (customerOwnedModification && Number(modificationCharge) <= 0) {
+      setMessage({
+        title: 'Add the modification charge',
+        text: 'Enter a charge greater than zero for this standalone modification bill.',
       });
       return;
     }
@@ -1342,9 +1375,28 @@ export function BookingForm({
                 </Card>
               </div>
 
+              {isSale ? (
+                <Card className="gap-0 border-[#dfc9a6] bg-[#fffaf2] py-0 shadow-none ring-0">
+                  <CardContent className="p-4">
+                    <label className="flex cursor-pointer items-start gap-3 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={customerOwnedModification}
+                        onChange={(event) => toggleCustomerOwnedModification(event.target.checked)}
+                        className="mt-0.5 size-4 accent-[#9a6728]"
+                      />
+                      <span>
+                        <span className="flex items-center gap-2 font-semibold"><Wrench className="size-4 text-primary" />Customer-owned product modification only</span>
+                        <span className="mt-1 block text-xs text-muted-foreground">The customer brings the product. Skip inventory selection and generate a standalone modification bill.</span>
+                      </span>
+                    </label>
+                  </CardContent>
+                </Card>
+              ) : null}
+
               <div className="flex justify-end border-t pt-5">
                 <Button type="button" onClick={continueFromCustomer}>
-                  Continue to products
+                  {customerOwnedModification ? 'Continue to modification bill' : 'Continue to products'}
                   <ChevronRight />
                 </Button>
               </div>
@@ -2419,7 +2471,13 @@ export function BookingForm({
                             <select
                               name="modification_type"
                               value={modificationType}
-                              onChange={(event) => setModificationType(event.target.value)}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setModificationType(value);
+                                if (customerOwnedModification) {
+                                  setItems((current) => current.map((item) => item.item_name.startsWith('Customer-owned product ·') ? { ...item, item_name: `Customer-owned product · ${value || 'Modification'}` } : item));
+                                }
+                              }}
                               required
                               className={inputClass}
                             >
@@ -2442,6 +2500,28 @@ export function BookingForm({
                             className="w-full rounded-lg border border-input bg-white dark:bg-card p-3 text-sm outline-none transition placeholder:text-muted-foreground/70 focus:border-ring focus:ring-2 focus:ring-ring/20"
                           />
                           </label>
+                          {customerOwnedModification ? (
+                            <label className="block text-sm lg:col-span-2">
+                              <span className="mb-1.5 block font-medium">
+                                Modification charge (₹) <span className="text-red-600">*</span>
+                              </span>
+                              <input
+                                name="modification_charge"
+                                type="number"
+                                min="1"
+                                step="0.01"
+                                required
+                                value={modificationCharge}
+                                onChange={(event) => {
+                                  const value = event.target.value;
+                                  setModificationCharge(value);
+                                  setItems((current) => current.map((item) => item.item_name.startsWith('Customer-owned product ·') ? { ...item, item_name: `Customer-owned product · ${modificationType || 'Modification'}`, unit_price: Math.max(Number(value) || 0, 0), override_price: true } : item));
+                                }}
+                                className={inputClass}
+                              />
+                              <span className="mt-1 block text-xs text-muted-foreground">No inventory product will be reserved.</span>
+                            </label>
+                          ) : null}
                         </div>
                       </div>
                     )}
